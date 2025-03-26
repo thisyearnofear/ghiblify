@@ -1,16 +1,10 @@
 {
-    "frame": {
-        "name": "Ghiblify",
-        "version": "1.0.0",
-        "description": "Transform your photos into Studio Ghibli style art",
-        "iconUrl": "https://ghiblify-it.vercel.app/favicon.ico",
-        "homeUrl": "https://ghiblify-it.vercel.app",
-        "imageUrl": "https://ghiblify-it.vercel.app/ghiblit-it.png",
-        "buttons": [
-            {
-                "label": "Transform Photo",
-                "action": "post_redirect"
-            }
-        ]
-    }
+    "version": "1",
+    "name": "Ghiblify",
+    "homeUrl": "https://ghiblify-it.vercel.app",
+    "iconUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+    "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+    "buttonTitle": "Transform Photo",
+    "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+    "splashBackgroundColor": "#ffffff"
 }
