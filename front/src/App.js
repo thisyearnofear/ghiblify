@@ -65,18 +65,18 @@ const App = () => {
 
   const handleGhiblify = async () => {
     if (!selectedFile) return;
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     setLoading(true);
-    setError("");
-
+    setError(null);
     try {
-      const response = await fetch("http://0.0.0.0:8000/upload_photo", {
-        method: "POST",
-        body: formData,
-      });
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      const response = await fetch(
+        "https://ghiblify.onrender.com/upload_photo",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const data = await response.json();
       if (data.result) {
