@@ -1,17 +1,18 @@
 {
     "accountAssociation": {
-        "header": "eyJmaWQiOjM2MjEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgyY2Q4NWEwOTMyNjFmNTkyNzA4MDRBNkVBNjk3Q2VBNENlQkVjYWZFIn0",
+        "header": "eyJmaWQiOjUyNTQsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4QjAzQTJDMzY1YzI2MUFlQmU2ODQyMjREQkI2Qzk1OTJhQkNkRkIyIn0",
         "payload": "eyJkb21haW4iOiJnaGlibGlmeS1pdC52ZXJjZWwuYXBwIn0",
-        "signature": "MHgxZTZlZTkyNmRiZjU5ZDljZjM4MGI1YTU0ZTI2YzUxYjEyN2MyZjM2NTM3ZDJhYWI5ZGZjOTBiMDVlMjRjY2U4MzYxZDk5YmRhOGZmYWU0NjliZTY0ZWNlZTVhZTA5MjYzNWM5NjVlYzFmZmRjNDEwOGZiNjJlNmRmYmRiM2VkNDFi"
+        "signature": "MHhhMmE3MjUzYTgwMDFhZWY3NzRlNDgxYjkxZTEzZTA0ZDNjYzcyYjNkZTYyZTZhNWIyYjc1MjdjZDIyYmNiMWU5NzJhYTQyOGNmZDE1Y2ZiZTU0NWJhZWM3MTFiYWE0YTM5MjY5ZmI4MjE3MTM3NGZmZmM5ZTA3MjUzZGI5NTc1YzFi"
     },
     "frame": {
+        "version": "1",
         "name": "Ghiblify",
-        "version": "0.0.1",
-        "homeUrl": "https://ghiblify-it.vercel.app",
         "iconUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
+        "homeUrl": "https://ghiblify-it.vercel.app",
         "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
         "buttonTitle": "Transform Photo",
         "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
-        "splashBackgroundColor": "#ffffff"
+        "splashBackgroundColor": "#ffffff",
+        "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
     }
 }
