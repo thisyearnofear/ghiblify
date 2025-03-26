@@ -19,7 +19,7 @@ export const metadata = {
         action: {
           type: "launch_frame",
           name: "Ghiblify",
-          url: "https://ghiblify-it.vercel.app",
+          url: "https://ghiblify-it.vercel.app/frame",
           splashImageUrl: "https://ghiblify-it.vercel.app/ghibli.ico",
           splashBackgroundColor: "#ffffff",
         },
