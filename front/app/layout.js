@@ -7,12 +7,11 @@ export const metadata = {
   openGraph: {
     title: "Ghiblify",
     description: "Transform your photos into Studio Ghibli style art",
-    images: ["/ghibli-time.png"],
+    images: ["https://ghiblify-it.vercel.app/ghibli-time.png"],
   },
   other: {
-    "fc:frame":
-      "version: 1; image: /ghibli-time.png; button.1.label: Transform Photo; button.1.action: post; button.1.target: https://ghiblify-it.vercel.app/api/frame",
-    "fc:frame:image": "/ghibli-time.png",
+    "fc:frame": "vNext",
+    "fc:frame:image": "https://ghiblify-it.vercel.app/ghibli-time.png",
     "fc:frame:button:1": "Transform Photo",
     "fc:frame:button:1:action": "post",
     "fc:frame:button:1:target": "https://ghiblify-it.vercel.app/api/frame",

@@ -12,13 +12,13 @@ export async function POST(req: NextRequest) {
       <html>
         <head>
           <title>Ghiblify</title>
-          <meta property="fc:frame" content="version: 1; image: /ghibli-time.png; button.1.label: Upload Photo; button.1.action: post; button.1.target: https://ghiblify-it.vercel.app/api/frame/upload" />
-          <meta property="fc:frame:image" content="/ghibli-time.png" />
+          <meta property="fc:frame" content="vNext" />
+          <meta property="fc:frame:image" content="https://ghiblify-it.vercel.app/ghibli-time.png" />
           <meta property="fc:frame:button:1" content="Upload Photo" />
           <meta property="fc:frame:button:1:action" content="post" />
           <meta property="fc:frame:button:1:target" content="https://ghiblify-it.vercel.app/api/frame/upload" />
           <meta property="fc:frame:post_url" content="https://ghiblify-it.vercel.app/api/frame" />
-          <meta property="og:image" content="/ghibli-time.png" />
+          <meta property="og:image" content="https://ghiblify-it.vercel.app/ghibli-time.png" />
           <meta property="og:title" content="Ghiblify" />
           <meta property="og:description" content="Transform your photos into Studio Ghibli style art" />
         </head>
@@ -46,13 +46,13 @@ export async function GET() {
     <html>
       <head>
         <title>Ghiblify</title>
-        <meta property="fc:frame" content="version: 1; image: /ghibli-time.png; button.1.label: Transform Photo; button.1.action: post; button.1.target: https://ghiblify-it.vercel.app/api/frame" />
-        <meta property="fc:frame:image" content="/ghibli-time.png" />
+        <meta property="fc:frame" content="vNext" />
+        <meta property="fc:frame:image" content="https://ghiblify-it.vercel.app/ghibli-time.png" />
         <meta property="fc:frame:button:1" content="Transform Photo" />
         <meta property="fc:frame:button:1:action" content="post" />
         <meta property="fc:frame:button:1:target" content="https://ghiblify-it.vercel.app/api/frame" />
         <meta property="fc:frame:post_url" content="https://ghiblify-it.vercel.app/api/frame" />
-        <meta property="og:image" content="/ghibli-time.png" />
+        <meta property="og:image" content="https://ghiblify-it.vercel.app/ghibli-time.png" />
         <meta property="og:title" content="Ghiblify" />
         <meta property="og:description" content="Transform your photos into Studio Ghibli style art" />
       </head>
