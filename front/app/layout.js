@@ -14,6 +14,13 @@ export const metadata = {
     "fc:frame": JSON.stringify({
       version: "next",
       imageUrl: "https://ghiblify-it.vercel.app/ghibli-time.png",
+      button: {
+        title: "Ghibli Time",
+        action: {
+          type: "link",
+          url: "https://ghiblify-it.vercel.app",
+        },
+      },
     }),
   },
 };

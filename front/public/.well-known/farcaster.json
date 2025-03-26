@@ -10,6 +10,7 @@
         "iconUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
         "homeUrl": "https://ghiblify-it.vercel.app",
         "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+        "buttonTitle": "Ghibli Time",
         "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
         "splashBackgroundColor": "#ffffff",
         "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
