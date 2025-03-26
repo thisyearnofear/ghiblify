@@ -6,6 +6,9 @@
     "@chakra-ui/react": "^2.0.2",
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
+    "@farcaster/frame-sdk": "^0.0.19",
+    "@farcaster/frame-wagmi-connector": "^0.0.19",
+    "@tanstack/react-query": "^5.28.4",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
@@ -15,7 +18,14 @@
     "react-router-dom": "^6.14.1",
     "react-scripts": "5.0.1",
     "socket.io-client": "^4.7.1",
+    "viem": "2.x",
+    "wagmi": "^2.5.7",
     "web-vitals": "^2.1.4"
+  },
+  "resolutions": {
+    "typescript": "^4.9.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
