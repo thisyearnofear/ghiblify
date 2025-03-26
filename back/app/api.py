@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import replicate
 from dotenv import load_dotenv
 import traceback
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -83,8 +84,16 @@ async def upload_photo(file: UploadFile = File("test")):
         if not output:
             raise Exception("No output received from Replicate")
 
-        # Convert the output to base64
-        output_image = Image.open(BytesIO(output[0].read()))
+        # The output is a list of URLs, get the first one
+        output_url = output[0]
+        
+        # Download the image from the URL
+        response = requests.get(output_url)
+        if response.status_code != 200:
+            raise Exception(f"Failed to download image from Replicate: {response.status_code}")
+            
+        # Convert the downloaded image to base64
+        output_image = Image.open(BytesIO(response.content))
         output_bytes_io = BytesIO()
         output_image.save(output_bytes_io, format="PNG")
         output_base64 = base64.b64encode(output_bytes_io.getvalue()).decode("utf-8")
