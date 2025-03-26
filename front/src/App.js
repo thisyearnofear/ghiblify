@@ -33,13 +33,11 @@ import {
 } from "@chakra-ui/react";
 import { Global } from "@emotion/react";
 import React, { useState } from "react";
-import { Web3Provider } from "./components/Web3Provider";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected, walletConnect } from "wagmi/connectors";
 import grow from "./examples/grow.png";
 import grow2 from "./examples/grow2.png";
 import bridge from "./examples/bridge.png";
 import bridge0 from "./examples/0bridge.png";
+import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
 
 const customTheme = extendTheme({
   styles: {
@@ -50,34 +48,6 @@ const customTheme = extendTheme({
     },
   },
 });
-
-const ConnectButton = () => {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  if (isConnected) {
-    return (
-      <Button onClick={() => disconnect()} colorScheme="blue">
-        Disconnect {address?.slice(0, 6)}...{address?.slice(-4)}
-      </Button>
-    );
-  }
-
-  return (
-    <Stack spacing={4}>
-      {connectors.map((connector) => (
-        <Button
-          key={connector.uid}
-          onClick={() => connect({ connector })}
-          colorScheme="blue"
-        >
-          Connect {connector.name}
-        </Button>
-      ))}
-    </Stack>
-  );
-};
 
 const App = () => {
   const [loading, setLoading] = useState(false);
@@ -170,8 +140,8 @@ const App = () => {
   };
 
   return (
-    <Web3Provider>
-      <ChakraProvider theme={customTheme}>
+    <ChakraProvider theme={customTheme}>
+      <FarcasterFrameProvider>
         <Container>
           <Box borderWidth="0px" mx="0px" my="10px">
             <Text
@@ -188,10 +158,6 @@ const App = () => {
           <Box borderWidth="0px" mx="0px" mt="15px" ml="5px">
             <Text textAlign="center">your world Studio Ghibli style</Text>
           </Box>
-
-          <Flex justify="center" mt={4} mb={8}>
-            <ConnectButton />
-          </Flex>
 
           <Tabs isFitted variant="enclosed" mt={8}>
             <TabList mb="1em">
@@ -385,8 +351,8 @@ const App = () => {
             </ModalContent>
           </Modal>
         </Container>
-      </ChakraProvider>
-    </Web3Provider>
+      </FarcasterFrameProvider>
+    </ChakraProvider>
   );
 };
 
