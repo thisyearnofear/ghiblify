@@ -6,13 +6,10 @@ export async function GET() {
       version: "1",
       name: "Ghiblify",
       homeUrl: "https://ghiblify-it.vercel.app",
-      iconUrl:
-        "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/favicon.ico",
-      imageUrl:
-        "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
+      iconUrl: "/ghibli-it.png",
+      imageUrl: "/ghibli-time.png",
       buttonTitle: "Transform Photo",
-      splashImageUrl:
-        "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/favicon.ico",
+      splashImageUrl: "/ghibli-it.png",
       splashBackgroundColor: "#ffffff",
     },
   });
