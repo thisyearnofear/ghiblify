@@ -13,6 +13,7 @@
     "@emotion/react": "^11.9.0",
     "@emotion/styled": "^11.8.1",
     "@farcaster/frame-sdk": "^0.0.19",
+    "@farcaster/frame-wagmi-connector": "^0.0.19",
     "emotion-theming": "^11.0.0",
     "framer-motion": "^10.16.4",
     "next": "14.1.0",
@@ -36,5 +37,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@types/node": "22.13.13",
+    "@types/react": "19.0.12",
+    "eslint": "^9.23.0",
+    "typescript": "5.8.2"
   }
 }
