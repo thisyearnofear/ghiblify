@@ -9,20 +9,17 @@ import { config } from "./WagmiConfig";
 export function FarcasterFrameProvider({ children }: { children: any }) {
   useEffect(() => {
     const init = async () => {
-      try {
-        const context = await FrameSDK.context;
-        console.log("Frame context:", context);
+      const context = await FrameSDK.context;
 
-        // Autoconnect if running in a frame
-        if (context?.client.clientFid) {
-          await connect(config, { connector: farcasterFrame() });
-        }
-
-        // Call ready() to hide splash screen
-        await FrameSDK.actions.ready();
-      } catch (error) {
-        console.error("Frame initialization error:", error);
+      // Autoconnect if running in a frame
+      if (context?.client.clientFid) {
+        connect(config, { connector: farcasterFrame() });
       }
+
+      // Hide splash screen after UI renders
+      setTimeout(() => {
+        FrameSDK.actions.ready();
+      }, 500);
     };
 
     init();
