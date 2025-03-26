@@ -23,9 +23,20 @@ import {
   Tab,
   TabPanel,
   Textarea,
+  WrapItem,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react";
 import { Global } from "@emotion/react";
 import React, { useState } from "react";
+import grow from "./examples/grow.png";
+import grow2 from "./examples/grow2.png";
+import bridge from "./examples/bridge.png";
+import bridge0 from "./examples/0bridge.png";
 
 const customTheme = extendTheme({
   styles: {
@@ -43,8 +54,16 @@ const App = () => {
   const [generatedImageURL, setGeneratedImageURL] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [modalImage, setModalImage] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Determine API URL based on environment
+  const API_URL =
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:8000"
+      : "https://ghiblify.onrender.com";
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -70,13 +89,10 @@ const App = () => {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      const response = await fetch(
-        "https://ghiblify.onrender.com/upload_photo",
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch(`${API_URL}/upload_photo`, {
+        method: "POST",
+        body: formData,
+      });
 
       const data = await response.json();
       if (data.result) {
@@ -117,6 +133,11 @@ const App = () => {
     }
   };
 
+  const handleImageClick = (image) => {
+    setModalImage(image);
+    onOpen();
+  };
+
   return (
     <ChakraProvider theme={customTheme}>
       <Container>
@@ -138,7 +159,7 @@ const App = () => {
 
         <Tabs isFitted variant="enclosed" mt={8}>
           <TabList mb="1em">
-            <Tab>Ready?</Tab>
+            <Tab></Tab>
             {/* Temporarily hidden text generation tab
             <Tab>Generate from Text</Tab>
             */}
@@ -159,6 +180,10 @@ const App = () => {
                     as="label"
                     htmlFor="fileInput"
                     color="#4682A9"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    width="100%"
                   >
                     upload photo
                   </Button>
@@ -204,6 +229,7 @@ const App = () => {
           alignItems="center"
           flexDirection="column"
           gap={4}
+          mb={8}
         >
           {loading ? (
             <Stack>
@@ -240,6 +266,7 @@ const App = () => {
             </>
           )}
         </Box>
+
         <Text fontSize="xs" fontFamily="Arial" textAlign="center" my="30px">
           built by{" "}
           <Link href="https://vishalshenoy.com/" isExternal>
@@ -250,6 +277,73 @@ const App = () => {
             papa
           </Link>
         </Text>
+
+        <Box mt={8} mb={12}>
+          <Text textAlign="center" fontSize="md" mb={6} color="gray.600">
+            Examples
+          </Text>
+          <Flex justify="center" gap={4} flexWrap="nowrap">
+            <Image
+              src={grow}
+              alt="Original peaceful scene"
+              height="120px"
+              width="120px"
+              objectFit="cover"
+              borderRadius="md"
+              cursor="pointer"
+              onClick={() => handleImageClick(grow)}
+              _hover={{ transform: "scale(1.05)", transition: "0.2s" }}
+            />
+            <Image
+              src={grow2}
+              alt="Ghibli style peaceful scene"
+              height="120px"
+              width="120px"
+              objectFit="cover"
+              borderRadius="md"
+              cursor="pointer"
+              onClick={() => handleImageClick(grow2)}
+              _hover={{ transform: "scale(1.05)", transition: "0.2s" }}
+            />
+            <Image
+              src={bridge0}
+              alt="Original Golden Gate Bridge"
+              height="120px"
+              width="120px"
+              objectFit="cover"
+              borderRadius="md"
+              cursor="pointer"
+              onClick={() => handleImageClick(bridge0)}
+              _hover={{ transform: "scale(1.05)", transition: "0.2s" }}
+            />
+            <Image
+              src={bridge}
+              alt="Ghibli style Golden Gate Bridge"
+              height="120px"
+              width="120px"
+              objectFit="cover"
+              borderRadius="md"
+              cursor="pointer"
+              onClick={() => handleImageClick(bridge)}
+              _hover={{ transform: "scale(1.05)", transition: "0.2s" }}
+            />
+          </Flex>
+        </Box>
+
+        <Modal isOpen={isOpen} onClose={onClose} size="xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalCloseButton />
+            <ModalBody p={4}>
+              <Image
+                src={modalImage}
+                alt="Enlarged view"
+                width="100%"
+                objectFit="contain"
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
       </Container>
     </ChakraProvider>
   );
