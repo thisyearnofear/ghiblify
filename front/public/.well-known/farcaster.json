@@ -2,9 +2,9 @@
     "version": "1",
     "name": "Ghiblify",
     "homeUrl": "https://ghiblify-it.vercel.app",
-    "iconUrl": "https://ghiblify-it.vercel.app/favicon.ico",
-    "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+    "iconUrl": "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/favicon.ico",
+    "imageUrl": "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
     "buttonTitle": "Transform Photo",
-    "splashImageUrl": "https://ghiblify-it.vercel.app/favicon.ico",
+    "splashImageUrl": "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/favicon.ico",
     "splashBackgroundColor": "#ffffff"
 }
