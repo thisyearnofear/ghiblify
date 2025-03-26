@@ -12,22 +12,14 @@ export const metadata = {
     ],
   },
   other: {
-    "fc:frame": JSON.stringify({
-      version: "next",
-      imageUrl:
-        "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
-      button: {
-        title: "Transform Photo",
-        action: {
-          type: "launch_frame",
-          name: "Ghiblify",
-          url: "https://ghiblify-it.vercel.app",
-          splashImageUrl:
-            "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
-          splashBackgroundColor: "#ffffff",
-        },
-      },
-    }),
+    "fc:frame":
+      "version: 1; image: https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png; button.1.label: Transform Photo; button.1.action: post; button.1.target: https://ghiblify-it.vercel.app/api/frame",
+    "fc:frame:image":
+      "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
+    "fc:frame:button:1": "Transform Photo",
+    "fc:frame:button:1:action": "post",
+    "fc:frame:button:1:target": "https://ghiblify-it.vercel.app/api/frame",
+    "fc:frame:post_url": "https://ghiblify-it.vercel.app/api/frame",
   },
 };
 
