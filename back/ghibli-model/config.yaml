@@ -1,0 +1,21 @@
+environment_variables: {}
+external_package_dirs: []
+model_metadata:
+  name: ghibli-model
+  version: 1.0.0
+  description: A model for Ghibli-style image generation
+model_name: ghibli-model
+python_version: py39
+requirements:
+  - torch>=2.0.0
+  - transformers>=4.30.0
+  - diffusers>=0.19.0
+  - accelerate>=0.20.0
+resources:
+  accelerator: T4
+  cpu: "1"
+  memory: 16Gi
+  use_gpu: true
+secrets:
+  baseten_api_key: ${BASETEN_API_KEY}
+system_packages: []

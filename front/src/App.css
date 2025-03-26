@@ -36,3 +36,34 @@
     transform: rotate(360deg);
   }
 }
+
+/* New styles for tabs */
+.chakra-tabs__tablist {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.chakra-tabs__tab {
+  color: #4682a9;
+}
+
+.chakra-tabs__tab[data-selected] {
+  color: white;
+  background-color: #4682a9;
+}
+
+/* Textarea styles */
+.chakra-textarea {
+  border-color: #e2e8f0;
+}
+
+.chakra-textarea:focus {
+  border-color: #4682a9;
+  box-shadow: 0 0 0 1px #4682a9;
+}
+
+/* Button styles */
+.chakra-button:hover {
+  background-color: #3a6a8a;
+}
