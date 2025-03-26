@@ -7,7 +7,35 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Web site created using create-react-app"
+      content="Transform your photos into Studio Ghibli style art"
+    />
+    <!-- Open Graph / Frame Meta Tags -->
+    <meta property="og:title" content="Ghiblify" />
+    <meta
+      property="og:description"
+      content="Transform your photos into Studio Ghibli style art"
+    />
+    <meta
+      property="og:image"
+      content="https://ghiblify-it.vercel.app/ghibli-it.png"
+    />
+    <meta
+      name="fc:frame"
+      content='{
+      "version": "vNext",
+      "image": {
+        "url": "https://ghiblify-it.vercel.app/ghibli-it.png",
+        "aspectRatio": "1.91:1"
+      },
+      "buttons": [
+        {
+          "label": "Transform Photo",
+          "action": "post_redirect"
+        }
+      ],
+      "postUrl": "https://ghiblify-it.vercel.app",
+      "ogImage": "https://ghiblify-it.vercel.app/ghibli-it.png"
+    }'
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
