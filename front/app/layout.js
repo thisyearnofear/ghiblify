@@ -17,8 +17,11 @@ export const metadata = {
       button: {
         title: "Ghibli Time",
         action: {
-          type: "link",
+          type: "launch_frame",
+          name: "Ghiblify",
           url: "https://ghiblify-it.vercel.app",
+          splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+          splashBackgroundColor: "#ffffff",
         },
       },
     }),
