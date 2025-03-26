@@ -14,12 +14,17 @@
     "@emotion/styled": "^11.8.1",
     "@farcaster/frame-sdk": "^0.0.19",
     "@farcaster/frame-wagmi-connector": "^0.0.19",
+    "@tanstack/react-query": "^5.69.0",
+    "@wagmi/connectors": "^5.7.11",
+    "@wagmi/core": "^2.16.7",
     "emotion-theming": "^11.0.0",
     "framer-motion": "^10.16.4",
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.7.1"
+    "socket.io-client": "^4.7.1",
+    "viem": "^2.23.15",
+    "wagmi": "^2.14.15"
   },
   "eslintConfig": {
     "extends": [
