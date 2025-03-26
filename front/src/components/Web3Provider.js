@@ -1,6 +1,5 @@
 import { WagmiProvider, createConfig } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ConnectKitProvider } from "connectkit";
 import { mainnet, base } from "wagmi/chains";
 import { http } from "wagmi";
 import { injected, walletConnect } from "wagmi/connectors";
@@ -28,9 +27,7 @@ const queryClient = new QueryClient();
 export const Web3Provider = ({ children }) => {
   return (
     <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <ConnectKitProvider>{children}</ConnectKitProvider>
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   );
 };

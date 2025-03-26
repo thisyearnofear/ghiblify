@@ -34,7 +34,8 @@ import {
 import { Global } from "@emotion/react";
 import React, { useState } from "react";
 import { Web3Provider } from "./components/Web3Provider";
-import { ConnectKitButton } from "connectkit";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { injected, walletConnect } from "wagmi/connectors";
 import grow from "./examples/grow.png";
 import grow2 from "./examples/grow2.png";
 import bridge from "./examples/bridge.png";
@@ -49,6 +50,34 @@ const customTheme = extendTheme({
     },
   },
 });
+
+const ConnectButton = () => {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  if (isConnected) {
+    return (
+      <Button onClick={() => disconnect()} colorScheme="blue">
+        Disconnect {address?.slice(0, 6)}...{address?.slice(-4)}
+      </Button>
+    );
+  }
+
+  return (
+    <Stack spacing={4}>
+      {connectors.map((connector) => (
+        <Button
+          key={connector.uid}
+          onClick={() => connect({ connector })}
+          colorScheme="blue"
+        >
+          Connect {connector.name}
+        </Button>
+      ))}
+    </Stack>
+  );
+};
 
 const App = () => {
   const [loading, setLoading] = useState(false);
@@ -161,7 +190,7 @@ const App = () => {
           </Box>
 
           <Flex justify="center" mt={4} mb={8}>
-            <ConnectKitButton />
+            <ConnectButton />
           </Flex>
 
           <Tabs isFitted variant="enclosed" mt={8}>
