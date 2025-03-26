@@ -7,11 +7,11 @@
     "frame": {
         "version": "1",
         "name": "Ghiblify",
-        "iconUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
+        "iconUrl": "https://ghiblify-it.vercel.app/ghibli.ico",
         "homeUrl": "https://ghiblify-it.vercel.app",
         "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
         "buttonTitle": "Ghibli Time",
-        "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-it.png",
+        "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli.ico",
         "splashBackgroundColor": "#ffffff",
         "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
     }
