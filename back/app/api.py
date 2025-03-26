@@ -7,7 +7,6 @@ from io import BytesIO
 import os
 from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
-import baseten
 import replicate
 from dotenv import load_dotenv
 import traceback
@@ -15,20 +14,16 @@ import traceback
 # Load environment variables
 load_dotenv()
 
-# Get API keys
-baseten_api_key = os.getenv('BASETEN_API_KEY')
+# Get API key
 replicate_api_key = os.getenv('REPLICATE_API_TOKEN')
-print(f"Baseten API Key loaded: {baseten_api_key[:8]}...")
 print(f"Replicate API Key loaded: {replicate_api_key[:8]}...")
 print(f"Replicate API Key length: {len(replicate_api_key) if replicate_api_key else 0}")
 
-# Initialize APIs
-baseten.login(baseten_api_key)
+# Initialize API
 os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
 print("Replicate API token set in environment")
 
 BASE64_PREAMBLE = "data:image/png;base64,"
-baseten_model = baseten.deployed_model_id('4w5zyypw')
 REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7eaddb4f65c257a3403c9b3253"
 
 app = FastAPI()
@@ -51,39 +46,6 @@ def b64_to_pil(b64_str):
 @app.get("/")
 async def home():
     return {"message": "hello!"}
-
-@app.post("/generate_from_text")
-async def generate_from_text(prompt: str):
-    try:
-        input = {
-            "prompt": f"{prompt} in Ghibli style",
-            "use_refiner": True
-        }
-
-        print("Sending request to Baseten...")
-        result = baseten_model.predict(input)
-        print("Received response from Baseten")
-
-        if not result or not isinstance(result, dict):
-            raise Exception(f"Invalid response from Baseten: {result}")
-
-        if "data" not in result:
-            raise Exception(f"Response missing 'data' key. Available keys: {result.keys()}")
-
-        if not result["data"]:
-            raise Exception("Response contains empty 'data' field")
-
-        return JSONResponse(content={"result": result["data"]}, status_code=200)
-    except Exception as e:
-        print(f"Error details: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
-        return JSONResponse(
-            content={
-                "message": f"Error generating image: {str(e)}",
-                "traceback": traceback.format_exc()
-            }, 
-            status_code=500
-        )
 
 @app.post("/upload_photo")
 async def upload_photo(file: UploadFile = File("test")):
