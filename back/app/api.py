@@ -11,6 +11,7 @@ import replicate
 from dotenv import load_dotenv
 import traceback
 import requests
+from app.api.ghiblify import router as ghiblify_router
 
 # Load environment variables
 load_dotenv()
@@ -40,6 +41,9 @@ app.add_middleware(
         allow_headers=["*"],
         expose_headers=["*"]
 )
+
+# Include the Ghiblify router
+app.include_router(ghiblify_router)
 
 def b64_to_pil(b64_str):
     return Image.open(BytesIO(base64.b64decode(b64_str.replace(BASE64_PREAMBLE, ""))))

@@ -50,7 +50,10 @@ export default function Home() {
   };
 
   // Determine API URL based on environment
-  const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+  const API_URL =
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:8000"
+      : "https://ghiblify.onrender.com";
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];

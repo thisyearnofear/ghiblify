@@ -9,22 +9,24 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@chakra-ui/react": "^2.0.2",
-    "@emotion/react": "^11.9.0",
-    "@emotion/styled": "^11.8.1",
+    "@chakra-ui/icons": "2.0.19",
+    "@chakra-ui/react": "^2.8.2",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
     "@farcaster/frame-sdk": "^0.0.19",
     "@farcaster/frame-wagmi-connector": "^0.0.19",
     "@tanstack/react-query": "^5.69.0",
     "@wagmi/connectors": "^5.7.11",
     "@wagmi/core": "^2.16.7",
     "emotion-theming": "^11.0.0",
-    "framer-motion": "^10.16.4",
+    "framer-motion": "^11.0.3",
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "socket.io-client": "^4.7.1",
-    "viem": "^2.23.15",
-    "wagmi": "^2.14.15"
+    "react-dropzone": "14.2.3",
+    "socket.io-client": "4.7.1",
+    "viem": "2.23.15",
+    "wagmi": "2.14.15"
   },
   "eslintConfig": {
     "extends": [
@@ -44,9 +46,10 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "22.13.13",
-    "@types/react": "19.0.12",
-    "eslint": "^9.23.0",
-    "typescript": "5.8.2"
+    "@types/node": "20.11.24",
+    "@types/react": "18.2.0",
+    "@types/react-dom": "18.2.0",
+    "eslint": "8.57.0",
+    "typescript": "5.3.3"
   }
 }
