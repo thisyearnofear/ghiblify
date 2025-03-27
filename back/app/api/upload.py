@@ -1,65 +1,27 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 import shutil
 import base64
 from io import BytesIO
 import os
 from PIL import Image
-from fastapi.middleware.cors import CORSMiddleware
 import replicate
-from dotenv import load_dotenv
 import traceback
 import requests
-from app.api.ghiblify import router as ghiblify_router
 
-# Load environment variables
-load_dotenv()
-
-# Get API key
-replicate_api_key = os.getenv('REPLICATE_API_TOKEN')
-print(f"Replicate API Key loaded: {replicate_api_key[:8]}...")
-print(f"Replicate API Key length: {len(replicate_api_key) if replicate_api_key else 0}")
-
-# Initialize API
-os.environ["REPLICATE_API_TOKEN"] = replicate_api_key
-print("Replicate API token set in environment")
+router = APIRouter()
 
 BASE64_PREAMBLE = "data:image/png;base64,"
 REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7eaddb4f65c257a3403c9b3253"
 
-app = FastAPI()
-
-UPLOAD_FOLDER = os.path.abspath("initial_photos")
-app.mount("/initial_photos", StaticFiles(directory=UPLOAD_FOLDER), name="initial_photos")
-
-app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"]
-)
-
-# Include the Ghiblify router
-app.include_router(ghiblify_router)
-
-def b64_to_pil(b64_str):
-    return Image.open(BytesIO(base64.b64decode(b64_str.replace(BASE64_PREAMBLE, ""))))
-
-@app.get("/")
-async def home():
-    return {"message": "hello!"}
-
-@app.post("/upload_photo")
+@router.post("/upload_photo")
 async def upload_photo(file: UploadFile = File("test")):
     try:
         # Save the uploaded file
-        with open(os.path.join(UPLOAD_FOLDER, file.filename), "wb") as buffer:
+        with open(os.path.join("initial_photos", file.filename), "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        filepath = os.path.join("initial_photos", file.filename)
         image = Image.open(filepath)
 
         # Convert image to base64 for Replicate API
@@ -123,9 +85,9 @@ async def upload_photo(file: UploadFile = File("test")):
             status_code=500
         )
 
-@app.get("/get_photo/{photo_name}")
+@router.get("/get_photo/{photo_name}")
 async def get_photo(photo_name: str):
-    photo_path = os.path.join(UPLOAD_FOLDER, photo_name)
+    photo_path = os.path.join("initial_photos", photo_name)
     if os.path.exists(photo_path):
         return FileResponse(photo_path)
-    return JSONResponse(content={"message": "Photo not found"}, status_code=404)
+    return JSONResponse(content={"message": "Photo not found"}, status_code=404) 
