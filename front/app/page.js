@@ -84,6 +84,10 @@ export default function Home() {
         body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
       const data = await response.json();
       if (data.result) {
         setGeneratedImageURL(data.result);
