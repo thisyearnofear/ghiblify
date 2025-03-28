@@ -35,7 +35,7 @@ import {
   RadioGroup,
   RadioGroupProps,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +46,25 @@ export default function Home() {
   const [modalImage, setModalImage] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [apiChoice, setApiChoice] = useState("replicate"); // "replicate" or "comfy"
+  const [taskId, setTaskId] = useState(null);
+  const [taskProgress, setTaskProgress] = useState(0);
+  const [currentFact, setCurrentFact] = useState(0);
+  const [pollInterval, setPollInterval] = useState(null);
+  const [factInterval, setFactInterval] = useState(null);
+
+  // Studio Ghibli facts to display during loading
+  const ghibliFacts = [
+    "Studio Ghibli was founded in 1985 by Hayao Miyazaki, Isao Takahata, and Toshio Suzuki.",
+    "The name 'Ghibli' comes from an Italian aircraft, chosen because Miyazaki loved planes.",
+    "Ghibli's distinct art style emphasizes hand-drawn animation and attention to detail.",
+    "The studio's mascot Totoro has become one of the most recognizable characters in animation.",
+    "Spirited Away (2001) is the first and only hand-drawn and non-English-language animated film to win an Academy Award.",
+    "Many Ghibli films feature strong environmental themes and complex female protagonists.",
+    "The studio's attention to detail extends to food animation, making even simple meals look incredibly appetizing.",
+    "Miyazaki personally reviews each frame of animation in his films.",
+    "The studio's work often blends Japanese and European artistic influences.",
+    "Ghibli films often feature magical realism, where the extraordinary exists alongside the ordinary.",
+  ];
 
   // Example images
   const exampleImages = {
@@ -77,15 +96,75 @@ export default function Home() {
     }
   };
 
+  // Function to poll task status
+  const pollTaskStatus = async (taskId) => {
+    try {
+      const response = await fetch(`${API_URL}/api/comfyui/status/${taskId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch status");
+      }
+      const data = await response.json();
+      console.log("Poll response:", data); // Debug log
+
+      if (data.status === "COMPLETED") {
+        if (data.result) {
+          setGeneratedImageURL(data.result);
+          setIsLoading(false);
+          return true;
+        } else if (data.url) {
+          setGeneratedImageURL(data.url);
+          setIsLoading(false);
+          return true;
+        }
+      } else if (data.status === "ERROR") {
+        setError(data.error || "An error occurred during processing");
+        setIsLoading(false);
+        return true;
+      } else if (data.status === "PROCESSING") {
+        // Only update progress for significant changes
+        if (data.milestone) {
+          setTaskProgress(data.milestone);
+        }
+        return false;
+      }
+    } catch (error) {
+      console.error("Error polling status:", error);
+      return false;
+    }
+  };
+
+  // Cleanup function for intervals
+  const cleanupIntervals = () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      setPollInterval(null);
+    }
+    if (factInterval) {
+      clearInterval(factInterval);
+      setFactInterval(null);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanupIntervals();
+  }, []);
+
   const handleGhiblify = async () => {
     if (!selectedFile) return;
     setIsLoading(true);
     setError(null);
+    setTaskProgress(0);
+    setCurrentFact(0);
+    setGeneratedImageURL(""); // Clear any previous result
+
+    // Clean up any existing intervals
+    cleanupIntervals();
+
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      // Use the appropriate endpoint based on API choice
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
       const response = await fetch(`${API_URL}${endpoint}`, {
@@ -104,12 +183,34 @@ export default function Home() {
 
       const data = await response.json();
       setSelectedImageURL(data.original);
-      setGeneratedImageURL(data.result);
+
+      if (apiChoice === "replicate") {
+        setGeneratedImageURL(data.result);
+        setIsLoading(false);
+      } else {
+        // For ComfyUI, start polling
+        setTaskId(data.task_id);
+
+        // Set up polling interval - check every 10 seconds
+        const newPollInterval = setInterval(async () => {
+          const isDone = await pollTaskStatus(data.task_id);
+          if (isDone) {
+            cleanupIntervals();
+          }
+        }, 10000);
+        setPollInterval(newPollInterval);
+
+        // Set up fact rotation interval - every 30 seconds
+        const newFactInterval = setInterval(() => {
+          setCurrentFact((prev) => (prev + 1) % ghibliFacts.length);
+        }, 30000);
+        setFactInterval(newFactInterval);
+      }
     } catch (error) {
       console.error("Error:", error);
       setError(error.message);
-    } finally {
       setIsLoading(false);
+      cleanupIntervals();
     }
   };
 
@@ -167,7 +268,7 @@ export default function Home() {
                       <Box ml={3}>
                         <Text fontWeight="bold">Fantasy Ghibli</Text>
                         <Text fontSize="sm" color="gray.600">
-                          Wacky and fun
+                          Best for Medium/Long range
                         </Text>
                       </Box>
                     </Radio>
@@ -238,13 +339,30 @@ export default function Home() {
         mb={8}
       >
         {isLoading ? (
-          <Stack>
-            <Flex justifyContent="center" alignItems="center">
-              <SkeletonCircle />
+          <Stack spacing={4} width="100%" maxW="600px">
+            <Flex
+              justifyContent="center"
+              alignItems="center"
+              direction="column"
+            >
+              <SkeletonCircle size="12" />
+              <Box mt={4} textAlign="center">
+                <Text fontSize="sm" mb={2}>
+                  Transforming your image into Ghibli style...
+                  {apiChoice === "comfy" &&
+                    taskProgress > 0 &&
+                    ` (${taskProgress}%)`}
+                </Text>
+                <Text fontSize="xs" color="gray.600" mb={4}>
+                  {apiChoice === "comfy"
+                    ? "Estimated time: 1-2 minutes with low load, 2-5 minutes with medium load"
+                    : "Estimated time: 30-60 seconds"}
+                </Text>
+                <Text fontSize="sm" color="gray.700" maxW="400px" mx="auto">
+                  Did you know? {ghibliFacts[currentFact]}
+                </Text>
+              </Box>
             </Flex>
-            <Text fontSize="xs">
-              Transforming your image into Ghibli style...
-            </Text>
           </Stack>
         ) : (
           <>

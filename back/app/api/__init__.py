@@ -14,10 +14,18 @@ app = FastAPI()
 UPLOAD_FOLDER = os.path.abspath("initial_photos")
 app.mount("/initial_photos", StaticFiles(directory=UPLOAD_FOLDER), name="initial_photos")
 
-# Configure CORS
+# Get allowed origins from environment or use defaults
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",     # Local development
+    "http://localhost:8000",     # Local backend
+    "https://ghiblify-it.vercel.app",  # Production frontend
+    "https://ghiblify.onrender.com"    # Production backend
+]
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with your frontend URL
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
