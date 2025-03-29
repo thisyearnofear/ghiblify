@@ -4,42 +4,54 @@ import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useAccount } from 'wagmi';
 
-const API_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000"
-    : "https://ghiblify.onrender.com";
+const API_URL = "https://ghiblify.onrender.com";
 
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
-  const [credits, setCredits] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [credits, setCredits] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
+
+  // Handle hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const checkCredits = async () => {
     if (!isConnected || !address) {
       setCredits(0);
-      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`);
+      const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (response.ok) {
         const data = await response.json();
-        setCredits(data.credits);
+        setCredits(data.credits || 0);
+        if (onCreditsUpdate) onCreditsUpdate(data.credits || 0);
       } else {
         // If token is invalid or expired, clear it
         if (response.status === 401) {
           localStorage.removeItem("ghiblify_token");
           setCredits(0);
+          if (onCreditsUpdate) onCreditsUpdate(0);
         }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
     } catch (error) {
       console.error("Error checking credits:", error);
       toast({
-        title: "Error",
-        description: "Failed to check credits balance",
+        title: "Error checking credits",
+        description: "Please try again later",
         status: "error",
         duration: 5000,
         isClosable: true,

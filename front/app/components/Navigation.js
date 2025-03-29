@@ -16,28 +16,24 @@ export default function Navigation() {
   const { isConnected } = useAccount();
 
   return (
-    <Box py={4} px={8} borderBottom="1px" borderColor="gray.200">
+    <Box py={2} px={4} sm={{ py: 4, px: 8 }} borderBottom="1px" borderColor="gray.200">
       <Flex justify="space-between" align="center" maxW="container.lg" mx="auto">
-        <Link href="/" _hover={{ textDecoration: "none" }}>
-          <Box fontSize="xl" fontWeight="bold" color="#4682A9">
-            ghiblify &#128444;
-          </Box>
-        </Link>
-        
         <HStack spacing={4}>
-          {isConnected && <CreditsDisplay />}
           {isConnected && (
             <Button
               variant="ghost"
+              size="sm"
               onClick={() => router.push("/account")}
               color="gray.600"
               _hover={{ color: "#4682A9" }}
+              display={{ base: "none", sm: "flex" }}
             >
               My Account
             </Button>
           )}
-          <ConnectButton />
         </HStack>
+        
+        <ConnectButton />
       </Flex>
     </Box>
   );
