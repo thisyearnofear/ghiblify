@@ -11,8 +11,10 @@ web3_router = APIRouter()
 redis_client = Redis(
     host=os.getenv('REDIS_HOST', 'localhost'),
     port=int(os.getenv('REDIS_PORT', 6379)),
+    password=os.getenv('REDIS_PASSWORD'),
     db=0,
-    decode_responses=True
+    decode_responses=True,
+    ssl=True if os.getenv('REDIS_SSL', 'false').lower() == 'true' else False
 )
 
 def get_credits(address: str) -> int:
