@@ -3,13 +3,32 @@
 import { Box, Container, Heading, Text, Button } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from 'wagmi';
 
 export default function Success() {
   const router = useRouter();
+  const { address, isConnected } = useAccount();
 
   useEffect(() => {
-    // The session_id handling is already done in the Pricing component
-    // This is just a visual confirmation page
+    const fetchSessionToken = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+
+      if (sessionId && isConnected && address) {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/stripe/session/${sessionId}?address=${address}`);
+          if (!response.ok) throw new Error('Failed to process payment');
+
+          // Clear URL params
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (error) {
+          console.error('Error processing payment:', error);
+        }
+      }
+    };
+
+    fetchSessionToken();
+
     const timer = setTimeout(() => {
       router.push("/"); // Redirect to home after 5 seconds
     }, 5000);

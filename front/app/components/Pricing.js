@@ -11,6 +11,7 @@ import {
   Icon,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
+import { useAccount } from 'wagmi';
 import { FiCheck } from "react-icons/fi";
 
 const API_URL =
@@ -22,6 +23,7 @@ export default function Pricing({ onPurchaseComplete }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const toast = useToast();
+  const { address, isConnected } = useAccount();
 
   const tiers = [
     {
@@ -62,6 +64,17 @@ export default function Pricing({ onPurchaseComplete }) {
   ];
 
   const handlePurchase = async (tier) => {
+    if (!isConnected || !address) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your wallet before making a purchase.",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsLoading(true);
     setSelectedTier(tier.name.toLowerCase());
 
@@ -71,6 +84,12 @@ export default function Pricing({ onPurchaseComplete }) {
         `${API_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
         {
           method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            wallet_address: address
+          })
         }
       );
 

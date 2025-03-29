@@ -1,30 +1,29 @@
+'use client';
+
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
+import { useAccount } from 'wagmi';
 
 const API_URL =
   process.env.NODE_ENV === "development"
     ? "http://localhost:8000"
     : "https://ghiblify.onrender.com";
 
-export default function CreditsDisplay({ onCreditsUpdate }) {
+export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [credits, setCredits] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
+  const { address, isConnected } = useAccount();
 
   const checkCredits = async () => {
-    const token = localStorage.getItem("ghiblify_token");
-    if (!token) {
+    if (!isConnected || !address) {
       setCredits(0);
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/credits/check`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -50,9 +49,12 @@ export default function CreditsDisplay({ onCreditsUpdate }) {
     }
   };
 
+  // Check credits when component mounts or when address changes
   useEffect(() => {
-    checkCredits();
-  }, []);
+    if (isConnected && address) {
+      checkCredits();
+    }
+  }, [isConnected, address, forceRefresh]);
 
   const handleBuyClick = () => {
     // Scroll to pricing section

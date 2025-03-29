@@ -36,10 +36,12 @@ import {
   RadioGroupProps,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
+import { useAccount } from 'wagmi';
 import Pricing from "./components/Pricing";
 import CreditsDisplay from "./components/CreditsDisplay";
 
 export default function Home() {
+  const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImageURL, setSelectedImageURL] = useState("");
   const [generatedImageURL, setGeneratedImageURL] = useState("");
@@ -54,6 +56,7 @@ export default function Home() {
   const [pollInterval, setPollInterval] = useState(null);
   const [factInterval, setFactInterval] = useState(null);
   const [token, setToken] = useState(null);
+  const [creditsRefreshKey, setCreditsRefreshKey] = useState(0);
 
   // Studio Ghibli facts to display during loading
   const ghibliFacts = [
@@ -93,6 +96,8 @@ export default function Home() {
 
   const handlePurchaseComplete = (newToken) => {
     setToken(newToken);
+    // Force a refresh of the credits display
+    setCreditsRefreshKey(prev => prev + 1);
   };
 
   const handleImageChange = (e) => {
@@ -178,10 +183,10 @@ export default function Home() {
 
     try {
       // First, use a credit
-      const creditResponse = await fetch(`${API_URL}/api/credits/use`, {
+      const creditResponse = await fetch(`${API_URL}/api/web3/credits/use?address=${address}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -200,21 +205,16 @@ export default function Home() {
       }
 
       const creditData = await creditResponse.json();
-      // Update token with new credit count
-      localStorage.setItem("ghiblify_token", creditData.token);
-      setToken(creditData.token);
+      // Credit used successfully
 
       const formData = new FormData();
       formData.append("file", selectedFile);
 
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}?address=${address}`, {
         method: "POST",
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        body: formData
       });
 
       if (!response.ok) {
@@ -280,7 +280,7 @@ export default function Home() {
       </Box>
 
       <Box mb={4} display="flex" justifyContent="center" alignItems="center">
-        <CreditsDisplay />
+        <CreditsDisplay forceRefresh={creditsRefreshKey} />
       </Box>
 
       <Tabs isFitted variant="enclosed" mt={8}>

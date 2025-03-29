@@ -81,8 +81,8 @@ async def upload_to_imgbb(image_bytes: bytes) -> str:
     }
     
     try:
-        # Use httpx for better connection handling
-        async with httpx.AsyncClient() as client:
+        # Use httpx with timeout settings
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, data=payload)
             response.raise_for_status()
             
@@ -92,12 +92,19 @@ async def upload_to_imgbb(image_bytes: bytes) -> str:
                 logger.info(f"Image uploaded successfully to ImgBB: {image_url}")
                 return image_url
             else:
-                logger.error(f"ImgBB upload failed: {data}")
-                raise HTTPException(status_code=500, detail="Failed to upload image to ImgBB")
+                error_msg = data.get('error', {}).get('message', 'Unknown error')
+                logger.error(f"ImgBB upload failed: {error_msg}")
+                raise HTTPException(status_code=500, detail=f"Failed to upload image to ImgBB: {error_msg}")
                 
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout uploading to ImgBB: {str(e)}")
+        raise HTTPException(status_code=504, detail="Timeout uploading to ImgBB. Please try again.")
     except httpx.HTTPError as e:
-        logger.error(f"Error uploading to ImgBB: {str(e)}")
+        logger.error(f"HTTP error uploading to ImgBB: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error uploading to ImgBB: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error uploading to ImgBB: {str(e)}")
+        raise HTTPException(status_code=500, detail="Unexpected error during image upload")
 
 async def handle_comfyui(image_bytes: bytes):
     logger.info("Starting ComfyUI workflow")
@@ -123,6 +130,9 @@ async def handle_comfyui(image_bytes: bytes):
         },
         "webhook": WEBHOOK_URL
     }
+    
+    logger.info(f"Task payload: {task_payload}")
+    logger.info(f"Headers: {headers}")
     
     # Create a client with increased timeout
     timeout_settings = httpx.Timeout(90.0, connect=10.0)
@@ -195,12 +205,25 @@ async def download_and_convert_to_base64(url: str) -> str:
 async def comfyui_webhook(request: Request):
     """Handle webhook callbacks from ComfyUI"""
     try:
-        data = await request.json()
-        logger.info(f"Received webhook data: {data}")
+        # Log raw request details
+        logger.info(f"Received webhook request to {request.url}")
+        logger.info(f"Headers: {dict(request.headers)}")
+        body = await request.body()
+        logger.info(f"Raw body: {body}")
         
-        task_id = data.get("id")
-        status = data.get("status")
-        output = data.get("output", {})
+        data = await request.json()
+        logger.info(f"Parsed webhook data: {data}")
+        
+        # Extract data from the nested structure
+        if not data.get("success"):
+            error_msg = data.get("errorMsg", "Unknown error")
+            logger.error(f"Error in webhook data: {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+            
+        webhook_data = data.get("data", {})
+        task_id = webhook_data.get("id")
+        status = webhook_data.get("state")  # ComfyUI uses 'state' instead of 'status'
+        output = webhook_data.get("output", {})
         
         if not task_id:
             raise HTTPException(status_code=400, detail="No task ID in webhook data")
@@ -236,10 +259,92 @@ async def comfyui_webhook(request: Request):
         logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error processing webhook: {str(e)}")
 
+@comfyui_router.put("/status/{task_id}")
+async def update_status(task_id: str, request: Request):
+    """Manually update task status from ComfyUI API response"""
+    try:
+        data = await request.json()
+        response_data = data.get("data", {})
+        
+        if response_data.get("state") == "COMPLETED":
+            output_urls = response_data.get("output", {}).get("output_url_list", [])
+            if output_urls:
+                try:
+                    base64_data = await download_and_convert_to_base64(output_urls[0])
+                    await update_task_status(
+                        task_id,
+                        "COMPLETED",
+                        result=base64_data,
+                        url=output_urls[0]
+                    )
+                except Exception as e:
+                    await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
+                    raise
+            else:
+                await update_task_status(task_id, "ERROR", error="No output URLs in data")
+        else:
+            await update_task_status(task_id, "ERROR", error=data.get("errorMsg", "Task failed"))
+            
+        return JSONResponse(content={"message": "Task status updated successfully"})
+        
+    except Exception as e:
+        logger.error(f"Error updating task status: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def check_comfyui_status(task_id: str):
+    """Check task status directly from ComfyUI API"""
+    status_endpoint = "https://api.comfyonline.app/api/query_run_workflow_status"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('COMFY_UI_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    payload = {"task_id": task_id}
+    
+    logger.info(f"Checking ComfyUI status for task {task_id}")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            logger.info(f"Making request to ComfyUI status endpoint")
+            response = await client.post(status_endpoint, json=payload, headers=headers)
+            logger.info(f"ComfyUI status response: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"ComfyUI status data: {data}")
+                if data.get("success"):
+                    workflow_data = data.get("data", {})
+                    state = workflow_data.get("state")
+                    logger.info(f"ComfyUI task state: {state}")
+                    
+                    if state == "COMPLETED":
+                        # Update task status with the result
+                        output_urls = workflow_data.get("output", {}).get("output_url_list", [])
+                        logger.info(f"ComfyUI output URLs: {output_urls}")
+                        if output_urls:
+                            try:
+                                base64_data = await download_and_convert_to_base64(output_urls[0])
+                                await update_task_status(
+                                    task_id,
+                                    "COMPLETED",
+                                    result=base64_data,
+                                    url=output_urls[0]
+                                )
+                            except Exception as e:
+                                logger.error(f"Error downloading image: {str(e)}")
+                                await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
+                    elif workflow_data.get("state") == "ERROR":
+                        await update_task_status(task_id, "ERROR", error=workflow_data.get("errorMsg", "Task failed"))
+    except Exception as e:
+        logger.error(f"Error checking ComfyUI status: {str(e)}")
+
 @comfyui_router.get("/status/{task_id}")
 async def get_task_status(task_id: str):
     """Get the status of a task with progress milestones"""
+    # First check ComfyUI API for updates
+    await check_comfyui_status(task_id)
+    
     result = task_results.get(task_id)
+    logger.info(f"Task status request for {task_id}. Current status: {result}")
     if not result:
         return JSONResponse(content={
             "status": "PROCESSING",
@@ -286,7 +391,9 @@ async def get_task_status(task_id: str):
     })
 
 @comfyui_router.post("/")
-async def process_with_comfyui(file: UploadFile = File("test")):
+async def process_with_comfyui(file: UploadFile = File("test"), address: str = None):
+    if not address:
+        raise HTTPException(status_code=400, detail="Wallet address is required")
     try:
         # Read the uploaded file into memory
         contents = await file.read()

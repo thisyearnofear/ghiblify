@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional
-from .credits import create_session_token
+from .web3_auth import get_credits, set_credits
 
 load_dotenv()
 
@@ -18,6 +18,75 @@ stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 stripe_router = APIRouter()
+
+@stripe_router.post("/create-portal-session")
+async def create_portal_session(request: Request):
+    """Create a Stripe Customer Portal session"""
+    try:
+        token = request.headers.get('Authorization')
+        if not token or not token.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get customer ID from token
+        customer_id = get_customer_id_from_token(token.split(' ')[1])
+        if not customer_id:
+            raise HTTPException(status_code=404, detail="Customer not found")
+
+        # Create portal session
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url='https://ghiblify-it.vercel.app/account',
+        )
+
+        return JSONResponse(content={"url": session.url})
+
+    except Exception as e:
+        logger.error(f"Error creating portal session: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@stripe_router.get("/purchase-history")
+async def get_purchase_history(request: Request):
+    """Get purchase history for a customer"""
+    try:
+        token = request.headers.get('Authorization')
+        if not token or not token.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Get customer ID from token
+        customer_id = get_customer_id_from_token(token.split(' ')[1])
+        if not customer_id:
+            raise HTTPException(status_code=404, detail="Customer not found")
+
+        # Get payment intents for customer
+        payment_intents = stripe.PaymentIntent.list(
+            customer=customer_id,
+            limit=10  # Limit to last 10 purchases
+        )
+
+        purchases = [{
+            'id': intent.id,
+            'amount': intent.amount,
+            'created': intent.created,
+            'package': intent.metadata.get('tier', 'Unknown').capitalize(),
+            'credits': intent.metadata.get('credits', '0')
+        } for intent in payment_intents.data if intent.status == 'succeeded']
+
+        return JSONResponse(content={"purchases": purchases})
+
+    except Exception as e:
+        logger.error(f"Error fetching purchase history: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_customer_id_from_token(token: str) -> Optional[str]:
+    """Get Stripe customer ID from session token"""
+    try:
+        # Decode the token and get customer ID
+        # This is a placeholder - implement according to your token structure
+        decoded = jwt.decode(token, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
+        return decoded.get('stripe_customer_id')
+    except:
+        return None
+
 
 @stripe_router.post("/webhook")
 async def stripe_webhook(request: Request):
@@ -51,18 +120,14 @@ async def stripe_webhook(request: Request):
             credits = metadata.get('credits')
             
             if tier and credits:
-                # Create a session token with the credits
-                token = create_session_token(int(credits))
-                
-                # Store the token with the payment intent for frontend retrieval
-                payment_intent = session.get('payment_intent')
-                if payment_intent:
-                    stripe.PaymentIntent.modify(
-                        payment_intent,
-                        metadata={'session_token': token}
-                    )
-                
-                logger.info(f"Payment completed for tier {tier} - granted {credits} credits")
+                # Get the wallet address from metadata
+                wallet_address = metadata.get('wallet_address')
+                if wallet_address:
+                    # Add credits to the wallet address
+                    current_credits = get_credits(wallet_address)
+                    set_credits(wallet_address, current_credits + int(credits))
+                    
+                    logger.info(f"Payment completed for tier {tier} - granted {credits} credits to {wallet_address}")
                 
         elif event.type == 'payment_intent.succeeded':
             payment_intent = event.data.object
@@ -73,14 +138,14 @@ async def stripe_webhook(request: Request):
             credits = metadata.get('credits')
             token = metadata.get('session_token')
             
-            if tier and credits and not token:
-                # Create a session token if not already created
-                token = create_session_token(int(credits))
-                stripe.PaymentIntent.modify(
-                    payment_intent.id,
-                    metadata={'session_token': token}
-                )
-                logger.info(f"Payment succeeded for tier {tier} - granted {credits} credits")
+            if tier and credits:
+                # Get the wallet address from metadata
+                wallet_address = metadata.get('wallet_address')
+                if wallet_address:
+                    # Add credits to the wallet address if not already added
+                    current_credits = get_credits(wallet_address)
+                    set_credits(wallet_address, current_credits + int(credits))
+                    logger.info(f"Payment succeeded for tier {tier} - granted {credits} credits to {wallet_address}")
                 
         elif event.type == 'payment_intent.payment_failed':
             payment_intent = event.data.object
@@ -113,40 +178,38 @@ async def get_session_token(session_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @stripe_router.post("/create-checkout-session/{tier}")
-async def create_checkout_session(tier: str):
+async def create_checkout_session(tier: str, request: Request):
     """Create a Stripe checkout session"""
-    from .payments import PRICING_TIERS
+    from .stripe_config import STRIPE_PRICE_IDS, PRICE_CREDITS
     
-    if tier not in PRICING_TIERS:
+    # Get request body
+    body = await request.json()
+    wallet_address = body.get('wallet_address')
+    
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="Wallet address is required")
+        
+    if tier not in STRIPE_PRICE_IDS:
         raise HTTPException(status_code=400, detail="Invalid tier")
         
-    tier_info = PRICING_TIERS[tier]
-    
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': f"Ghiblify {tier.capitalize()} Package",
-                        'description': tier_info['description'],
-                    },
-                    'unit_amount': int(float(tier_info['amount']) * 100),  # Convert to cents
-                },
-                'quantity': 1,
+                'price': STRIPE_PRICE_IDS[tier],
+                'quantity': 1
             }],
             mode='payment',
-            success_url='https://ghiblify-it.vercel.app/success',
-            cancel_url='https://ghiblify-it.vercel.app/cancel',
+            success_url=os.getenv('SUCCESS_URL', 'https://ghiblify-it.vercel.app/success') + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=os.getenv('CANCEL_URL', 'https://ghiblify-it.vercel.app/cancel'),
             metadata={
                 'tier': tier,
-                'credits': tier_info['credits']
+                'credits': str(PRICE_CREDITS[STRIPE_PRICE_IDS[tier]]),
+                'wallet_address': wallet_address
             }
         )
         
         return JSONResponse(content={
-            "session_id": checkout_session.id,
             "url": checkout_session.url
         })
         

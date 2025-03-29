@@ -1,6 +1,8 @@
 import { ChakraProvider } from "@chakra-ui/react";
 import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { WagmiConfig } from "./components/WagmiConfig";
+import Navigation from "./components/Navigation";
 
 export const metadata = {
   title: "Ghiblify",
@@ -34,7 +36,10 @@ export default function RootLayout({ children }) {
       <body>
         <WagmiConfig>
           <ChakraProvider>
-            <FarcasterFrameProvider>{children}</FarcasterFrameProvider>
+            <FarcasterFrameProvider>
+              <Navigation />
+              {children}
+            </FarcasterFrameProvider>
           </ChakraProvider>
         </WagmiConfig>
       </body>
