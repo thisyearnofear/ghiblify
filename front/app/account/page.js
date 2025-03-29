@@ -20,10 +20,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from 'wagmi';
 
-const API_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000"
-    : "https://ghiblify.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  console.error('[Account] NEXT_PUBLIC_API_URL environment variable is not set');
+}
 
 export default function Account() {
   const [purchases, setPurchases] = useState([]);
@@ -54,7 +54,8 @@ export default function Account() {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Web3-Address': address
         },
       });
 
@@ -84,7 +85,8 @@ export default function Account() {
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Web3-Address': address
         },
       });
 

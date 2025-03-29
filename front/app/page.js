@@ -127,18 +127,16 @@ export default function Home() {
       console.log("Poll response:", data); // Debug log
 
       if (data.status === "COMPLETED") {
-        if (data.result) {
-          setGeneratedImageURL(data.result);
+        if (data.result || data.url) {
+          setGeneratedImageURL(data.result || data.url);
           setIsLoading(false);
-          return true;
-        } else if (data.url) {
-          setGeneratedImageURL(data.url);
-          setIsLoading(false);
+          cleanupIntervals(); // Ensure we clean up all intervals
           return true;
         }
       } else if (data.status === "ERROR") {
         setError(data.error || "An error occurred during processing");
         setIsLoading(false);
+        cleanupIntervals(); // Ensure we clean up all intervals
         return true;
       } else if (data.status === "PROCESSING") {
         // Only update progress for significant changes
