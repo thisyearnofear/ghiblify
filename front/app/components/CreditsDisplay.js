@@ -4,7 +4,10 @@ import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from 'wagmi';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  console.error('[Credits] NEXT_PUBLIC_API_URL environment variable is not set');
+}
 
 // Separate API function for better organization
 const fetchCredits = async (address) => {

@@ -14,7 +14,10 @@ import { useState, useEffect } from "react";
 import { useAccount } from 'wagmi';
 import { FiCheck } from "react-icons/fi";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL) {
+  console.error('[Pricing] NEXT_PUBLIC_API_URL environment variable is not set');
+}
 
 export default function Pricing({ onPurchaseComplete }) {
   const [isLoading, setIsLoading] = useState(false);
