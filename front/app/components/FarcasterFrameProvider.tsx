@@ -2,18 +2,19 @@
 
 import React, { useEffect } from "react";
 import FrameSDK from "@farcaster/frame-sdk";
-import farcasterFrame from "@farcaster/frame-wagmi-connector";
-import { connect } from "@wagmi/core";
-import { config } from "./WagmiConfig";
+import { useConnect } from 'wagmi';
+import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
 
-export function FarcasterFrameProvider({ children }: { children: any }) {
+export function FarcasterFrameProvider({ children }: { children: React.ReactNode }) {
+  const { connect } = useConnect();
+
   useEffect(() => {
     const init = async () => {
       const context = await FrameSDK.context;
 
       // Autoconnect if running in a frame
       if (context?.client.clientFid) {
-        connect(config, { connector: farcasterFrame() });
+        connect({ connector: farcasterFrame() });
       }
 
       // Hide splash screen after UI renders
@@ -23,7 +24,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     };
 
     init();
-  }, []);
+  }, [connect]);
 
   return <>{children}</>;
 }
