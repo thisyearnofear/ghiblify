@@ -9,14 +9,25 @@ const API_URL = "https://ghiblify.onrender.com";
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [credits, setCredits] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
 
   // Handle hydration
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    setMounted(true);
+    // Initial credits check
+    if (isConnected && address) {
+      checkCredits();
+    }
+  }, [isConnected, address]);
+
+  // Handle credit updates
+  useEffect(() => {
+    if (mounted && forceRefresh) {
+      checkCredits();
+    }
+  }, [forceRefresh, mounted]);
 
   const checkCredits = async (retryCount = 0) => {
     if (!isConnected || !address) {
@@ -26,12 +37,15 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
     setIsLoading(true);
     try {
-      console.log(`Checking credits for ${address}...`);
+      console.log(`[Credits] Checking for ${address}...`);
       const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`, {
+        method: 'GET',
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         }
       });
 
