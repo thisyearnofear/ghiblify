@@ -18,7 +18,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
     setIsMounted(true);
   }, []);
 
-  const checkCredits = async () => {
+  const checkCredits = async (retryCount = 0) => {
     if (!isConnected || !address) {
       setCredits(0);
       return;
@@ -26,6 +26,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
     setIsLoading(true);
     try {
+      console.log(`Checking credits for ${address}...`);
       const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`, {
         credentials: 'include',
         headers: {
@@ -36,10 +37,13 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
       if (response.ok) {
         const data = await response.json();
-        setCredits(data.credits || 0);
-        if (onCreditsUpdate) onCreditsUpdate(data.credits || 0);
+        const newCredits = data.credits || 0;
+        console.log(`Credits received: ${newCredits}`);
+        setCredits(newCredits);
+        if (onCreditsUpdate) onCreditsUpdate(newCredits);
       } else {
-        // If token is invalid or expired, clear it
+        console.error(`Error response: ${response.status}`);
+        // If unauthorized, clear token and retry
         if (response.status === 401) {
           localStorage.removeItem("ghiblify_token");
           setCredits(0);
@@ -49,9 +53,18 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       }
     } catch (error) {
       console.error("Error checking credits:", error);
+      
+      // Retry up to 3 times with exponential backoff
+      if (retryCount < 3) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`Retrying in ${delay}ms...`);
+        setTimeout(() => checkCredits(retryCount + 1), delay);
+        return;
+      }
+      
       toast({
         title: "Error checking credits",
-        description: "Please try again later",
+        description: "Please refresh the page or try again later",
         status: "error",
         duration: 5000,
         isClosable: true,
