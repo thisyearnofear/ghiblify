@@ -36,6 +36,8 @@ import {
   RadioGroupProps,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
+import Pricing from "./components/Pricing";
+import CreditsDisplay from "./components/CreditsDisplay";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -45,12 +47,13 @@ export default function Home() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [modalImage, setModalImage] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [apiChoice, setApiChoice] = useState("replicate"); // "replicate" or "comfy"
+  const [apiChoice, setApiChoice] = useState("comfy"); // Changed from "replicate" to "comfy"
   const [taskId, setTaskId] = useState(null);
   const [taskProgress, setTaskProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
   const [pollInterval, setPollInterval] = useState(null);
   const [factInterval, setFactInterval] = useState(null);
+  const [token, setToken] = useState(null);
 
   // Studio Ghibli facts to display during loading
   const ghibliFacts = [
@@ -79,6 +82,18 @@ export default function Home() {
     process.env.NODE_ENV === "development"
       ? "http://localhost:8000"
       : "https://ghiblify.onrender.com";
+
+  // Load token on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem("ghiblify_token");
+    if (savedToken) {
+      setToken(savedToken);
+    }
+  }, []);
+
+  const handlePurchaseComplete = (newToken) => {
+    setToken(newToken);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -162,6 +177,33 @@ export default function Home() {
     cleanupIntervals();
 
     try {
+      // First, use a credit
+      const creditResponse = await fetch(`${API_URL}/api/credits/use`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!creditResponse.ok) {
+        if (creditResponse.status === 402) {
+          // No credits available
+          setError(
+            "No credits available. Please purchase credits to continue."
+          );
+          document
+            .getElementById("pricing")
+            ?.scrollIntoView({ behavior: "smooth" });
+          return;
+        }
+        throw new Error("Failed to use credit");
+      }
+
+      const creditData = await creditResponse.json();
+      // Update token with new credit count
+      localStorage.setItem("ghiblify_token", creditData.token);
+      setToken(creditData.token);
+
       const formData = new FormData();
       formData.append("file", selectedFile);
 
@@ -170,6 +212,9 @@ export default function Home() {
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -191,7 +236,7 @@ export default function Home() {
         // For ComfyUI, start polling
         setTaskId(data.task_id);
 
-        // Set up polling interval - check every 10 seconds
+        // Set up polling interval
         const newPollInterval = setInterval(async () => {
           const isDone = await pollTaskStatus(data.task_id);
           if (isDone) {
@@ -200,7 +245,7 @@ export default function Home() {
         }, 10000);
         setPollInterval(newPollInterval);
 
-        // Set up fact rotation interval - every 30 seconds
+        // Set up fact rotation interval
         const newFactInterval = setInterval(() => {
           setCurrentFact((prev) => (prev + 1) % ghibliFacts.length);
         }, 30000);
@@ -233,8 +278,9 @@ export default function Home() {
           ghiblify &#128444;
         </Text>
       </Box>
-      <Box borderWidth="0px" mx="0px" mt="15px" ml="5px">
-        <Text textAlign="center">your world Studio Ghibli style</Text>
+
+      <Box mb={4} display="flex" justifyContent="center" alignItems="center">
+        <CreditsDisplay />
       </Box>
 
       <Tabs isFitted variant="enclosed" mt={8}>
@@ -260,15 +306,15 @@ export default function Home() {
                     borderWidth="1px"
                     borderRadius="lg"
                     cursor="pointer"
-                    onClick={() => setApiChoice("replicate")}
-                    bg={apiChoice === "replicate" ? "blue.50" : "transparent"}
+                    onClick={() => setApiChoice("comfy")}
+                    bg={apiChoice === "comfy" ? "blue.50" : "transparent"}
                     _hover={{ bg: "blue.50" }}
                   >
-                    <Radio value="replicate" size="lg">
+                    <Radio value="comfy" size="lg">
                       <Box ml={3}>
-                        <Text fontWeight="bold">Fantasy Ghibli</Text>
+                        <Text fontWeight="bold">Slow Ghibli</Text>
                         <Text fontSize="sm" color="gray.600">
-                          Best for Medium/Long range
+                          Best for closeups, higher quality
                         </Text>
                       </Box>
                     </Radio>
@@ -279,15 +325,15 @@ export default function Home() {
                     borderWidth="1px"
                     borderRadius="lg"
                     cursor="pointer"
-                    onClick={() => setApiChoice("comfy")}
-                    bg={apiChoice === "comfy" ? "blue.50" : "transparent"}
+                    onClick={() => setApiChoice("replicate")}
+                    bg={apiChoice === "replicate" ? "blue.50" : "transparent"}
                     _hover={{ bg: "blue.50" }}
                   >
-                    <Radio value="comfy" size="lg">
+                    <Radio value="replicate" size="lg">
                       <Box ml={3}>
-                        <Text fontWeight="bold">Portrait Ghibli</Text>
+                        <Text fontWeight="bold">Faster Ghibli</Text>
                         <Text fontSize="sm" color="gray.600">
-                          Best for closeups
+                          Best for Medium/Long range
                         </Text>
                       </Box>
                     </Radio>
@@ -412,16 +458,9 @@ export default function Home() {
         )}
       </Box>
 
-      <Text fontSize="xs" fontFamily="Arial" textAlign="center" my="30px">
-        built by{" "}
-        <Link href="https://vishalshenoy.com/" isExternal>
-          vishal
-        </Link>{" "}
-        &{" "}
-        <Link href="https://warpcast.com/papa" isExternal>
-          papa
-        </Link>
-      </Text>
+      <Box id="pricing" mt={16}>
+        <Pricing onPurchaseComplete={handlePurchaseComplete} />
+      </Box>
 
       <Box mt={8} mb={12}>
         <Text textAlign="center" fontSize="md" mb={6} color="gray.600">
