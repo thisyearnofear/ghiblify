@@ -1,35 +1,27 @@
 'use client';
 
-import { getDefaultWallets, RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiConfig } from 'wagmi';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import { WagmiProvider } from 'wagmi';
 import { mainnet, polygon, base } from 'wagmi/chains';
-import { publicProvider } from 'wagmi/providers/public';
+import { http } from 'viem';
 import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
-import { createConfig, configureChains } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
 
-// Configure chains and providers
-const { chains, publicClient } = configureChains(
-  [mainnet, polygon, base],
-  [publicProvider()]
-);
-
-// Get RainbowKit connectors
-const { connectors: rainbowConnectors } = getDefaultWallets({
+// Create base config using RainbowKit's helper
+const config = getDefaultConfig({
   appName: 'Ghiblify',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
-  chains
-});
-
-// Combine RainbowKit and Farcaster connectors
-const connectors = [...rainbowConnectors, farcasterFrame()];
-
-// Create Wagmi config
-const wagmiConfig = createConfig({
-  autoConnect: true,
-  connectors,
-  publicClient
+  chains: [mainnet, polygon, base],
+  transports: {
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+    [base.id]: http(),
+  },
+  connectors: [
+    farcasterFrame()
+  ]
 });
 
 // Create React Query client
@@ -37,12 +29,12 @@ const queryClient = new QueryClient();
 
 export function Web3Provider({ children }) {
   return (
-    <WagmiConfig config={wagmiConfig}>
+    <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider chains={chains}>
+        <RainbowKitProvider>
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>
-    </WagmiConfig>
+    </WagmiProvider>
   );
 }
