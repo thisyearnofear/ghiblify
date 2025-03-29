@@ -35,7 +35,21 @@ async def create_portal_session(request: Request):
         # Create portal session
         session = stripe.billing_portal.Session.create(
             customer=customer_id,
-            return_url='https://ghiblify-it.vercel.app/account',
+            return_url=os.getenv('PORTAL_RETURN_URL', 'https://ghiblify-it.vercel.app/account'),
+            # Add configuration for better UX
+            configuration=stripe.billing_portal.Configuration.create(
+                features={
+                    'customer_update': {
+                        'enabled': True,
+                        'allowed_updates': ['email']
+                    },
+                    'invoice_history': {'enabled': True},
+                    'payment_method_update': {'enabled': True}
+                },
+                business_profile={
+                    'headline': 'Ghiblify Credits Management'
+                }
+            )
         )
 
         return JSONResponse(content={"url": session.url})
@@ -116,39 +130,64 @@ async def stripe_webhook(request: Request):
         # Handle the event
         if event.type == 'checkout.session.completed':
             session = event.data.object
-            metadata = session.get('metadata', {})
+            metadata = session.metadata or {}
             
             # Extract tier and credits information
             tier = metadata.get('tier')
             credits = metadata.get('credits')
+            wallet_address = metadata.get('wallet_address')
             
-            if tier and credits:
-                # Get the wallet address from metadata
-                wallet_address = metadata.get('wallet_address')
-                if wallet_address:
+            logger.info(f"Received webhook: session={session.id}, tier={tier}, credits={credits}, wallet={wallet_address}")
+            
+            if tier and credits and wallet_address:
+                try:
                     # Add credits to the wallet address
                     current_credits = get_credits(wallet_address)
-                    set_credits(wallet_address, current_credits + int(credits))
+                    new_credits = current_credits + int(credits)
+                    set_credits(wallet_address, new_credits)
                     
-                    logger.info(f"Payment completed for tier {tier} - granted {credits} credits to {wallet_address}")
+                    # Store customer ID if not already stored
+                    if session.customer and not get_customer_id_from_address(wallet_address):
+                        set_customer_id_for_address(wallet_address, session.customer)
+                    
+                    logger.info(f"Successfully credited wallet {wallet_address}: {current_credits} + {credits} = {new_credits}")
+                except Exception as e:
+                    logger.error(f"Error crediting wallet {wallet_address}: {str(e)}")
+                    raise
+            else:
+                logger.error(f"Missing required metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
                 
         elif event.type == 'payment_intent.succeeded':
             payment_intent = event.data.object
-            metadata = payment_intent.get('metadata', {})
+            metadata = payment_intent.metadata or {}
             
             # Extract tier and credits information
             tier = metadata.get('tier')
             credits = metadata.get('credits')
-            token = metadata.get('session_token')
+            wallet_address = metadata.get('wallet_address')
             
-            if tier and credits:
-                # Get the wallet address from metadata
-                wallet_address = metadata.get('wallet_address')
-                if wallet_address:
-                    # Add credits to the wallet address if not already added
-                    current_credits = get_credits(wallet_address)
-                    set_credits(wallet_address, current_credits + int(credits))
-                    logger.info(f"Payment succeeded for tier {tier} - granted {credits} credits to {wallet_address}")
+            logger.info(f"Payment succeeded: intent={payment_intent.id}, tier={tier}, credits={credits}, wallet={wallet_address}")
+            
+            if tier and credits and wallet_address:
+                try:
+                    # Verify credits haven't already been added from checkout.session.completed
+                    credit_key = f'credited:{payment_intent.id}'
+                    if not redis_client.get(credit_key):
+                        current_credits = get_credits(wallet_address)
+                        new_credits = current_credits + int(credits)
+                        set_credits(wallet_address, new_credits)
+                        
+                        # Mark these credits as added
+                        redis_client.set(credit_key, '1', ex=86400)  # Expire after 24 hours
+                        
+                        logger.info(f"Successfully credited wallet {wallet_address}: {current_credits} + {credits} = {new_credits}")
+                    else:
+                        logger.info(f"Credits already added for payment {payment_intent.id}")
+                except Exception as e:
+                    logger.error(f"Error crediting wallet {wallet_address}: {str(e)}")
+                    raise
+            else:
+                logger.error(f"Missing required metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
                 
         elif event.type == 'payment_intent.payment_failed':
             payment_intent = event.data.object
