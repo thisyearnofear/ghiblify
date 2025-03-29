@@ -23,12 +23,12 @@ stripe_router = APIRouter()
 async def create_portal_session(request: Request):
     """Create a Stripe Customer Portal session"""
     try:
-        token = request.headers.get('Authorization')
-        if not token or not token.startswith('Bearer '):
-            raise HTTPException(status_code=401, detail="Invalid token")
+        address = request.headers.get('X-Web3-Address')
+        if not address:
+            raise HTTPException(status_code=401, detail="Web3 address required")
 
-        # Get customer ID from token
-        customer_id = get_customer_id_from_token(token.split(' ')[1])
+        # Get customer ID from address
+        customer_id = get_customer_id_from_address(address)
         if not customer_id:
             raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -48,12 +48,12 @@ async def create_portal_session(request: Request):
 async def get_purchase_history(request: Request):
     """Get purchase history for a customer"""
     try:
-        token = request.headers.get('Authorization')
-        if not token or not token.startswith('Bearer '):
-            raise HTTPException(status_code=401, detail="Invalid token")
+        address = request.headers.get('X-Web3-Address')
+        if not address:
+            raise HTTPException(status_code=401, detail="Web3 address required")
 
-        # Get customer ID from token
-        customer_id = get_customer_id_from_token(token.split(' ')[1])
+        # Get customer ID from address
+        customer_id = get_customer_id_from_address(address)
         if not customer_id:
             raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -77,15 +77,18 @@ async def get_purchase_history(request: Request):
         logger.error(f"Error fetching purchase history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def get_customer_id_from_token(token: str) -> Optional[str]:
-    """Get Stripe customer ID from session token"""
+def get_customer_id_from_address(address: str) -> Optional[str]:
+    """Get Stripe customer ID from web3 address"""
     try:
-        # Decode the token and get customer ID
-        # This is a placeholder - implement according to your token structure
-        decoded = jwt.decode(token, os.getenv('JWT_SECRET_KEY'), algorithms=['HS256'])
-        return decoded.get('stripe_customer_id')
+        # Get customer ID from Redis using web3 address as key
+        customer_id = redis_client.get(f'stripe_customer:{address.lower()}')
+        return customer_id
     except:
         return None
+
+def set_customer_id_for_address(address: str, customer_id: str):
+    """Store Stripe customer ID for web3 address"""
+    redis_client.set(f'stripe_customer:{address.lower()}', customer_id)
 
 
 @stripe_router.post("/webhook")

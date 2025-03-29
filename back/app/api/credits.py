@@ -1,13 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
 import logging
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
-import uuid
 from typing import Optional
 from fastapi import status
+from .web3_auth import get_credits, set_credits
 
 load_dotenv()
 
@@ -18,71 +16,55 @@ logger = logging.getLogger(__name__)
 # Initialize router
 credits_router = APIRouter()
 
-# JWT configuration
-JWT_SECRET = os.getenv('JWT_SECRET', str(uuid.uuid4()))
-JWT_ALGORITHM = "HS256"
 
-# In-memory credit storage (replace with database in production)
-user_credits = {}
 
-def create_session_token(credits: int) -> str:
-    """Create a new session token with credits"""
-    session_id = str(uuid.uuid4())
-    payload = {
-        "session_id": session_id,
-        "credits": credits,
-        "exp": datetime.utcnow() + timedelta(days=30)  # Token expires in 30 days
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def verify_session_token(token: str) -> dict:
-    """Verify and decode session token"""
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid session token"
-        )
 
-async def get_session(request: Request) -> dict:
-    """Get session from request header"""
-    token = request.headers.get("Authorization")
-    if not token or not token.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="No session token provided")
-    
-    token = token.split(" ")[1]
-    return verify_session_token(token)
+async def get_wallet_address(request: Request) -> str:
+    """Get wallet address from request header"""
+    address = request.headers.get("X-Wallet-Address")
+    if not address:
+        raise HTTPException(status_code=401, detail="No wallet address provided")
+    return address.lower()
 
 @credits_router.post("/add/{credits}")
-async def add_credits(credits: int) -> JSONResponse:
-    """Add credits and create a new session"""
-    token = create_session_token(credits)
+async def add_credits(credits: int, request: Request) -> JSONResponse:
+    """Add credits to a wallet address"""
+    address = await get_wallet_address(request)
+    current_credits = get_credits(address)
+    new_credits = current_credits + credits
+    set_credits(address, new_credits)
+    
     return JSONResponse(content={
-        "token": token,
-        "credits": credits
+        "address": address,
+        "credits": new_credits
     })
 
 @credits_router.get("/check")
-async def check_credits(session: dict = Depends(get_session)) -> JSONResponse:
+async def check_credits(request: Request) -> JSONResponse:
     """Check remaining credits"""
+    address = await get_wallet_address(request)
+    credits = get_credits(address)
+    
     return JSONResponse(content={
-        "credits": session.get("credits", 0)
+        "address": address,
+        "credits": credits
     })
 
 @credits_router.post("/use")
-async def use_credit(session: dict = Depends(get_session)) -> JSONResponse:
+async def use_credit(request: Request) -> JSONResponse:
     """Use one credit and return updated count"""
-    current_credits = session.get("credits", 0)
+    address = await get_wallet_address(request)
+    current_credits = get_credits(address)
     
     if current_credits <= 0:
         raise HTTPException(status_code=402, detail="No credits available")
     
-    # Create new token with decremented credits
-    new_token = create_session_token(current_credits - 1)
+    # Decrement credits
+    new_credits = current_credits - 1
+    set_credits(address, new_credits)
     
     return JSONResponse(content={
-        "token": new_token,
-        "credits_remaining": current_credits - 1
+        "address": address,
+        "credits": new_credits
     }) 
