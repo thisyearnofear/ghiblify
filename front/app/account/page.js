@@ -18,6 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from 'wagmi';
 
 const API_URL =
   process.env.NODE_ENV === "development"
@@ -29,22 +30,31 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const toast = useToast();
+  const { address, isConnected } = useAccount();
 
   useEffect(() => {
-    const token = localStorage.getItem("ghiblify_token");
-    if (!token) {
+    if (!isConnected || !address) {
       router.push("/");
+      toast({
+        title: "Please connect your wallet",
+        description: "You need to connect your wallet to view your account",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+      });
       return;
     }
 
-    fetchPurchaseHistory(token);
-  }, [router]);
+    fetchPurchaseHistory();
+  }, [isConnected, address, router]);
 
-  const fetchPurchaseHistory = async (token) => {
+  const fetchPurchaseHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stripe/purchase-history`, {
+      const response = await fetch(`${API_URL}/api/stripe/purchase-history?address=${address}`, {
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
       });
 
@@ -69,11 +79,12 @@ export default function Account() {
 
   const openCustomerPortal = async () => {
     try {
-      const token = localStorage.getItem("ghiblify_token");
-      const response = await fetch(`${API_URL}/api/stripe/create-portal-session`, {
+      const response = await fetch(`${API_URL}/api/stripe/create-portal-session?address=${address}`, {
         method: "POST",
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         },
       });
 
