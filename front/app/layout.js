@@ -1,7 +1,6 @@
 import { ChakraProvider } from "@chakra-ui/react";
 import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
-import { WagmiConfig } from "./components/WagmiConfig";
+import { Web3Provider } from "./providers/Web3Provider";
 import Navigation from "./components/Navigation";
 
 export const metadata = {
@@ -34,14 +33,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <WagmiConfig>
-          <ChakraProvider>
+        <ChakraProvider>
+          <Web3Provider>
             <FarcasterFrameProvider>
               <Navigation />
               {children}
             </FarcasterFrameProvider>
-          </ChakraProvider>
-        </WagmiConfig>
+          </Web3Provider>
+        </ChakraProvider>
       </body>
     </html>
   );
