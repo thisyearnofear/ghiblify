@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional
-from .web3_auth import get_credits, set_credits
+from .web3_auth import get_credits, set_credits, redis_client
 
 load_dotenv()
 
@@ -112,10 +112,12 @@ async def stripe_webhook(request: Request):
         # Get the webhook signature
         signature = request.headers.get('stripe-signature')
         if not signature:
+            logger.error("[Stripe] No signature provided in webhook")
             raise HTTPException(status_code=400, detail="No signature provided")
             
         # Get the raw request body
         body = await request.body()
+        logger.info(f"[Stripe] Received webhook with signature: {signature[:10]}...")
         
         try:
             # Verify the event
@@ -124,7 +126,9 @@ async def stripe_webhook(request: Request):
                 signature,
                 STRIPE_WEBHOOK_SECRET
             )
-        except stripe.error.SignatureVerificationError:
+            logger.info(f"[Stripe] Webhook event type: {event.type}")
+        except stripe.error.SignatureVerificationError as e:
+            logger.error(f"[Stripe] Invalid signature: {str(e)}")
             raise HTTPException(status_code=401, detail="Invalid signature")
             
         # Handle the event
@@ -137,25 +141,62 @@ async def stripe_webhook(request: Request):
             credits = metadata.get('credits')
             wallet_address = metadata.get('wallet_address')
             
-            logger.info(f"Received webhook: session={session.id}, tier={tier}, credits={credits}, wallet={wallet_address}")
+            logger.info(f"[Stripe] Processing session {session.id} for wallet {wallet_address}")
+            logger.info(f"[Stripe] Details: tier={tier}, credits={credits}")
             
-            if tier and credits and wallet_address:
-                try:
-                    # Add credits to the wallet address
-                    current_credits = get_credits(wallet_address)
-                    new_credits = current_credits + int(credits)
-                    set_credits(wallet_address, new_credits)
+            if not all([tier, credits, wallet_address]):
+                logger.error(f"[Stripe] Missing metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
+                raise HTTPException(status_code=400, detail="Missing required metadata")
+            
+            try:
+                # Use Redis transaction to ensure atomicity
+                with redis_client.pipeline() as pipe:
+                    while True:
+                        try:
+                            # Watch the credit key for changes
+                            credit_key = f'credits:{wallet_address.lower()}'
+                            pipe.watch(credit_key)
+                            
+                            # Check if credits were already added
+                            session_key = f'credited:session:{session.id}'
+                            if redis_client.get(session_key):
+                                logger.info(f"[Stripe] Credits already added for session {session.id}")
+                                return JSONResponse(content={"status": "already_credited"})
+                            
+                            # Get current credits atomically
+                            current_credits = int(pipe.get(credit_key) or 0)
+                            new_credits = current_credits + int(credits)
+                            
+                            # Start transaction
+                            pipe.multi()
+                            
+                            # Update credits and mark session as processed
+                            pipe.set(credit_key, new_credits)
+                            pipe.set(session_key, '1', ex=86400)  # 24h expiry
+                            
+                            # Execute transaction
+                            pipe.execute()
+                            
+                            # Verify the update
+                            actual_credits = get_credits(wallet_address)
+                            if actual_credits != new_credits:
+                                raise Exception(f"Credit verification failed: expected {new_credits}, got {actual_credits}")
+                            
+                            logger.info(f"[Stripe] Successfully credited {credits} to {wallet_address}. New balance: {actual_credits}")
+                            break
+                            
+                        except redis_client.WatchError:
+                            logger.warning(f"[Stripe] Concurrent modification detected for {wallet_address}, retrying...")
+                            continue
+                
+                # Store customer ID if needed
+                if session.customer and not get_customer_id_from_address(wallet_address):
+                    set_customer_id_for_address(wallet_address, session.customer)
+                    logger.info(f"[Stripe] Stored customer ID {session.customer} for {wallet_address}")
                     
-                    # Store customer ID if not already stored
-                    if session.customer and not get_customer_id_from_address(wallet_address):
-                        set_customer_id_for_address(wallet_address, session.customer)
-                    
-                    logger.info(f"Successfully credited wallet {wallet_address}: {current_credits} + {credits} = {new_credits}")
-                except Exception as e:
-                    logger.error(f"Error crediting wallet {wallet_address}: {str(e)}")
-                    raise
-            else:
-                logger.error(f"Missing required metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
+            except Exception as e:
+                logger.error(f"[Stripe] Error processing credits for {wallet_address}: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
                 
         elif event.type == 'payment_intent.succeeded':
             payment_intent = event.data.object
@@ -201,22 +242,62 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @stripe_router.get("/session/{session_id}")
-async def get_session_token(session_id: str):
-    """Get the session token for a completed payment"""
+async def check_session_status(session_id: str, address: str):
+    """Check session status and handle credit updates"""
     try:
+        logger.info(f"[Stripe] Checking session {session_id} for {address}")
+        
+        # Check if credits were already added for this session
+        credit_key = f'credited:session:{session_id}'
+        if redis_client.get(credit_key):
+            logger.info(f"[Stripe] Credits already added for session {session_id}")
+            current_credits = get_credits(address)
+            return JSONResponse(content={
+                "status": "success",
+                "credits": current_credits,
+                "message": "Credits already added"
+            })
+        
+        # Retrieve the session
         session = stripe.checkout.Session.retrieve(session_id)
-        payment_intent = stripe.PaymentIntent.retrieve(session.payment_intent)
-        token = payment_intent.metadata.get('session_token')
+        logger.info(f"[Stripe] Session status: {session.status}")
         
-        if not token:
-            raise HTTPException(status_code=404, detail="Session token not found")
-            
-        return JSONResponse(content={
-            "token": token
-        })
+        if session.payment_status == 'paid':
+            try:
+                # Get metadata from the session
+                metadata = session.metadata
+                credits = metadata.get('credits')
+                
+                if not credits:
+                    logger.error(f"[Stripe] No credits found in metadata for session {session_id}")
+                    raise HTTPException(status_code=400, detail="No credits specified in session")
+                
+                # Add credits to the wallet
+                current_credits = get_credits(address)
+                new_credits = current_credits + int(credits)
+                set_credits(address, new_credits)
+                
+                # Mark session as credited
+                redis_client.set(credit_key, '1', ex=86400)  # 24h expiry
+                
+                logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {new_credits}")
+                
+                return JSONResponse(content={
+                    "status": "success",
+                    "credits": new_credits
+                })
+                
+            except Exception as e:
+                logger.error(f"[Stripe] Error processing credits: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
         
+        return JSONResponse(content={"status": session.payment_status})
+        
+    except stripe.error.StripeError as e:
+        logger.error(f"[Stripe] API Error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error retrieving session token: {str(e)}")
+        logger.error(f"[Stripe] Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @stripe_router.post("/create-checkout-session/{tier}")

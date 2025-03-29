@@ -14,10 +14,7 @@ import { useState, useEffect } from "react";
 import { useAccount } from 'wagmi';
 import { FiCheck } from "react-icons/fi";
 
-const API_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000"
-    : "https://ghiblify.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function Pricing({ onPurchaseComplete }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -80,25 +77,32 @@ export default function Pricing({ onPurchaseComplete }) {
 
     try {
       // Create Stripe checkout session
+      console.log(`[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`);
       const response = await fetch(
         `${API_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
         {
           method: "POST",
           headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
           body: JSON.stringify({
             wallet_address: address
           })
         }
       );
-
+      
+      console.log(`[Stripe] Response status: ${response.status}`);
+      const responseText = await response.text();
+      console.log(`[Stripe] Response body: ${responseText}`);
+      
       if (!response.ok) {
-        throw new Error("Failed to create checkout session");
+        throw new Error(`Failed to create checkout session: ${responseText}`);
       }
-
-      const data = await response.json();
-
+      
+      const data = JSON.parse(responseText);
+      console.log(`[Stripe] Redirecting to: ${data.url}`);
+      
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
@@ -120,52 +124,56 @@ export default function Pricing({ onPurchaseComplete }) {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get("session_id");
 
-    if (sessionId) {
-      // Fetch session token
-      const getSessionToken = async () => {
+    if (sessionId && address) {
+      // Check session status and update credits
+      const checkSessionStatus = async () => {
         try {
+          console.log(`[Stripe] Checking session ${sessionId} for ${address}...`);
           const response = await fetch(
-            `${API_URL}/api/stripe/session/${sessionId}`
+            `${API_URL}/api/stripe/session/${sessionId}?address=${address}`
           );
-          if (!response.ok) throw new Error("Failed to get session token");
-
-          const data = await response.json();
-
-          // Store token in localStorage
-          localStorage.setItem("ghiblify_token", data.token);
-
-          // Notify parent component
-          if (onPurchaseComplete) {
-            onPurchaseComplete(data.token);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to check session: ${errorText}`);
           }
 
-          toast({
-            title: "Purchase Successful!",
-            description: "Your credits have been added to your account.",
-            status: "success",
-            duration: 5000,
-            isClosable: true,
-          });
+          const data = await response.json();
+          console.log(`[Stripe] Session status:`, data);
 
-          // Clear URL params
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-          );
+          if (data.status === 'success') {
+            // Notify parent component with new credit balance
+            if (onPurchaseComplete) {
+              onPurchaseComplete(data.credits);
+            }
+
+            toast({
+              title: "Purchase Successful!",
+              description: `${data.credits} credits have been added to your account.`,
+              status: "success",
+              duration: 5000,
+              isClosable: true
+            });
+
+            // Clear URL params
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            console.log(`[Stripe] Payment not completed yet: ${data.status}`);
+          }
         } catch (error) {
-          console.error("Error fetching session token:", error);
+          console.error("[Stripe] Session check error:", error);
           toast({
             title: "Error",
-            description: "Failed to verify purchase. Please contact support.",
+            description: error.message || "Failed to verify purchase. Please contact support.",
             status: "error",
             duration: 5000,
-            isClosable: true,
+            isClosable: true
           });
         }
       };
 
-      getSessionToken();
+      // Run the session check
+      checkSessionStatus();
     }
   }, []);
 

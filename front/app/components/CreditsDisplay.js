@@ -1,35 +1,39 @@
-'use client';
+'use client'
 
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAccount } from 'wagmi';
 
-const API_URL = "https://ghiblify.onrender.com";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Separate API function for better organization
+const fetchCredits = async (address) => {
+  const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.credits || 0;
+};
 
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [credits, setCredits] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
 
-  // Handle hydration
-  useEffect(() => {
-    setMounted(true);
-    // Initial credits check
-    if (isConnected && address) {
-      checkCredits();
-    }
-  }, [isConnected, address]);
-
-  // Handle credit updates
-  useEffect(() => {
-    if (mounted && forceRefresh) {
-      checkCredits();
-    }
-  }, [forceRefresh, mounted]);
-
-  const checkCredits = async (retryCount = 0) => {
+  const checkCredits = useCallback(async () => {
     if (!isConnected || !address) {
       setCredits(0);
       return;
@@ -37,48 +41,19 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
     setIsLoading(true);
     try {
-      console.log(`[Credits] Checking for ${address}...`);
-      const response = await fetch(`${API_URL}/api/web3/credits/check?address=${address}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const newCredits = data.credits || 0;
-        console.log(`Credits received: ${newCredits}`);
-        setCredits(newCredits);
-        if (onCreditsUpdate) onCreditsUpdate(newCredits);
-      } else {
-        console.error(`Error response: ${response.status}`);
-        // If unauthorized, clear token and retry
-        if (response.status === 401) {
-          localStorage.removeItem("ghiblify_token");
-          setCredits(0);
-          if (onCreditsUpdate) onCreditsUpdate(0);
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const newCredits = await fetchCredits(address);
+      setCredits(newCredits);
+      if (onCreditsUpdate) onCreditsUpdate(newCredits);
     } catch (error) {
       console.error("Error checking credits:", error);
-      
-      // Retry up to 3 times with exponential backoff
-      if (retryCount < 3) {
-        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-        console.log(`Retrying in ${delay}ms...`);
-        setTimeout(() => checkCredits(retryCount + 1), delay);
-        return;
+      if (error.message.includes('401')) {
+        localStorage.removeItem("ghiblify_token");
+        setCredits(0);
+        if (onCreditsUpdate) onCreditsUpdate(0);
       }
-      
       toast({
         title: "Error checking credits",
-        description: "Please refresh the page or try again later",
+        description: "Please try again later",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -86,19 +61,25 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [address, isConnected, onCreditsUpdate, toast]);
 
-  // Check credits when component mounts or when address changes
+  // Handle hydration and initial load
   useEffect(() => {
-    if (isConnected && address) {
+    setIsMounted(true);
+    if (address && isConnected) {
       checkCredits();
     }
-  }, [isConnected, address, forceRefresh]);
+  }, [address, isConnected, checkCredits]);
 
-  const handleBuyClick = () => {
-    // Scroll to pricing section
-    document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Handle force refresh
+  useEffect(() => {
+    if (isMounted && forceRefresh) {
+      checkCredits();
+    }
+  }, [isMounted, forceRefresh, checkCredits]);
+
+  // Don't render until mounted
+  if (!isMounted) return null;
 
   return (
     <Box>
@@ -113,7 +94,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
             size="sm"
             colorScheme="blue"
             variant="outline"
-            onClick={handleBuyClick}
+            onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
           >
             Buy Credits
           </Button>
