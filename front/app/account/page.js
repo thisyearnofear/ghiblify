@@ -18,12 +18,24 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from 'wagmi';
+import { useAccount } from "wagmi";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
-  console.error('[Account] NEXT_PUBLIC_API_URL environment variable is not set');
+  console.error(
+    "[Account] NEXT_PUBLIC_API_URL environment variable is not set"
+  );
 }
+
+// Helper function to format date
+const formatDate = (timestamp) => {
+  const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
 export default function Account() {
   const [purchases, setPurchases] = useState([]);
@@ -50,12 +62,12 @@ export default function Account() {
 
   const fetchPurchaseHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stripe/purchase-history?address=${address}`, {
-        credentials: 'include',
+      const response = await fetch(`${API_URL}/api/stripe/purchase-history`, {
+        credentials: "include",
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Web3-Address': address
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Web3-Address": address,
         },
       });
 
@@ -66,6 +78,7 @@ export default function Account() {
       const data = await response.json();
       setPurchases(data.purchases);
     } catch (error) {
+      console.error("Error fetching history:", error);
       toast({
         title: "Error",
         description: "Failed to load purchase history",
@@ -80,15 +93,18 @@ export default function Account() {
 
   const openCustomerPortal = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/stripe/create-portal-session?address=${address}`, {
-        method: "POST",
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-Web3-Address': address
-        },
-      });
+      const response = await fetch(
+        `${API_URL}/api/stripe/create-portal-session`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-Web3-Address": address,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to create portal session");
@@ -111,8 +127,12 @@ export default function Account() {
     <Container maxW="container.md" py={10}>
       <VStack spacing={8} align="stretch">
         <Box>
-          <Heading size="lg" mb={2}>Account Management</Heading>
-          <Text color="gray.600">Manage your credits and view purchase history</Text>
+          <Heading size="lg" mb={2}>
+            Account Management
+          </Heading>
+          <Text color="gray.600">
+            Manage your credits and view purchase history
+          </Text>
         </Box>
 
         <Box>
@@ -122,9 +142,13 @@ export default function Account() {
         </Box>
 
         <Box>
-          <Heading size="md" mb={4}>Purchase History</Heading>
+          <Heading size="md" mb={4}>
+            Purchase History
+          </Heading>
           {loading ? (
             <Text>Loading...</Text>
+          ) : purchases.length === 0 ? (
+            <Text>No purchase history available</Text>
           ) : (
             <Table variant="simple">
               <Thead>
@@ -138,7 +162,7 @@ export default function Account() {
               <Tbody>
                 {purchases.map((purchase) => (
                   <Tr key={purchase.id}>
-                    <Td>{new Date(purchase.created).toLocaleDateString()}</Td>
+                    <Td>{formatDate(purchase.created)}</Td>
                     <Td>{purchase.package}</Td>
                     <Td>{purchase.credits}</Td>
                     <Td>${(purchase.amount / 100).toFixed(2)}</Td>

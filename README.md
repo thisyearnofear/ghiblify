@@ -2,34 +2,111 @@
 
 A full-stack application that converts photos into Studio Ghibli style artwork using Stable Diffusion. The frontend is built using Nextjs and ChakraUI. The backend uses ComfyUI's API for Stable Diffusion model inference, with Web3 wallet integration for authentication and Redis for credit management. This project utilizes an Image to Image pipeline with text prompt guidance.
 
+## Production Deployment
+
+### Current Production URLs
+
+- Frontend: [ghiblify-it.vercel.app](https://ghiblify-it.vercel.app)
+- Backend: [ghiblify.onrender.com](https://ghiblify.onrender.com)
+
+### Deployment Architecture
+
+#### Frontend (Vercel)
+
+- Next.js application deployed on Vercel
+- Automatic deployments from main branch
+- Environment variables set in Vercel dashboard:
+  ```env
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_***
+  NEXT_PUBLIC_API_URL=https://ghiblify.onrender.com
+  ```
+
+#### Backend (Render)
+
+- FastAPI application deployed on Render
+- Automatic deployments from main branch
+- Environment variables set in Render dashboard:
+  ```env
+  COMFY_UI_API_KEY=your_comfyui_key
+  IMGBB_API_KEY=your_imgbb_key
+  STRIPE_SECRET_KEY=sk_test_***
+  STRIPE_WEBHOOK_SECRET=whsec_***
+  REDIS_HOST=joint-mongoose-18966.upstash.io
+  REDIS_PASSWORD=your_redis_password
+  REDIS_PORT=6379
+  REDIS_SSL=true
+  FRONTEND_URL=https://ghiblify-it.vercel.app
+  SUCCESS_URL=https://ghiblify-it.vercel.app/success
+  CANCEL_URL=https://ghiblify-it.vercel.app/cancel
+  ```
+
+#### Redis (Upstash)
+
+- Managed Redis instance on Upstash
+- SSL enabled for secure connections
+- Data persistence enabled
+- Key expiration policies:
+  - Session tokens: 24 hours
+  - Processing status: 1 hour
+  - Credit records: No expiration
+
+#### Stripe Integration
+
+- Test mode configuration
+- Webhook endpoint: `https://ghiblify.onrender.com/api/stripe/webhook`
+- Required webhook events:
+  - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
+  - `payment_intent.succeeded`
+  - `payment_intent.processing`
+  - `payment_intent.payment_failed`
+- Idempotency handling for duplicate events
+- Customer ID management for recurring purchases
+
 ## Architecture
 
 ### Frontend
 
 - Built with Next.js and React
 - Uses Chakra UI for styling and components
-- Deployed on Vercel
-- Communicates with backend via REST API
+- Features:
+  - Web3 wallet integration (MetaMask, WalletConnect)
+  - Stripe Checkout integration
+  - Real-time processing status updates
+  - Image upload and preview
+  - Purchase history tracking
+  - Credit balance management
+  - Responsive design
 
 ### Backend
 
 - FastAPI Python backend
-- Uses Replicate's API for Stable Diffusion model inference
-- Uses ComfyUI's API for Stable Diffusion model inference
-- Web3 wallet integration for authentication
-- Redis for credit management
-- Stripe integration for credit purchases
-- ImgBB for image hosting
-- Deployed on Render
-- Provides both web interface endpoints and external API
+- Key components:
+  - ComfyUI API integration for Stable Diffusion
+  - Web3 authentication
+  - Redis credit management
+  - Stripe payment processing
+  - ImgBB image hosting
+  - Webhook handling for async operations
 
-### API Flow
+### Data Flow
 
-1. User connects Web3 wallet and purchases credits via Stripe
-2. Credits are stored in Redis, associated with wallet address
-3. Frontend uploads image → Backend uploads to ImgBB → ComfyUI processes
-4. ComfyUI sends webhook with results → Backend stores in Redis
-5. Frontend polls for completion and displays result
+1. **Authentication Flow**:
+
+   ```
+   User → Connect Wallet → Backend validates → Redis stores session
+   ```
+
+2. **Purchase Flow**:
+
+   ```
+   User → Stripe Checkout → Webhook → Redis credits update → Frontend refresh
+   ```
+
+3. **Image Processing Flow**:
+   ```
+   Upload → ImgBB → ComfyUI → Webhook → Redis status → Frontend polls
+   ```
 
 ## Local Development
 
@@ -134,6 +211,7 @@ The backend will be available at `http://localhost:8000`
 #### 5. Testing Local Setup
 
 1. **Test Redis Connection**:
+
 ```bash
 # In Python shell
 python
@@ -143,6 +221,7 @@ python
 ```
 
 2. **Test Webhook Setup**:
+
 ```bash
 # Get your ngrok URL
 ngrok http 8000
@@ -155,6 +234,7 @@ curl -X POST "your_ngrok_url/api/comfyui/webhook" \
 ```
 
 3. **Test Image Processing**:
+
 - Connect wallet on frontend
 - Purchase credits
 - Upload an image
@@ -338,3 +418,114 @@ const ghiblifyImage = async (imageUrl, apiKey) => {
 
 - [Vishal Shenoy](https://vishalshenoy.com)
 - [Papa](https://warpcast.com/papa)
+
+## Production Configuration
+
+### Stripe Setup
+
+1. **Webhook Configuration**:
+
+   ```bash
+   # List current webhooks
+   stripe webhook_endpoints list
+
+   # Update webhook URL
+   stripe webhook_endpoints update we_xxx --url "https://ghiblify.onrender.com/api/stripe/webhook"
+   ```
+
+2. **Testing Webhooks**:
+
+   ```bash
+   # Send test event
+   stripe trigger checkout.session.completed
+   ```
+
+3. **Monitoring**:
+   - Watch webhook delivery in Stripe Dashboard
+   - Check backend logs for webhook processing
+   - Verify credit updates in Redis
+
+### Redis Management
+
+1. **Monitoring Credits**:
+
+   ```bash
+   # Connect to Redis CLI
+   redis-cli -h joint-mongoose-18966.upstash.io -p 6379 -a your_password --tls
+
+   # Check user credits
+   GET credits:0x123...  # Replace with wallet address
+   ```
+
+2. **Troubleshooting**:
+
+   ```bash
+   # List all keys for a wallet
+   KEYS *0x123*
+
+   # Check webhook processing status
+   GET credited:session:cs_test_xxx
+   ```
+
+### Deployment Checks
+
+1. **Backend Health**:
+
+   ```bash
+   # Check API status
+   curl https://ghiblify.onrender.com/health
+
+   # Test Redis connection
+   curl https://ghiblify.onrender.com/api/web3/redis/test
+   ```
+
+2. **Webhook Verification**:
+   ```bash
+   # Test webhook endpoint
+   curl -X POST https://ghiblify.onrender.com/api/stripe/webhook \
+   -H "Content-Type: application/json" \
+   -d '{"test": true}'
+   ```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Credits Not Updating**:
+
+   - Check Stripe webhook logs
+   - Verify webhook signature
+   - Check Redis connection
+   - Confirm customer ID mapping
+
+2. **Image Processing Fails**:
+
+   - Check ComfyUI API status
+   - Verify ImgBB upload
+   - Check webhook delivery
+   - Monitor Redis status updates
+
+3. **Payment Issues**:
+   - Verify Stripe configuration
+   - Check webhook events
+   - Confirm customer creation
+   - Monitor credit addition logs
+
+### Monitoring
+
+1. **Stripe Dashboard**:
+
+   - Monitor webhook deliveries
+   - Track failed payments
+   - Check customer creation
+
+2. **Redis Monitoring**:
+
+   - Watch credit updates
+   - Track session tokens
+   - Monitor key expiration
+
+3. **Backend Logs**:
+   - Check webhook processing
+   - Monitor credit updates
+   - Track image processing

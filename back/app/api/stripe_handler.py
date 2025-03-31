@@ -71,19 +71,27 @@ async def get_purchase_history(request: Request):
         if not customer_id:
             raise HTTPException(status_code=404, detail="Customer not found")
 
-        # Get payment intents for customer
-        payment_intents = stripe.PaymentIntent.list(
+        # Get checkout sessions for customer
+        sessions = stripe.checkout.Session.list(
             customer=customer_id,
-            limit=10  # Limit to last 10 purchases
+            limit=10,  # Limit to last 10 purchases
+            expand=['data.payment_intent']  # Include payment intent data
         )
 
-        purchases = [{
-            'id': intent.id,
-            'amount': intent.amount,
-            'created': intent.created,
-            'package': intent.metadata.get('tier', 'Unknown').capitalize(),
-            'credits': intent.metadata.get('credits', '0')
-        } for intent in payment_intents.data if intent.status == 'succeeded']
+        purchases = []
+        for session in sessions.data:
+            if session.payment_status == 'paid':
+                # Get metadata from the session
+                metadata = session.metadata
+                amount = session.amount_total if hasattr(session, 'amount_total') else 0
+
+                purchases.append({
+                    'id': session.id,
+                    'amount': amount,
+                    'created': session.created,
+                    'package': metadata.get('tier', 'Unknown').capitalize(),
+                    'credits': metadata.get('credits', '0')
+                })
 
         return JSONResponse(content={"purchases": purchases})
 
@@ -113,11 +121,13 @@ async def stripe_webhook(request: Request):
         signature = request.headers.get('stripe-signature')
         if not signature:
             logger.error("[Stripe] No signature provided in webhook")
-            raise HTTPException(status_code=400, detail="No signature provided")
+            return JSONResponse(status_code=400, content={"detail": "No signature provided"})
             
         # Get the raw request body
         body = await request.body()
-        logger.info(f"[Stripe] Received webhook with signature: {signature[:10]}...")
+        
+        # Log webhook receipt (but not the full body for security)
+        logger.info(f"[Stripe] Received webhook with signature prefix: {signature[:10]}...")
         
         try:
             # Verify the event
@@ -129,14 +139,17 @@ async def stripe_webhook(request: Request):
             logger.info(f"[Stripe] Webhook event type: {event.type}")
         except stripe.error.SignatureVerificationError as e:
             logger.error(f"[Stripe] Invalid signature: {str(e)}")
-            raise HTTPException(status_code=401, detail="Invalid signature")
+            return JSONResponse(status_code=401, content={"detail": "Invalid signature"})
+        except Exception as e:
+            logger.error(f"[Stripe] Error constructing event: {str(e)}")
+            return JSONResponse(status_code=400, content={"detail": str(e)})
             
         # Handle the event
         if event.type == 'checkout.session.completed':
             session = event.data.object
             metadata = session.metadata or {}
             
-            # Extract tier and credits information
+            # Extract metadata
             tier = metadata.get('tier')
             credits = metadata.get('credits')
             wallet_address = metadata.get('wallet_address')
@@ -146,7 +159,7 @@ async def stripe_webhook(request: Request):
             
             if not all([tier, credits, wallet_address]):
                 logger.error(f"[Stripe] Missing metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
-                raise HTTPException(status_code=400, detail="Missing required metadata")
+                return JSONResponse(status_code=200, content={"status": "skipped", "reason": "missing_metadata"})
             
             try:
                 # Use Redis transaction to ensure atomicity
@@ -155,10 +168,10 @@ async def stripe_webhook(request: Request):
                         try:
                             # Watch the credit key for changes
                             credit_key = f'credits:{wallet_address.lower()}'
-                            pipe.watch(credit_key)
+                            session_key = f'credited:session:{session.id}'
+                            pipe.watch(credit_key, session_key)
                             
                             # Check if credits were already added
-                            session_key = f'credited:session:{session.id}'
                             if redis_client.get(session_key):
                                 logger.info(f"[Stripe] Credits already added for session {session.id}")
                                 return JSONResponse(content={"status": "already_credited"})
@@ -180,7 +193,8 @@ async def stripe_webhook(request: Request):
                             # Verify the update
                             actual_credits = get_credits(wallet_address)
                             if actual_credits != new_credits:
-                                raise Exception(f"Credit verification failed: expected {new_credits}, got {actual_credits}")
+                                logger.error(f"[Stripe] Credit verification failed: expected {new_credits}, got {actual_credits}")
+                                return JSONResponse(status_code=500, content={"status": "error", "reason": "verification_failed"})
                             
                             logger.info(f"[Stripe] Successfully credited {credits} to {wallet_address}. New balance: {actual_credits}")
                             break
@@ -188,58 +202,57 @@ async def stripe_webhook(request: Request):
                         except redis_client.WatchError:
                             logger.warning(f"[Stripe] Concurrent modification detected for {wallet_address}, retrying...")
                             continue
+                        except Exception as e:
+                            logger.error(f"[Stripe] Redis error: {str(e)}")
+                            return JSONResponse(status_code=500, content={"status": "error", "reason": "redis_error"})
                 
                 # Store customer ID if needed
-                if session.customer and not get_customer_id_from_address(wallet_address):
-                    set_customer_id_for_address(wallet_address, session.customer)
-                    logger.info(f"[Stripe] Stored customer ID {session.customer} for {wallet_address}")
+                if session.customer:
+                    try:
+                        existing_customer = get_customer_id_from_address(wallet_address)
+                        if not existing_customer:
+                            set_customer_id_for_address(wallet_address, session.customer)
+                            logger.info(f"[Stripe] Stored customer ID {session.customer} for {wallet_address}")
+                        elif existing_customer != session.customer:
+                            logger.warning(f"[Stripe] Different customer ID found for {wallet_address}: stored={existing_customer}, new={session.customer}")
+                    except Exception as e:
+                        logger.error(f"[Stripe] Error storing customer ID: {str(e)}")
+                        # Don't fail the webhook for customer ID storage issues
                     
             except Exception as e:
                 logger.error(f"[Stripe] Error processing credits for {wallet_address}: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                return JSONResponse(status_code=500, content={"status": "error", "reason": "processing_error"})
                 
         elif event.type == 'payment_intent.succeeded':
             payment_intent = event.data.object
             metadata = payment_intent.metadata or {}
             
-            # Extract tier and credits information
-            tier = metadata.get('tier')
-            credits = metadata.get('credits')
-            wallet_address = metadata.get('wallet_address')
-            
-            logger.info(f"Payment succeeded: intent={payment_intent.id}, tier={tier}, credits={credits}, wallet={wallet_address}")
-            
-            if tier and credits and wallet_address:
-                try:
-                    # Verify credits haven't already been added from checkout.session.completed
-                    credit_key = f'credited:{payment_intent.id}'
-                    if not redis_client.get(credit_key):
-                        current_credits = get_credits(wallet_address)
-                        new_credits = current_credits + int(credits)
-                        set_credits(wallet_address, new_credits)
-                        
-                        # Mark these credits as added
-                        redis_client.set(credit_key, '1', ex=86400)  # Expire after 24 hours
-                        
-                        logger.info(f"Successfully credited wallet {wallet_address}: {current_credits} + {credits} = {new_credits}")
-                    else:
-                        logger.info(f"Credits already added for payment {payment_intent.id}")
-                except Exception as e:
-                    logger.error(f"Error crediting wallet {wallet_address}: {str(e)}")
-                    raise
-            else:
-                logger.error(f"Missing required metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
+            # Log the payment success but don't process credits (handled by checkout.session.completed)
+            logger.info(f"[Stripe] Payment succeeded: intent={payment_intent.id}")
+            return JSONResponse(content={"status": "success", "action": "logged"})
                 
         elif event.type == 'payment_intent.payment_failed':
             payment_intent = event.data.object
-            error_message = payment_intent.get('last_payment_error', {}).get('message')
-            logger.error(f"Payment failed: {error_message}")
+            error_message = payment_intent.last_payment_error.message if payment_intent.last_payment_error else "Unknown error"
+            logger.error(f"[Stripe] Payment failed: {error_message}")
+            return JSONResponse(content={"status": "failed", "reason": error_message})
             
+        elif event.type == 'customer.subscription.deleted':
+            # Handle subscription cancellations if needed
+            subscription = event.data.object
+            logger.info(f"[Stripe] Subscription cancelled: {subscription.id}")
+            return JSONResponse(content={"status": "success", "action": "logged"})
+            
+        else:
+            # Log unknown event types but return success
+            logger.info(f"[Stripe] Unhandled event type: {event.type}")
+            return JSONResponse(content={"status": "success", "action": "ignored"})
+        
         return JSONResponse(content={"status": "success"})
         
     except Exception as e:
-        logger.error(f"Error processing webhook: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[Stripe] Unexpected error in webhook: {str(e)}")
+        return JSONResponse(status_code=500, content={"status": "error", "reason": "unexpected_error"})
 
 @stripe_router.get("/session/{session_id}")
 async def check_session_status(session_id: str, address: str):
@@ -316,7 +329,26 @@ async def create_checkout_session(tier: str, request: Request):
         raise HTTPException(status_code=400, detail="Invalid tier")
         
     try:
+        # First, try to get existing customer ID
+        customer_id = get_customer_id_from_address(wallet_address)
+        
+        # If no customer exists, create one
+        if not customer_id:
+            logger.info(f"[Stripe] Creating new customer for wallet {wallet_address}")
+            customer = stripe.Customer.create(
+                metadata={
+                    'wallet_address': wallet_address.lower()
+                }
+            )
+            customer_id = customer.id
+            # Store the new customer ID
+            set_customer_id_for_address(wallet_address, customer_id)
+            logger.info(f"[Stripe] Created and stored new customer {customer_id} for wallet {wallet_address}")
+        else:
+            logger.info(f"[Stripe] Using existing customer {customer_id} for wallet {wallet_address}")
+
         checkout_session = stripe.checkout.Session.create(
+            customer=customer_id,  # Use the customer ID
             payment_method_types=['card'],
             line_items=[{
                 'price': STRIPE_PRICE_IDS[tier],
@@ -338,4 +370,26 @@ async def create_checkout_session(tier: str, request: Request):
         
     except Exception as e:
         logger.error(f"Error creating checkout session: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@stripe_router.post("/link-customer")
+async def link_customer_to_wallet(wallet_address: str, customer_id: str):
+    """Manually link a wallet address to a Stripe customer ID"""
+    try:
+        # Verify the customer exists in Stripe
+        customer = stripe.Customer.retrieve(customer_id)
+        if not customer:
+            raise HTTPException(status_code=404, detail="Customer not found in Stripe")
+            
+        # Store the customer ID in Redis
+        redis_client.set(f'stripe_customer:{wallet_address.lower()}', customer_id)
+        logger.info(f"[Stripe] Linked customer {customer_id} to wallet {wallet_address}")
+        
+        return JSONResponse(content={
+            "status": "success",
+            "wallet_address": wallet_address.lower(),
+            "customer_id": customer_id
+        })
+    except Exception as e:
+        logger.error(f"[Stripe] Error linking customer: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
