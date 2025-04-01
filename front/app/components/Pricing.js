@@ -69,8 +69,29 @@ export default function Pricing({ onPurchaseComplete }) {
   const checkCeloPaymentStatus = async (txHash) => {
     try {
       const response = await fetch(
-        `${API_URL}/api/celo/check-payment/${txHash}`
+        `${API_URL}/api/celo/check-payment/${txHash}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
       );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log(
+            "[CELO] Payment status check endpoint not found, retrying..."
+          );
+          // Retry after 5 seconds
+          setTimeout(() => checkCeloPaymentStatus(txHash), 5000);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.status === "processed") {
@@ -96,6 +117,8 @@ export default function Pricing({ onPurchaseComplete }) {
       }
     } catch (error) {
       console.error("Error checking payment status:", error);
+      // Retry after 5 seconds on error
+      setTimeout(() => checkCeloPaymentStatus(txHash), 5000);
     } finally {
       setIsCeloProcessing(false);
     }

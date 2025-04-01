@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 CELO_RPC_URL = os.getenv('CELO_RPC_URL')
 w3 = Web3(Web3.HTTPProvider(CELO_RPC_URL))
 
+# Create router
 celo_router = APIRouter()
 
 # Contract ABI (matching the frontend)
@@ -96,18 +97,22 @@ PACKAGES = {
 @celo_router.get("/check-payment/{tx_hash}")
 async def check_payment_status(tx_hash: str):
     """Check the status of a CELO payment transaction"""
+    logger.info(f"[CELO] Checking payment status for tx: {tx_hash}")
     try:
         # Check if transaction was already processed
         processed_key = f'processed_tx:44787:{tx_hash}'
         if redis_client.get(processed_key):
+            logger.info(f"[CELO] Transaction {tx_hash} already processed")
             return JSONResponse(content={"status": "processed"})
 
         # Get transaction receipt
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         if not receipt:
+            logger.info(f"[CELO] Transaction {tx_hash} pending")
             return JSONResponse(content={"status": "pending"})
 
         if receipt['status'] == 0:
+            logger.error(f"[CELO] Transaction {tx_hash} failed")
             return JSONResponse(content={"status": "failed"})
 
         # Process the transaction if confirmed and not already processed
@@ -117,6 +122,7 @@ async def check_payment_status(tx_hash: str):
         purchase_events = contract.events.CreditsPurchased().process_receipt(receipt)
         
         if not purchase_events:
+            logger.warning(f"[CELO] No purchase events found in tx {tx_hash}")
             return JSONResponse(content={"status": "no_events"})
 
         event = purchase_events[0]
@@ -143,6 +149,7 @@ async def check_payment_status(tx_hash: str):
 
                         # Check if already processed
                         if redis_client.get(processed_key):
+                            logger.info(f"[CELO] Transaction {tx_hash} already processed")
                             return JSONResponse(content={"status": "processed"})
 
                         # Get current credits
@@ -343,4 +350,7 @@ async def process_pending_events():
         return JSONResponse(
             status_code=500,
             content={"status": "error", "reason": str(e)}
-        ) 
+        )
+
+# Export the router
+__all__ = ['celo_router'] 
