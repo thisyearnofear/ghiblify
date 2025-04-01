@@ -690,7 +690,7 @@ The CELO integration is now fully functional with the following components:
 
 1. **Smart Contract**:
 
-   - Address: `0xea0868f60c3c7413c4b144a2425bc41d7e2ddb8c`
+   - Address: `0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578`
    - Network: Celo Alfajores Testnet (Chain ID: 44787)
    - Features:
      - Accepts cUSD payments
@@ -717,9 +717,9 @@ The CELO integration is now fully functional with the following components:
 
    ```javascript
    {
-     "starter": { price: 0.5 cUSD, credits: 1 },
-     "pro": { price: 4.99 cUSD, credits: 12 },
-     "unlimited": { price: 9.99 cUSD, credits: 30 }
+     "starter": { price: 0.01 cUSD, credits: 1 },
+     "pro": { price: 0.01 cUSD, credits: 12 },
+     "unlimited": { price: 0.01 cUSD, credits: 30 }
    }
    ```
 

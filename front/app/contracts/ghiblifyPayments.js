@@ -1,6 +1,6 @@
 // Contract address on Celo Alfajores Testnet
 export const GHIBLIFY_PAYMENTS_ADDRESS =
-  "0xea0868f60c3c7413c4b144a2425bc41d7e2ddb8c";
+  "0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578";
 
 // Alfajores Testnet cUSD token address
 export const CUSD_TOKEN_ADDRESS = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";

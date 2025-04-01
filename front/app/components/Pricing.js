@@ -256,7 +256,7 @@ export default function Pricing({ onPurchaseComplete }) {
         `[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`
       );
       const response = await fetch(
-        `${STRIPE_WEBHOOK_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
+        `${API_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
         {
           method: "POST",
           headers: {
@@ -309,7 +309,7 @@ export default function Pricing({ onPurchaseComplete }) {
             `[Stripe] Checking session ${sessionId} for ${address}...`
           );
           const response = await fetch(
-            `${STRIPE_WEBHOOK_URL}/api/stripe/session/${sessionId}?address=${address}`
+            `${API_URL}/api/stripe/session/${sessionId}?address=${address}`
           );
 
           if (!response.ok) {
