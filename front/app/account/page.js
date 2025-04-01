@@ -15,6 +15,7 @@ import {
   Td,
   useToast,
   Link,
+  Badge,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -29,8 +30,16 @@ if (!API_URL) {
 
 // Helper function to format date
 const formatDate = (timestamp) => {
-  const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
-  return date.toLocaleDateString("en-GB", {
+  if (typeof timestamp === "string") {
+    // ISO string (CELO format)
+    return new Date(timestamp).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  // Unix timestamp (Stripe format)
+  return new Date(timestamp * 1000).toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -38,7 +47,8 @@ const formatDate = (timestamp) => {
 };
 
 export default function Account() {
-  const [purchases, setPurchases] = useState([]);
+  const [stripePurchases, setStripePurchases] = useState([]);
+  const [celoPurchases, setCeloPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const toast = useToast();
@@ -57,31 +67,74 @@ export default function Account() {
       return;
     }
 
-    fetchPurchaseHistory();
+    fetchAllPurchaseHistory();
   }, [isConnected, address, router]);
 
-  const fetchPurchaseHistory = async () => {
+  const fetchAllPurchaseHistory = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/api/stripe/purchase-history`, {
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "X-Web3-Address": address,
-        },
-      });
+      // Fetch Stripe history
+      const stripeResponse = await fetch(
+        `${API_URL}/api/stripe/purchase-history`,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-Web3-Address": address,
+          },
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch purchase history");
+      // Fetch CELO history
+      console.log("[CELO] Fetching purchase history...");
+      const celoResponse = await fetch(
+        `${API_URL}/api/celo/purchase-history?address=${address}`,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!stripeResponse.ok) {
+        console.error(
+          "[Stripe] Failed to fetch history:",
+          await stripeResponse.text()
+        );
+      } else {
+        const stripeData = await stripeResponse.json();
+        console.log("[Stripe] Fetched history:", stripeData);
+        setStripePurchases(
+          stripeData.purchases.map((p) => ({
+            ...p,
+            method: "stripe",
+            amount: p.amount / 100, // Convert cents to dollars
+          }))
+        );
       }
 
-      const data = await response.json();
-      setPurchases(data.purchases);
+      if (!celoResponse.ok) {
+        console.error(
+          "[CELO] Failed to fetch history:",
+          await celoResponse.text()
+        );
+      } else {
+        const celoData = await celoResponse.json();
+        console.log("[CELO] Fetched history:", celoData);
+        setCeloPurchases(
+          celoData.purchases.map((p) => ({
+            ...p,
+            method: "celo",
+            amount: p.price, // CELO prices are already in dollars
+          }))
+        );
+      }
     } catch (error) {
       console.error("Error fetching history:", error);
       toast({
         title: "Error",
-        description: "Failed to load purchase history",
+        description: "Failed to load purchase history. Please try again later.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -97,7 +150,6 @@ export default function Account() {
         `${API_URL}/api/stripe/create-portal-session`,
         {
           method: "POST",
-          credentials: "include",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -123,6 +175,19 @@ export default function Account() {
     }
   };
 
+  // Combine and sort all purchases
+  const allPurchases = [...stripePurchases, ...celoPurchases].sort((a, b) => {
+    const dateA =
+      typeof a.created === "number"
+        ? a.created * 1000
+        : new Date(a.timestamp).getTime();
+    const dateB =
+      typeof b.created === "number"
+        ? b.created * 1000
+        : new Date(b.timestamp).getTime();
+    return dateB - dateA;
+  });
+
   return (
     <Container maxW="container.md" py={10}>
       <VStack spacing={8} align="stretch">
@@ -147,7 +212,7 @@ export default function Account() {
           </Heading>
           {loading ? (
             <Text>Loading...</Text>
-          ) : purchases.length === 0 ? (
+          ) : allPurchases.length === 0 ? (
             <Text>No purchase history available</Text>
           ) : (
             <Table variant="simple">
@@ -157,15 +222,27 @@ export default function Account() {
                   <Th>Package</Th>
                   <Th>Credits</Th>
                   <Th>Amount</Th>
+                  <Th>Method</Th>
                 </Tr>
               </Thead>
               <Tbody>
-                {purchases.map((purchase) => (
+                {allPurchases.map((purchase) => (
                   <Tr key={purchase.id}>
-                    <Td>{formatDate(purchase.created)}</Td>
+                    <Td>
+                      {formatDate(purchase.created || purchase.timestamp)}
+                    </Td>
                     <Td>{purchase.package}</Td>
                     <Td>{purchase.credits}</Td>
-                    <Td>${(purchase.amount / 100).toFixed(2)}</Td>
+                    <Td>${purchase.amount.toFixed(2)}</Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
+                          purchase.method === "stripe" ? "blue" : "teal"
+                        }
+                      >
+                        {purchase.method === "stripe" ? "Credit Card" : "CELO"}
+                      </Badge>
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>

@@ -56,7 +56,7 @@ async def create_portal_session(request: Request):
 
     except Exception as e:
         logger.error(f"Error creating portal session: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @stripe_router.get("/purchase-history")
 async def get_purchase_history(request: Request):
@@ -259,7 +259,7 @@ async def check_session_status(session_id: str, address: str):
     """Check session status and handle credit updates"""
     try:
         logger.info(f"[Stripe] Checking session {session_id} for {address}")
-        
+
         # Check if credits were already added for this session
         credit_key = f'credited:session:{session_id}'
         if redis_client.get(credit_key):
@@ -270,45 +270,45 @@ async def check_session_status(session_id: str, address: str):
                 "credits": current_credits,
                 "message": "Credits already added"
             })
-        
+
         # Retrieve the session
         session = stripe.checkout.Session.retrieve(session_id)
         logger.info(f"[Stripe] Session status: {session.status}")
-        
+
         if session.payment_status == 'paid':
             try:
                 # Get metadata from the session
                 metadata = session.metadata
                 credits = metadata.get('credits')
-                
+
                 if not credits:
                     logger.error(f"[Stripe] No credits found in metadata for session {session_id}")
                     raise HTTPException(status_code=400, detail="No credits specified in session")
-                
+
                 # Add credits to the wallet
                 current_credits = get_credits(address)
                 new_credits = current_credits + int(credits)
                 set_credits(address, new_credits)
-                
+
                 # Mark session as credited
                 redis_client.set(credit_key, '1', ex=86400)  # 24h expiry
-                
+
                 logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {new_credits}")
-                
+
                 return JSONResponse(content={
                     "status": "success",
                     "credits": new_credits
                 })
-                
+
             except Exception as e:
                 logger.error(f"[Stripe] Error processing credits: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
-        
+
         return JSONResponse(content={"status": session.payment_status})
-        
+
     except stripe.error.StripeError as e:
         logger.error(f"[Stripe] API Error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error(f"[Stripe] Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

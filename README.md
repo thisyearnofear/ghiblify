@@ -38,6 +38,8 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
   FRONTEND_URL=https://ghiblify-it.vercel.app
   SUCCESS_URL=https://ghiblify-it.vercel.app/success
   CANCEL_URL=https://ghiblify-it.vercel.app/cancel
+  CELO_RPC_URL=https://alfajores-forno.celo-testnet.org
+  CELO_CONTRACT_ADDRESS=0xee213a1a317093bd4fe9c4b78698da207cbfe14d
   ```
 
 #### Redis (Upstash)
@@ -62,6 +64,158 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
   - `payment_intent.payment_failed`
 - Idempotency handling for duplicate events
 - Customer ID management for recurring purchases
+
+#### CELO Integration (Planned)
+
+- Integration with CELO L2 for stablecoin payments
+- Network: Celo Alfajores Testnet (Chain ID: 44787)
+- Smart contract deployment for payment processing
+- Parallel payment system alongside existing Stripe integration
+
+**Deployed Contracts**:
+
+```javascript
+{
+  "GhiblifyPayments": "0xee213a1a317093bd4fe9c4b78698da207cbfe14d",
+  "cUSD": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
+  "network": "alfajores",
+}
+```
+
+**Event Listener Configuration**:
+
+```javascript
+{
+  "events": {
+    "CreditsPurchased": {
+      "signature": "CreditsPurchased(address,string,uint256,uint256,uint256)",
+      "params": ["buyer", "packageTier", "amount", "credits", "timestamp"]
+    }
+  },
+  "confirmations": 2,
+  "startBlock": "0x2886b67"
+}
+```
+
+**Architecture Components**:
+
+1. **Smart Contract Layer**:
+
+   ```solidity
+   // Minimal payment contract
+   // Accepts cUSD payments
+   // Emits events for backend processing
+   // No complex business logic
+   ```
+
+2. **Event Processing**:
+
+   - Listen for payment events via Alchemy RPC
+   - Validate transaction finality
+   - Process credits via existing Redis system
+
+3. **Data Flow**:
+   ```
+   User → Select CELO Payment → Smart Contract → Event Listener → Redis Credits
+   ```
+
+**Security Measures**:
+
+1. **Double-Spend Prevention**:
+
+   - Redis transaction tracking:
+     ```
+     Key: processed_tx:{chain_id}:{tx_hash}
+     Value: {credit_amount}:{timestamp}
+     ```
+   - Atomic Redis operations for credit updates
+   - Transaction finality confirmation
+
+2. **Transaction Validation**:
+
+   - Verify contract recipient
+   - Validate payment amounts
+   - Check stablecoin contract authenticity
+   - Monitor block confirmations
+
+3. **Error Handling**:
+   - Transaction failure recovery
+   - Chain reorganization handling
+   - Manual intervention procedures
+   - Comprehensive logging
+
+**Implementation Phases**:
+
+1. **Phase 1: Foundation** (Current)
+
+   - Smart contract development
+   - Event listener setup
+   - Basic Redis integration
+
+2. **Phase 2: Integration**
+
+   - Frontend CELO payment option
+   - Backend processing logic
+   - Credit system integration
+
+3. **Phase 3: Production Hardening**
+   - Error recovery systems
+   - Monitoring and alerts
+   - Performance optimization
+
+**Technical Details**:
+
+1. **Network Configuration**:
+
+   ```javascript
+   {
+     name: "Celo Alfajores Testnet",
+     rpc: "https://alfajores-forno.celo-testnet.org",
+     chainId: 44787,
+     symbol: "CELO",
+     explorer: "https://explorer.celo.org/alfajores"
+   }
+   ```
+
+2. **Required Dependencies**:
+
+   ```json
+   {
+     "@celo/contractkit": "^8.1.1",
+     "@viem": "^2.0.0"
+   }
+   ```
+
+3. **Monitoring Points**:
+   - Transaction confirmations
+   - Credit addition success
+   - Redis operation status
+   - Chain reorganizations
+
+**Production Requirements**:
+
+1. **Environment Variables**:
+
+   ```env
+   CELO_RPC_URL=https://celo-alfajores.g.alchemy.com/v2/[KEY]
+   CELO_CONTRACT_ADDRESS=[PAYMENT_CONTRACT]
+   CELO_CHAIN_ID=44787
+   CELO_CONFIRMATION_BLOCKS=2
+   ```
+
+2. **Redis Schema Updates**:
+
+   ```
+   credits:{wallet} → Current credit balance
+   processed_tx:{chain_id}:{tx_hash} → Processed transaction
+   failed_tx:{chain_id}:{tx_hash} → Failed transactions
+   ```
+
+3. **Monitoring Requirements**:
+   - Transaction processing status
+   - Credit balance reconciliation
+   - Chain health metrics
+   - Error rate tracking
 
 ## Architecture
 
@@ -529,3 +683,71 @@ const ghiblifyImage = async (imageUrl, apiKey) => {
    - Check webhook processing
    - Monitor credit updates
    - Track image processing
+
+### CELO Integration Implementation
+
+The CELO integration is now fully functional with the following components:
+
+1. **Smart Contract**:
+
+   - Address: `0xea0868f60c3c7413c4b144a2425bc41d7e2ddb8c`
+   - Network: Celo Alfajores Testnet (Chain ID: 44787)
+   - Features:
+     - Accepts cUSD payments
+     - Emits `CreditsPurchased` events with transaction details
+     - Validates package prices and credit amounts
+
+2. **Frontend Integration**:
+
+   - Uses viem for contract interaction
+   - Handles wallet connection and transaction signing
+   - Manages cUSD approvals and purchases
+   - Real-time transaction status updates
+   - Credit balance display
+
+3. **Backend Processing**:
+
+   - Event listener for `CreditsPurchased` events
+   - Redis-based credit management
+   - Transaction deduplication
+   - Purchase history tracking
+   - Error handling and recovery
+
+4. **Package Tiers**:
+
+   ```javascript
+   {
+     "starter": { price: 0.5 cUSD, credits: 1 },
+     "pro": { price: 4.99 cUSD, credits: 12 },
+     "unlimited": { price: 9.99 cUSD, credits: 30 }
+   }
+   ```
+
+5. **Event Processing**:
+
+   - Background task runs every 30 seconds to process pending events
+   - Handles up to 1000 blocks per processing cycle
+   - Implements deduplication to prevent double-crediting
+   - Maintains transaction history in Redis
+
+6. **Security Measures**:
+
+   - Transaction finality confirmation (2 blocks)
+   - Redis atomic operations for credit updates
+   - Event signature validation
+   - Double-spend prevention via Redis tracking
+
+7. **Testing**:
+
+   - Contract interaction via curl commands
+   - Event processing verification
+   - Credit balance reconciliation
+   - Transaction history tracking
+
+8. **Monitoring**:
+   - Transaction status tracking
+   - Event processing logs
+   - Credit update verification
+   - Error rate monitoring
+
+The implementation ensures secure and reliable credit purchases through the CELO network, with proper event handling and credit management.

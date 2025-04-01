@@ -33,10 +33,9 @@ import {
   VStack,
   Radio,
   RadioGroup,
-  RadioGroupProps,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
-import { useAccount } from 'wagmi';
+import { useAccount } from "wagmi";
 import Pricing from "./components/Pricing";
 import CreditsDisplay from "./components/CreditsDisplay";
 
@@ -97,7 +96,7 @@ export default function Home() {
   const handlePurchaseComplete = (newToken) => {
     setToken(newToken);
     // Force a refresh of the credits display
-    setCreditsRefreshKey(prev => prev + 1);
+    setCreditsRefreshKey((prev) => prev + 1);
   };
 
   const handleImageChange = (e) => {
@@ -181,12 +180,15 @@ export default function Home() {
 
     try {
       // First, use a credit
-      const creditResponse = await fetch(`${API_URL}/api/web3/credits/use?address=${address}`, {
-        method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const creditResponse = await fetch(
+        `${API_URL}/api/web3/credits/use?address=${address}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!creditResponse.ok) {
         if (creditResponse.status === 402) {
@@ -212,7 +214,7 @@ export default function Home() {
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
       const response = await fetch(`${API_URL}${endpoint}?address=${address}`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {

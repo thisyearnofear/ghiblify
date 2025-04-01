@@ -11,59 +11,231 @@ import {
   Icon,
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
-import { useAccount } from 'wagmi';
-import { FiCheck } from "react-icons/fi";
+import {
+  useAccount,
+  useWriteContract,
+  useWatchContractEvent,
+  usePublicClient,
+} from "wagmi";
+import { FiCheck, FiCreditCard, FiDollarSign } from "react-icons/fi";
+import { celoAlfajores } from "viem/chains";
+import {
+  GHIBLIFY_PAYMENTS_ADDRESS,
+  GHIBLIFY_PAYMENTS_ABI,
+  CUSD_TOKEN_ADDRESS,
+  CUSD_TOKEN_ABI,
+  PACKAGES,
+} from "../contracts/ghiblifyPayments";
+import { parseEther, formatUnits } from "ethers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const STRIPE_WEBHOOK_URL = process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL;
+
 if (!API_URL) {
-  console.error('[Pricing] NEXT_PUBLIC_API_URL environment variable is not set');
+  console.error(
+    "[Pricing] NEXT_PUBLIC_API_URL environment variable is not set"
+  );
+}
+
+if (!STRIPE_WEBHOOK_URL) {
+  console.error(
+    "[Pricing] NEXT_PUBLIC_STRIPE_WEBHOOK_URL environment variable is not set"
+  );
 }
 
 export default function Pricing({ onPurchaseComplete }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
+  const [isCeloProcessing, setIsCeloProcessing] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
+  const { writeContractAsync: approveAsync } = useWriteContract();
+  const { writeContractAsync: purchaseAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
-  const tiers = [
-    {
-      name: "Single",
-      price: "$0.50",
-      credits: 1,
-      description: "Try it out",
-      features: [
-        "1 Ghibli transformation",
-        "Valid for 30 days",
-        "Both styles available",
-      ],
+  // Watch for contract events
+  useWatchContractEvent({
+    address: GHIBLIFY_PAYMENTS_ADDRESS,
+    abi: GHIBLIFY_PAYMENTS_ABI,
+    eventName: "CreditsPurchased",
+    onLogs(logs) {
+      const log = logs[0];
+      if (log && log.args && log.args.buyer === address) {
+        handleSuccess(log.transactionHash);
+      }
     },
-    {
-      name: "Basic",
-      price: "$4.99",
-      credits: 12,
-      description: "Most popular",
-      features: [
-        "12 Ghibli transformations",
-        "Valid for 30 days",
-        "Both styles available",
-        "Save $1 vs single price",
-      ],
-    },
-    {
-      name: "Pro",
-      price: "$9.99",
-      credits: 30,
-      description: "Best value",
-      features: [
-        "30 Ghibli transformations",
-        "Valid for 30 days",
-        "Both styles available",
-        "Save $5 vs single price",
-      ],
-    },
-  ];
+  });
 
-  const handlePurchase = async (tier) => {
+  const checkCeloPaymentStatus = async (txHash) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/celo/check-payment/${txHash}`
+      );
+      const data = await response.json();
+
+      if (data.status === "processed") {
+        toast({
+          title: "Payment Successful",
+          description: "Your credits have been added to your account!",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+        onPurchaseComplete?.();
+      } else if (data.status === "failed") {
+        toast({
+          title: "Payment Failed",
+          description: "There was an error processing your payment.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        // Still pending, check again in 5 seconds
+        setTimeout(() => checkCeloPaymentStatus(txHash), 5000);
+      }
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+    } finally {
+      setIsCeloProcessing(false);
+    }
+  };
+
+  const handleSuccess = (txHash) => {
+    setIsCeloProcessing(false);
+    checkCeloPaymentStatus(txHash);
+  };
+
+  const waitForTransaction = async (hash) => {
+    try {
+      console.log("[CELO] Waiting for transaction hash:", hash);
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: hash.toString(),
+      });
+      return receipt;
+    } catch (error) {
+      console.error("[CELO] Error waiting for transaction:", error);
+      throw error;
+    }
+  };
+
+  const handleCeloPurchase = async (tierName) => {
+    try {
+      console.log("[CELO] Initiating purchase for package:", tierName);
+      const packageInfo = PACKAGES[tierName];
+      const contractTier = packageInfo.contractTier;
+      const priceInWei = packageInfo.priceInWei;
+      console.log("[CELO] Price in wei:", priceInWei);
+
+      // Check if wallet is connected
+      if (!address) {
+        throw new Error("Please connect your wallet first");
+      }
+
+      // Check cUSD balance
+      console.log("[CELO] Checking cUSD balance...");
+      const cusdContract = {
+        address: CUSD_TOKEN_ADDRESS,
+        abi: CUSD_TOKEN_ABI,
+      };
+
+      const balance = await publicClient.readContract({
+        ...cusdContract,
+        functionName: "balanceOf",
+        args: [address],
+      });
+      console.log("[CELO] Current cUSD balance:", balance.toString());
+
+      if (balance < priceInWei) {
+        throw new Error(
+          `Insufficient cUSD balance. You need ${formatUnits(
+            priceInWei,
+            18
+          )} cUSD but have ${formatUnits(balance, 18)} cUSD`
+        );
+      }
+
+      // Check cUSD allowance
+      console.log("[CELO] Checking cUSD allowance...");
+      const allowance = await publicClient.readContract({
+        ...cusdContract,
+        functionName: "allowance",
+        args: [address, GHIBLIFY_PAYMENTS_ADDRESS],
+      });
+      console.log("[CELO] Current allowance:", allowance.toString());
+
+      // If allowance is insufficient, request approval
+      if (allowance < priceInWei) {
+        console.log("[CELO] Requesting cUSD approval...");
+        const hash = await approveAsync({
+          ...cusdContract,
+          functionName: "approve",
+          args: [GHIBLIFY_PAYMENTS_ADDRESS, priceInWei],
+        });
+        console.log("[CELO] Approval transaction hash:", hash);
+
+        // Wait for approval transaction
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        console.log("[CELO] Approval transaction receipt:", receipt);
+
+        if (receipt.status !== "success") {
+          throw new Error("cUSD approval failed");
+        }
+      }
+
+      // Check package price
+      console.log("[CELO] Checking package price...");
+      const contract = {
+        address: GHIBLIFY_PAYMENTS_ADDRESS,
+        abi: GHIBLIFY_PAYMENTS_ABI,
+      };
+
+      const packagePrice = await publicClient.readContract({
+        ...contract,
+        functionName: "getPackagePrice",
+        args: [contractTier],
+      });
+      console.log("[CELO] Package price:", packagePrice.toString());
+
+      if (packagePrice !== priceInWei) {
+        throw new Error("Package price mismatch");
+      }
+
+      // Execute the purchase transaction
+      console.log("[CELO] Executing purchase transaction...");
+      const hash = await purchaseAsync({
+        ...contract,
+        functionName: "purchaseCredits",
+        args: [contractTier],
+      });
+      console.log("[CELO] Purchase transaction hash:", hash);
+
+      // Wait for purchase transaction
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      console.log("[CELO] Purchase transaction receipt:", receipt);
+
+      if (receipt.status !== "success") {
+        throw new Error("Purchase failed");
+      }
+
+      // Handle success
+      handleSuccess(hash);
+    } catch (error) {
+      console.error("[CELO] Error during purchase:", error);
+      toast({
+        title: "Purchase Failed",
+        description:
+          error.message || "There was an error processing your purchase.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsCeloProcessing(false);
+    }
+  };
+
+  const handleStripePurchase = async (tier) => {
     if (!isConnected || !address) {
       toast({
         title: "Wallet not connected",
@@ -80,32 +252,34 @@ export default function Pricing({ onPurchaseComplete }) {
 
     try {
       // Create Stripe checkout session
-      console.log(`[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`);
+      console.log(
+        `[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`
+      );
       const response = await fetch(
-        `${API_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
+        `${STRIPE_WEBHOOK_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
         {
           method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            "Content-Type": "application/json",
+            Accept: "application/json",
           },
           body: JSON.stringify({
-            wallet_address: address
-          })
+            wallet_address: address,
+          }),
         }
       );
-      
+
       console.log(`[Stripe] Response status: ${response.status}`);
       const responseText = await response.text();
       console.log(`[Stripe] Response body: ${responseText}`);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to create checkout session: ${responseText}`);
       }
-      
+
       const data = JSON.parse(responseText);
       console.log(`[Stripe] Redirecting to: ${data.url}`);
-      
+
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
@@ -131,11 +305,13 @@ export default function Pricing({ onPurchaseComplete }) {
       // Check session status and update credits
       const checkSessionStatus = async () => {
         try {
-          console.log(`[Stripe] Checking session ${sessionId} for ${address}...`);
-          const response = await fetch(
-            `${API_URL}/api/stripe/session/${sessionId}?address=${address}`
+          console.log(
+            `[Stripe] Checking session ${sessionId} for ${address}...`
           );
-          
+          const response = await fetch(
+            `${STRIPE_WEBHOOK_URL}/api/stripe/session/${sessionId}?address=${address}`
+          );
+
           if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to check session: ${errorText}`);
@@ -144,7 +320,7 @@ export default function Pricing({ onPurchaseComplete }) {
           const data = await response.json();
           console.log(`[Stripe] Session status:`, data);
 
-          if (data.status === 'success') {
+          if (data.status === "success") {
             // Notify parent component with new credit balance
             if (onPurchaseComplete) {
               onPurchaseComplete(data.credits);
@@ -155,11 +331,15 @@ export default function Pricing({ onPurchaseComplete }) {
               description: `${data.credits} credits have been added to your account.`,
               status: "success",
               duration: 5000,
-              isClosable: true
+              isClosable: true,
             });
 
             // Clear URL params
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
           } else {
             console.log(`[Stripe] Payment not completed yet: ${data.status}`);
           }
@@ -167,10 +347,12 @@ export default function Pricing({ onPurchaseComplete }) {
           console.error("[Stripe] Session check error:", error);
           toast({
             title: "Error",
-            description: error.message || "Failed to verify purchase. Please contact support.",
+            description:
+              error.message ||
+              "Failed to verify purchase. Please contact support.",
             status: "error",
             duration: 5000,
-            isClosable: true
+            isClosable: true,
           });
         }
       };
@@ -179,6 +361,47 @@ export default function Pricing({ onPurchaseComplete }) {
       checkSessionStatus();
     }
   }, []);
+
+  const tiers = [
+    {
+      name: "starter",
+      price: "$0.50",
+      celoPrice: PACKAGES.starter.price,
+      credits: PACKAGES.starter.credits,
+      description: "Try it out",
+      features: [
+        `${PACKAGES.starter.credits} Ghibli transformation`,
+        "Valid for 30 days",
+        "Both styles available",
+      ],
+    },
+    {
+      name: "pro",
+      price: "$4.99",
+      celoPrice: PACKAGES.pro.price,
+      credits: PACKAGES.pro.credits,
+      description: "Most popular",
+      features: [
+        `${PACKAGES.pro.credits} Ghibli transformations`,
+        "Valid for 30 days",
+        "Both styles available",
+        "Save $1 vs single price",
+      ],
+    },
+    {
+      name: "unlimited",
+      price: "$9.99",
+      celoPrice: PACKAGES.unlimited.price,
+      credits: PACKAGES.unlimited.credits,
+      description: "Best value",
+      features: [
+        `${PACKAGES.unlimited.credits} Ghibli transformations`,
+        "Valid for 30 days",
+        "Both styles available",
+        "Save $5 vs single price",
+      ],
+    },
+  ];
 
   return (
     <Box py={12}>
@@ -219,7 +442,11 @@ export default function Pricing({ onPurchaseComplete }) {
 
               <VStack spacing={4} align="stretch">
                 <Text fontSize="2xl" fontWeight="bold">
-                  {tier.name}
+                  {tier.name === "starter"
+                    ? "Starter"
+                    : tier.name === "pro"
+                    ? "Pro"
+                    : "Unlimited"}
                 </Text>
                 <HStack>
                   <Text fontSize="4xl" fontWeight="bold">
@@ -238,17 +465,28 @@ export default function Pricing({ onPurchaseComplete }) {
                   ))}
                 </VStack>
 
-                <Button
-                  mt={8}
-                  w="full"
-                  colorScheme="blue"
-                  onClick={() => handlePurchase(tier)}
-                  isLoading={
-                    isLoading && selectedTier === tier.name.toLowerCase()
-                  }
-                >
-                  Get Started
-                </Button>
+                <VStack spacing={3} mt={4}>
+                  <Button
+                    w="full"
+                    colorScheme="purple"
+                    variant="solid"
+                    onClick={() => handleStripePurchase(tier)}
+                    isLoading={isLoading && selectedTier === tier.name}
+                    leftIcon={<Icon as={FiCreditCard} />}
+                  >
+                    Pay with Card
+                  </Button>
+                  <Button
+                    w="full"
+                    colorScheme="yellow"
+                    variant="solid"
+                    onClick={() => handleCeloPurchase(tier.name.toLowerCase())}
+                    isLoading={isCeloProcessing && selectedTier === tier.name}
+                    leftIcon={<Icon as={FiDollarSign} />}
+                  >
+                    Pay {tier.celoPrice} cUSD
+                  </Button>
+                </VStack>
               </VStack>
             </Box>
           ))}
