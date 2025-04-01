@@ -6,7 +6,7 @@ from web3.auto import w3
 import os
 from dotenv import load_dotenv
 import logging
-from typing import Optional
+from typing import Optional, List
 from .web3_auth import get_credits, set_credits, redis_client
 import json
 from datetime import datetime
@@ -29,6 +29,9 @@ celo_router = APIRouter()
 class PaymentStatus(BaseModel):
     status: str
     reason: Optional[str] = None
+
+class PurchaseHistory(BaseModel):
+    purchases: List[dict]
 
 # Contract ABI (matching the frontend)
 CONTRACT_ABI = [
@@ -203,39 +206,28 @@ async def check_payment_status(tx_hash: str):
         logger.error(f"[CELO] Error checking payment: {str(e)}")
         return PaymentStatus(status="error", reason=str(e))
 
-@celo_router.get("/purchase-history")
+@celo_router.get("/purchase-history", response_model=PurchaseHistory)
 async def get_purchase_history(address: str):
-    """Get CELO purchase history for an address"""
+    """Get the purchase history for a wallet address"""
     try:
-        # Convert address to checksum format
-        checksum_address = Web3.to_checksum_address(address.lower())
-        logger.info(f"[CELO] Fetching purchase history for address: {checksum_address}")
+        # Get history from Redis
+        history_key = f'celo_history:{address.lower()}'
+        history = redis_client.lrange(history_key, 0, -1)
         
-        history_key = f'celo_history:{checksum_address.lower()}'
-        logger.info(f"[CELO] Looking up Redis key: {history_key}")
-        raw_history = redis_client.lrange(history_key, 0, -1)
-        logger.info(f"[CELO] Found {len(raw_history)} transactions")
-        
-        history = []
-        for item in raw_history:
+        # Parse the history
+        purchases = []
+        for item in history:
             try:
-                transaction = json.loads(item)
-                history.append({
-                    'id': transaction['tx_hash'],
-                    'package': transaction['package'],
-                    'credits': transaction['credits'],
-                    'price': transaction['price'],
-                    'timestamp': transaction['timestamp']
-                })
+                purchase = json.loads(item)
+                purchases.append(purchase)
             except json.JSONDecodeError:
-                logger.error(f"[CELO] Error decoding history item: {item}")
+                logger.warning(f"Failed to parse purchase history item: {item}")
                 continue
-
-        logger.info(f"[CELO] Returning {len(history)} processed transactions")
-        return JSONResponse(content={"purchases": history})
-
+        
+        return PurchaseHistory(purchases=purchases)
+        
     except Exception as e:
-        logger.error(f"[CELO] Error fetching purchase history: {str(e)}")
+        logger.error(f"Error fetching purchase history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @celo_router.post("/process-pending-events")
