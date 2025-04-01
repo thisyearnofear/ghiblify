@@ -533,16 +533,31 @@ export default function Pricing({ onPurchaseComplete }) {
                   >
                     Pay with Card
                   </Button>
-                  <Button
-                    w="full"
-                    colorScheme="yellow"
-                    variant="solid"
-                    onClick={() => handleCeloPurchase(tier)}
-                    isLoading={isCeloProcessing && selectedTier === tier.name}
-                    leftIcon={<Icon as={FiDollarSign} />}
-                  >
-                    Pay {tier.celoPrice} cUSD
-                  </Button>
+                  <Box position="relative" w="full">
+                    <Button
+                      w="full"
+                      colorScheme="yellow"
+                      variant="solid"
+                      onClick={() => handleCeloPurchase(tier)}
+                      isLoading={isCeloProcessing && selectedTier === tier.name}
+                      leftIcon={<Icon as={FiDollarSign} />}
+                      size="md"
+                    >
+                      Pay with Stablecoin
+                    </Button>
+                    <Badge
+                      colorScheme="red"
+                      position="absolute"
+                      top="-2"
+                      right="-2"
+                      rounded="full"
+                      px={2}
+                      py={0.5}
+                      fontSize="xs"
+                    >
+                      30% OFF
+                    </Badge>
+                  </Box>
                 </VStack>
               </VStack>
             </Box>

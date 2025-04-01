@@ -35,9 +35,9 @@ contract GhiblifyPaymentsL2 is Ownable {
         );
 
         // Initialize package prices
-        packagePrices["starter"] = 0.01 ether;  // 0.01 cUSD
-        packagePrices["pro"] = 0.01 ether;     // 0.01 cUSD
-        packagePrices["don"] = 0.01 ether;   // 0.01 cUSD
+        packagePrices["starter"] = 0.35 ether;  // 0.35 cUSD
+        packagePrices["pro"] = 3.5 ether;     // 3.5 cUSD
+        packagePrices["don"] = 7 ether;   // 7 cUSD
     }
 
     function getPackagePrice(string memory packageTier) public view returns (uint256) {
@@ -81,13 +81,13 @@ contract GhiblifyPaymentsL2 is Ownable {
         uint256 tolerance = amount / 1000;
         
         if (tierHash == keccak256("starter")) {
-            return _isWithinTolerance(amount, 0.01 ether, tolerance) ? 1 : 0;
+            return _isWithinTolerance(amount, 0.35 ether, tolerance) ? 1 : 0;
         }
         if (tierHash == keccak256("pro")) {
-            return _isWithinTolerance(amount, 0.01 ether, tolerance) ? 12 : 0;
+            return _isWithinTolerance(amount, 3.5 ether, tolerance) ? 12 : 0;
         }
         if (tierHash == keccak256("don")) {
-            return _isWithinTolerance(amount, 0.01 ether, tolerance) ? 30 : 0;
+            return _isWithinTolerance(amount, 7 ether, tolerance) ? 30 : 0;
         }
         return 0;
     }

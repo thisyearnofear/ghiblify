@@ -1,6 +1,6 @@
 // Contract address on Celo Alfajores Testnet
 export const GHIBLIFY_PAYMENTS_ADDRESS =
-  "0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578";
+  "0x0972CAe87506900051BC728f10338ffe35C891Ba";
 
 // Alfajores Testnet cUSD token address
 export const CUSD_TOKEN_ADDRESS = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
@@ -234,21 +234,20 @@ export const GHIBLIFY_PAYMENTS_ABI = [
 export const PACKAGES = {
   starter: {
     credits: 1,
-    price: "0.01",
-    priceInWei: BigInt("10000000000000000"), // 0.01 cUSD
+    price: "0.35", // Original $0.50 with 30% discount
+    priceInWei: BigInt("350000000000000000"), // 0.35 cUSD
     contractTier: "starter",
   },
   pro: {
     credits: 12,
-    price: "0.01",
-    priceInWei: BigInt("10000000000000000"), // 0.01 cUSD
+    price: "3.50", // Original $4.99 with 30% discount
+    priceInWei: BigInt("3500000000000000000"), // 3.5 cUSD
     contractTier: "pro",
   },
   unlimited: {
-    // Keep as 'unlimited' for frontend consistency
     credits: 30,
-    price: "0.01",
-    priceInWei: BigInt("10000000000000000"), // 0.01 cUSD
-    contractTier: "don", // Use 'don' for contract interaction
+    price: "7.00", // Original $9.99 with 30% discount
+    priceInWei: BigInt("7000000000000000000"), // 7 cUSD
+    contractTier: "don",
   },
 };

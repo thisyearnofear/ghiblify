@@ -717,9 +717,9 @@ The CELO integration is now fully functional with the following components:
 
    ```javascript
    {
-     "starter": { price: 0.01 cUSD, credits: 1 },
-     "pro": { price: 0.01 cUSD, credits: 12 },
-     "unlimited": { price: 0.01 cUSD, credits: 30 }
+     "starter": { price: 0.35 cUSD, credits: 1 },
+     "pro": { price: 3.5 cUSD, credits: 12 },
+     "unlimited": { price: 7 cUSD, credits: 30 }
    }
    ```
 

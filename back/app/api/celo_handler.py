@@ -88,7 +88,7 @@ CONTRACT_ABI = [
 ]
 
 # Contract address (matching the frontend)
-CONTRACT_ADDRESS = Web3.to_checksum_address("0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578")
+CONTRACT_ADDRESS = Web3.to_checksum_address("0x0972CAe87506900051BC728f10338ffe35C891Ba")
 
 # Tier mapping for contract compatibility
 TIER_MAPPING = {

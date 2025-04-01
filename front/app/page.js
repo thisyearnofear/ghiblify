@@ -38,6 +38,7 @@ import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import Pricing from "./components/Pricing";
 import CreditsDisplay from "./components/CreditsDisplay";
+import FAQ from "./components/FAQ";
 
 export default function Home() {
   const { address } = useAccount();
@@ -458,10 +459,6 @@ export default function Home() {
         )}
       </Box>
 
-      <Box id="pricing" mt={16}>
-        <Pricing onPurchaseComplete={handlePurchaseComplete} />
-      </Box>
-
       <Box mt={8} mb={12}>
         <Text textAlign="center" fontSize="md" mb={6} color="gray.600">
           Examples
@@ -520,6 +517,12 @@ export default function Home() {
             />
           </WrapItem>
         </Wrap>
+      </Box>
+
+      <FAQ />
+
+      <Box id="pricing" mt={16}>
+        <Pricing onPurchaseComplete={handlePurchaseComplete} />
       </Box>
 
       <Modal isOpen={isOpen} onClose={onClose} size="xl">
