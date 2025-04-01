@@ -7,6 +7,7 @@ import {
   Box,
   Text,
   Container,
+  Link,
 } from "@chakra-ui/react";
 
 const faqs = [
@@ -21,19 +22,48 @@ const faqs = [
       "Each image transformation requires 1 credit. Credits can be purchased using Stripe or Celo's cUSD stablecoin. Starter package gives 1 credit, Pro gives 12, and Unlimited gives 30 credits.",
   },
   {
-    question: "Slow v fast - what's the difference?",
+    question: "What's the difference between Slow and Fast Ghibli?",
     answer:
       "Slow Ghibli (ComfyUI) offers higher quality, especially for close-ups, but takes 1-2 minutes. Fast Ghibli (Replicate) is quicker (30-60 seconds) and works pretty well for medium/long-range shots.",
   },
   {
-    question: "How do I save it?",
-    answer:
-      "Simply right-click on the transformed image and select 'Save Image As' to download it to your device.",
+    question: "What is a testnet and how do I get cUSD?",
+    answer: (
+      <>
+        A testnet is a testing environment for blockchain applications where you
+        can use test tokens for free. To get testnet cUSD:
+        <br />
+        1. Get testnet CELO from the{" "}
+        <Link
+          href="https://faucet.celo.org/"
+          isExternal
+          color="blue.500"
+          textDecoration="underline"
+        >
+          Celo Faucet
+        </Link>
+        <br />
+        2. Swap your CELO for cUSD on{" "}
+        <Link
+          href="https://app.mento.org/"
+          isExternal
+          color="blue.500"
+          textDecoration="underline"
+        >
+          Mento
+        </Link>
+      </>
+    ),
   },
   {
-    question: "Stablecoin? 30% off?",
+    question: "What is cUSD and why do I get a 30% discount?",
     answer:
-      "This stablecoin, cUSD, is a digital currency that maintains a 1:1 value with the US Dollar. Supported by Celo, this initiative facilitates the adoption of decentralized payment methods.",
+      "cUSD is a stablecoin on the Celo network, meaning it's a digital currency that maintains a 1:1 value with the US Dollar. We offer a 30% discount for cUSD payments to encourage the adoption of decentralized payment methods. This means you can get the same credits for less money when paying with cUSD!",
+  },
+  {
+    question: "Not loading / slow?",
+    answer:
+      "Our servers take naps & need gentle prodding to awaken if no-one's used them for a little bit and/or lots of people do. Patience, reloading & good vibes appreciated.",
   },
 ];
 
