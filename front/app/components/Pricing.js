@@ -119,18 +119,52 @@ export default function Pricing({ onPurchaseComplete }) {
     }
   };
 
-  const handleCeloPurchase = async (tierName) => {
+  const handleCeloPurchase = async (tier) => {
     try {
-      console.log("[CELO] Initiating purchase for package:", tierName);
-      const packageInfo = PACKAGES[tierName];
+      if (!address) {
+        toast({
+          title: "Wallet not connected",
+          description: "Please connect your wallet to make a purchase",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      // Check if we're on the correct chain
+      const chainId = await window.ethereum.request({ method: "eth_chainId" });
+      if (chainId !== "0xaef3") {
+        // Alfajores testnet chain ID
+        toast({
+          title: "Wrong Network",
+          description:
+            "Please switch to Celo Alfajores Testnet to make a purchase",
+          status: "warning",
+          duration: 10000,
+          isClosable: true,
+          action: (
+            <Button
+              size="sm"
+              onClick={() =>
+                window.ethereum.request({
+                  method: "wallet_switchEthereumChain",
+                  params: [{ chainId: "0xaef3" }],
+                })
+              }
+            >
+              Switch Network
+            </Button>
+          ),
+        });
+        return;
+      }
+
+      console.log("[CELO] Initiating purchase for package:", tier.name);
+      const packageInfo = PACKAGES[tier.name];
       const contractTier = packageInfo.contractTier;
       const priceInWei = packageInfo.priceInWei;
       console.log("[CELO] Price in wei:", priceInWei);
-
-      // Check if wallet is connected
-      if (!address) {
-        throw new Error("Please connect your wallet first");
-      }
 
       // Check cUSD balance
       console.log("[CELO] Checking cUSD balance...");
@@ -480,7 +514,7 @@ export default function Pricing({ onPurchaseComplete }) {
                     w="full"
                     colorScheme="yellow"
                     variant="solid"
-                    onClick={() => handleCeloPurchase(tier.name.toLowerCase())}
+                    onClick={() => handleCeloPurchase(tier)}
                     isLoading={isCeloProcessing && selectedTier === tier.name}
                     leftIcon={<Icon as={FiDollarSign} />}
                   >

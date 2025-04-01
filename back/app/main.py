@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.stripe_handler import stripe_router
-from .api.web3_auth import web3_router
-from .api.celo_handler import celo_router
+from app.api import stripe_handler, celo_handler, web3_auth, comfyui_handler
 from .tasks import start_background_tasks
 import os
 
@@ -12,7 +10,7 @@ app = FastAPI()
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 NGROK_URL = os.getenv('WEBHOOK_BASE_URL', 'http://localhost:8000')
 
-# CORS configuration
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -26,9 +24,10 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(stripe_router, prefix="/api/stripe", tags=["stripe"])
-app.include_router(web3_router, prefix="/api/web3", tags=["web3"])
-app.include_router(celo_router, prefix="/api/celo", tags=["celo"])
+app.include_router(stripe_handler.stripe_router, prefix="/api/stripe", tags=["stripe"])
+app.include_router(celo_handler.celo_router, prefix="/api/celo", tags=["celo"])
+app.include_router(web3_auth.web3_router, prefix="/api/web3", tags=["web3"])
+app.include_router(comfyui_handler.comfyui_router, prefix="/api/comfyui", tags=["comfyui"])
 
 @app.on_event("startup")
 async def startup_event():
@@ -37,4 +36,4 @@ async def startup_event():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"} 
+    return {"status": "healthy"} 
