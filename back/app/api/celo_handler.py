@@ -1,6 +1,6 @@
 """CELO payment handler and event listener."""
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from web3 import Web3
 from web3.auto import w3
 import os
@@ -24,6 +24,11 @@ w3 = Web3(Web3.HTTPProvider(CELO_RPC_URL))
 
 # Create router
 celo_router = APIRouter()
+
+# Response models
+class PaymentStatus(BaseModel):
+    status: str
+    reason: Optional[str] = None
 
 # Contract ABI (matching the frontend)
 CONTRACT_ABI = [
@@ -94,7 +99,7 @@ PACKAGES = {
     "unlimited": {"price": 9.99, "credits": 30},
 }
 
-@celo_router.get("/check-payment/{tx_hash}")
+@celo_router.get("/check-payment/{tx_hash}", response_model=PaymentStatus)
 async def check_payment_status(tx_hash: str):
     """Check the status of a CELO payment transaction"""
     logger.info(f"[CELO] Checking payment status for tx: {tx_hash}")
@@ -103,17 +108,17 @@ async def check_payment_status(tx_hash: str):
         processed_key = f'processed_tx:44787:{tx_hash}'
         if redis_client.get(processed_key):
             logger.info(f"[CELO] Transaction {tx_hash} already processed")
-            return JSONResponse(content={"status": "processed"})
+            return PaymentStatus(status="processed")
 
         # Get transaction receipt
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         if not receipt:
             logger.info(f"[CELO] Transaction {tx_hash} pending")
-            return JSONResponse(content={"status": "pending"})
+            return PaymentStatus(status="pending")
 
         if receipt['status'] == 0:
             logger.error(f"[CELO] Transaction {tx_hash} failed")
-            return JSONResponse(content={"status": "failed"})
+            return PaymentStatus(status="failed")
 
         # Process the transaction if confirmed and not already processed
         contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
@@ -123,7 +128,7 @@ async def check_payment_status(tx_hash: str):
         
         if not purchase_events:
             logger.warning(f"[CELO] No purchase events found in tx {tx_hash}")
-            return JSONResponse(content={"status": "no_events"})
+            return PaymentStatus(status="no_events")
 
         event = purchase_events[0]
         try:
@@ -135,7 +140,7 @@ async def check_payment_status(tx_hash: str):
 
             if mapped_tier not in PACKAGES:
                 logger.error(f"[CELO] Invalid package tier: {package_tier} (mapped to: {mapped_tier})")
-                return JSONResponse(content={"status": "invalid_package"})
+                return PaymentStatus(status="invalid_package")
 
             credits_to_add = PACKAGES[mapped_tier]['credits']
 
@@ -150,7 +155,7 @@ async def check_payment_status(tx_hash: str):
                         # Check if already processed
                         if redis_client.get(processed_key):
                             logger.info(f"[CELO] Transaction {tx_hash} already processed")
-                            return JSONResponse(content={"status": "processed"})
+                            return PaymentStatus(status="processed")
 
                         # Get current credits
                         current_credits = int(pipe.get(credit_key) or 0)
@@ -186,17 +191,17 @@ async def check_payment_status(tx_hash: str):
                         continue
                     except Exception as e:
                         logger.error(f"[CELO] Redis error: {str(e)}")
-                        return JSONResponse(status_code=500, content={"status": "error", "reason": "redis_error"})
+                        return PaymentStatus(status="error", reason="redis_error")
 
-            return JSONResponse(content={"status": "processed"})
+            return PaymentStatus(status="processed")
 
         except ValueError as ve:
             logger.error(f"[CELO] Address validation error for tx {tx_hash}: {str(ve)}")
-            return JSONResponse(status_code=400, content={"status": "error", "reason": str(ve)})
+            return PaymentStatus(status="error", reason=str(ve))
 
     except Exception as e:
         logger.error(f"[CELO] Error checking payment: {str(e)}")
-        return JSONResponse(status_code=500, content={"status": "error", "reason": str(e)})
+        return PaymentStatus(status="error", reason=str(e))
 
 @celo_router.get("/purchase-history")
 async def get_purchase_history(address: str):

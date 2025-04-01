@@ -6,10 +6,12 @@ from .stripe_handler import stripe_router
 from .credits import credits_router
 from .web3_auth import web3_router
 from .celo_handler import celo_router
+from .health import router as health_router
 
 router = APIRouter()
 
 # Include the routers
+router.include_router(health_router)
 router.include_router(replicate_router, prefix="/replicate")
 router.include_router(comfyui_router, prefix="/comfyui")
 router.include_router(payments_router, prefix="/payments", tags=["payments"])
