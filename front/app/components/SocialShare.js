@@ -5,7 +5,8 @@ import {
   IconButton, 
   Tooltip, 
   useToast,
-  useClipboard
+  useClipboard,
+  Spinner
 } from "@chakra-ui/react";
 import { 
   FaTwitter, 
@@ -14,13 +15,46 @@ import {
   FaDownload
 } from "react-icons/fa";
 import { SiLens, SiFarcaster } from "react-icons/si";
+import { useState, useEffect } from "react";
+import { uploadImageToGrove, needsExternalStorage } from "../utils/groveStorage";
 
-export default function SocialShare({ imageUrl, title = "Ghiblified by <a href='https://ghiblify-it.vercel.app'>ghiblify-it.vercel.app</a>" }) {
+export default function SocialShare({ imageUrl, title = "Ghiblified by https://ghiblify-it.vercel.app" }) {
   const toast = useToast();
-  const { onCopy } = useClipboard(imageUrl);
+  const [sharingUrl, setSharingUrl] = useState(imageUrl);
+  const [isUploading, setIsUploading] = useState(false);
+  const { onCopy } = useClipboard(sharingUrl);
+  
+  // Prepare for sharing when component mounts or imageUrl changes
+  useEffect(() => {
+    const prepareForSharing = async () => {
+      // Check if we need to upload to Grove
+      if (needsExternalStorage(imageUrl)) {
+        setIsUploading(true);
+        try {
+          const result = await uploadImageToGrove(imageUrl);
+          if (result.success) {
+            setSharingUrl(result.gatewayUrl);
+          } else {
+            // If Grove upload fails, fallback to original URL
+            console.warn("Grove upload failed, using original URL", result.error);
+            setSharingUrl(imageUrl);
+          }
+        } catch (error) {
+          console.error("Error preparing image for sharing:", error);
+          setSharingUrl(imageUrl);
+        } finally {
+          setIsUploading(false);
+        }
+      } else {
+        setSharingUrl(imageUrl);
+      }
+    };
+    
+    prepareForSharing();
+  }, [imageUrl]);
   
   const encodedTitle = encodeURIComponent(title);
-  const encodedUrl = encodeURIComponent(imageUrl);
+  const encodedUrl = encodeURIComponent(sharingUrl);
   
   // Social media share URLs
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`;
@@ -41,12 +75,31 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by <a href='
 
   const handleDownload = () => {
     const link = document.createElement('a');
-    link.href = imageUrl;
+    link.href = imageUrl; // Always download the original image
     link.download = 'ghiblified-image.png';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  // If still uploading to Grove, show a loading spinner
+  if (isUploading) {
+    return (
+      <HStack spacing={1} justify="center" mt={1}>
+        <Spinner size="sm" color="blue.500" mr={2} />
+        <Tooltip label="Download image" hasArrow size="sm">
+          <IconButton
+            aria-label="Download image"
+            icon={<FaDownload />}
+            colorScheme="blue"
+            onClick={handleDownload}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+      </HStack>
+    );
+  }
 
   return (
     <HStack spacing={1} justify="center" mt={1}>
