@@ -6,13 +6,16 @@ import {
   Tooltip, 
   useToast,
   useClipboard,
-  Spinner
+  Spinner,
+  Text,
+  Box
 } from "@chakra-ui/react";
 import { 
   FaTwitter, 
   FaFacebook, 
   FaLink,
-  FaDownload
+  FaDownload,
+  FaCheck
 } from "react-icons/fa";
 import { SiLens, SiFarcaster } from "react-icons/si";
 import { useState, useEffect } from "react";
@@ -22,11 +25,16 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(imageUrl);
   const [isUploading, setIsUploading] = useState(false);
-  const { onCopy } = useClipboard(sharingUrl);
+  const [isOptimized, setIsOptimized] = useState(false);
+  const { onCopy, hasCopied } = useClipboard(sharingUrl);
   
   // Prepare for sharing when component mounts or imageUrl changes
   useEffect(() => {
     const prepareForSharing = async () => {
+      // Reset states when image URL changes
+      setIsOptimized(false);
+      setSharingUrl(imageUrl);
+      
       // Check if we need to upload to Grove
       if (needsExternalStorage(imageUrl)) {
         setIsUploading(true);
@@ -34,10 +42,25 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
           const result = await uploadImageToGrove(imageUrl);
           if (result.success) {
             setSharingUrl(result.gatewayUrl);
+            setIsOptimized(true);
+            toast({
+              title: "Image optimized for sharing",
+              description: "Using Grove storage for better social media compatibility",
+              status: "success",
+              duration: 3000,
+              isClosable: true,
+            });
           } else {
             // If Grove upload fails, fallback to original URL
             console.warn("Grove upload failed, using original URL", result.error);
             setSharingUrl(imageUrl);
+            toast({
+              title: "Using original image URL",
+              description: "Grove optimization failed, but sharing should still work",
+              status: "info",
+              duration: 3000,
+              isClosable: true,
+            });
           }
         } catch (error) {
           console.error("Error preparing image for sharing:", error);
@@ -51,7 +74,7 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
     };
     
     prepareForSharing();
-  }, [imageUrl]);
+  }, [imageUrl, toast]);
   
   const encodedTitle = encodeURIComponent(title);
   const encodedUrl = encodeURIComponent(sharingUrl);
@@ -66,7 +89,9 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
     onCopy();
     toast({
       title: "Link copied!",
-      description: "Image URL has been copied to clipboard",
+      description: isOptimized 
+        ? "Optimized image URL has been copied to clipboard" 
+        : "Image URL has been copied to clipboard",
       status: "success",
       duration: 3000,
       isClosable: true,
@@ -80,6 +105,14 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    toast({
+      title: "Download started",
+      description: "Your Ghiblified image is being downloaded",
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
   };
 
   // If still uploading to Grove, show a loading spinner
@@ -87,6 +120,7 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
     return (
       <HStack spacing={1} justify="center" mt={1}>
         <Spinner size="sm" color="blue.500" mr={2} />
+        <Text fontSize="sm" color="gray.500">Optimizing for sharing...</Text>
         <Tooltip label="Download image" hasArrow size="sm">
           <IconButton
             aria-label="Download image"
@@ -102,72 +136,80 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
   }
 
   return (
-    <HStack spacing={1} justify="center" mt={1}>
-      <Tooltip label="Share on Twitter" hasArrow size="sm">
-        <IconButton
-          aria-label="Share on Twitter"
-          icon={<FaTwitter />}
-          colorScheme="twitter"
-          onClick={() => window.open(twitterUrl, '_blank')}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-      
-      <Tooltip label="Share on Facebook" hasArrow size="sm">
-        <IconButton
-          aria-label="Share on Facebook"
-          icon={<FaFacebook />}
-          colorScheme="facebook"
-          onClick={() => window.open(facebookUrl, '_blank')}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-      
-      <Tooltip label="Share on Farcaster" hasArrow size="sm">
-        <IconButton
-          aria-label="Share on Farcaster"
-          icon={<SiFarcaster />}
-          colorScheme="purple"
-          onClick={() => window.open(farcasterUrl, '_blank')}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-      
-      <Tooltip label="Share on Lens" hasArrow size="sm">
-        <IconButton
-          aria-label="Share on Lens"
-          icon={<SiLens />}
-          colorScheme="green"
-          onClick={() => window.open(lensUrl, '_blank')}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-      
-      <Tooltip label="Copy link" hasArrow size="sm">
-        <IconButton
-          aria-label="Copy link"
-          icon={<FaLink />}
-          colorScheme="gray"
-          onClick={handleCopyLink}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-      
-      <Tooltip label="Download image" hasArrow size="sm">
-        <IconButton
-          aria-label="Download image"
-          icon={<FaDownload />}
-          colorScheme="blue"
-          onClick={handleDownload}
-          size="sm"
-          variant="ghost"
-        />
-      </Tooltip>
-    </HStack>
+    <Box>
+      {isOptimized && (
+        <Text fontSize="xs" color="green.500" textAlign="center" mb={1}>
+          <FaCheck style={{ display: 'inline', marginRight: '4px' }} />
+          Optimized for social sharing
+        </Text>
+      )}
+      <HStack spacing={1} justify="center" mt={1}>
+        <Tooltip label="Share on Twitter" hasArrow size="sm">
+          <IconButton
+            aria-label="Share on Twitter"
+            icon={<FaTwitter />}
+            colorScheme="twitter"
+            onClick={() => window.open(twitterUrl, '_blank')}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+        
+        <Tooltip label="Share on Facebook" hasArrow size="sm">
+          <IconButton
+            aria-label="Share on Facebook"
+            icon={<FaFacebook />}
+            colorScheme="facebook"
+            onClick={() => window.open(facebookUrl, '_blank')}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+        
+        <Tooltip label="Share on Farcaster" hasArrow size="sm">
+          <IconButton
+            aria-label="Share on Farcaster"
+            icon={<SiFarcaster />}
+            colorScheme="purple"
+            onClick={() => window.open(farcasterUrl, '_blank')}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+        
+        <Tooltip label="Share on Lens" hasArrow size="sm">
+          <IconButton
+            aria-label="Share on Lens"
+            icon={<SiLens />}
+            colorScheme="green"
+            onClick={() => window.open(lensUrl, '_blank')}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+        
+        <Tooltip label="Copy link" hasArrow size="sm">
+          <IconButton
+            aria-label="Copy link"
+            icon={<FaLink />}
+            colorScheme={hasCopied ? "green" : "gray"}
+            onClick={handleCopyLink}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+        
+        <Tooltip label="Download image" hasArrow size="sm">
+          <IconButton
+            aria-label="Download image"
+            icon={<FaDownload />}
+            colorScheme="blue"
+            onClick={handleDownload}
+            size="sm"
+            variant="ghost"
+          />
+        </Tooltip>
+      </HStack>
+    </Box>
   );
 }
