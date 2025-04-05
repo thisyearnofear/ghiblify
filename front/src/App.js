@@ -273,17 +273,6 @@ const App = () => {
             )}
           </Box>
 
-          <Text fontSize="xs" fontFamily="Arial" textAlign="center" my="30px">
-            built by{" "}
-            <Link href="https://vishalshenoy.com/" isExternal>
-              vishal
-            </Link>{" "}
-            &{" "}
-            <Link href="https://warpcast.com/papa" isExternal>
-              papa
-            </Link>
-          </Text>
-
           <Box mt={8} mb={12}>
             <Text textAlign="center" fontSize="md" mb={6} color="gray.600">
               Examples

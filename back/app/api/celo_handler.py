@@ -108,7 +108,7 @@ async def check_payment_status(tx_hash: str):
     logger.info(f"[CELO] Checking payment status for tx: {tx_hash}")
     try:
         # Check if transaction was already processed
-        processed_key = f'processed_tx:44787:{tx_hash}'
+        processed_key = f'processed_tx:42220:{tx_hash}'
         if redis_client.get(processed_key):
             logger.info(f"[CELO] Transaction {tx_hash} already processed")
             return PaymentStatus(status="processed")
@@ -268,7 +268,7 @@ async def process_pending_events():
                 tx_hash = event['transactionHash'].hex()
                 
                 # Check if already processed
-                processed_key = f'processed_tx:44787:{tx_hash}'
+                processed_key = f'processed_tx:42220:{tx_hash}'
                 if redis_client.get(processed_key):
                     continue
 

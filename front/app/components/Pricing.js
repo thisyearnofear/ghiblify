@@ -18,7 +18,7 @@ import {
   usePublicClient,
 } from "wagmi";
 import { FiCheck, FiCreditCard, FiDollarSign } from "react-icons/fi";
-import { celoAlfajores } from "viem/chains";
+import { celo } from "viem/chains";
 import {
   GHIBLIFY_PAYMENTS_ADDRESS,
   GHIBLIFY_PAYMENTS_ABI,
@@ -157,12 +157,12 @@ export default function Pricing({ onPurchaseComplete }) {
 
       // Check if we're on the correct chain
       const chainId = await window.ethereum.request({ method: "eth_chainId" });
-      if (chainId !== "0xaef3") {
-        // Alfajores testnet chain ID
+      if (chainId !== "0xa4ec") {
+        // Celo Mainnet chain ID
         toast({
           title: "Wrong Network",
           description:
-            "Please switch to Celo Alfajores Testnet to make a purchase",
+            "Please switch to Celo Mainnet to make a purchase",
           status: "warning",
           duration: 10000,
           isClosable: true,
@@ -172,7 +172,7 @@ export default function Pricing({ onPurchaseComplete }) {
               onClick={() =>
                 window.ethereum.request({
                   method: "wallet_switchEthereumChain",
-                  params: [{ chainId: "0xaef3" }],
+                  params: [{ chainId: "0xa4ec" }],
                 })
               }
             >
