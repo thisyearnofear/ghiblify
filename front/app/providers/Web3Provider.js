@@ -9,33 +9,33 @@ import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@rainbow-me/rainbowkit/styles.css";
 
-// Define Celo Alfajores testnet
-const celoAlfajores = {
-  id: 44787,
-  name: "Celo Alfajores",
-  network: "alfajores",
+// Define Celo Mainnet
+const celoMainnet = {
+  id: 42220,
+  name: "Celo",
+  network: "celo",
   nativeCurrency: {
     decimals: 18,
     name: "Celo",
     symbol: "CELO",
   },
   rpcUrls: {
-    default: { http: ["https://alfajores-forno.celo-testnet.org"] },
-    public: { http: ["https://alfajores-forno.celo-testnet.org"] },
+    default: { http: ["https://forno.celo.org"] },
+    public: { http: ["https://forno.celo.org"] },
   },
   blockExplorers: {
-    default: { name: "CeloScan", url: "https://alfajores.celoscan.io" },
+    default: { name: "CeloScan", url: "https://celoscan.io" },
   },
-  testnet: true,
+  testnet: false,
 };
 
 // Create base config using RainbowKit's helper
 const config = getDefaultConfig({
   appName: "Ghiblify",
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
-  chains: [celoAlfajores, mainnet, polygon, base],
+  chains: [celoMainnet, mainnet, polygon, base],
   transports: {
-    [celoAlfajores.id]: http(),
+    [celoMainnet.id]: http(),
     [mainnet.id]: http(),
     [polygon.id]: http(),
     [base.id]: http(),

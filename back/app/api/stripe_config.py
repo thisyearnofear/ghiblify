@@ -1,5 +1,6 @@
 """Stripe configuration and constants."""
 
+# NOTE: These are now LIVE mode price IDs (not test mode)
 STRIPE_PRICE_IDS = {
     "starter": "price_1R7tQmLt1uz9HoCmGXvdrHdh",  # $0.50 - 1 credit
     "pro": "price_1R7tQxLt1uz9HoCmyNgbIock",      # $4.99 - 12 credits
