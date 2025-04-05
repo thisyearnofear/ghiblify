@@ -20,8 +20,8 @@ const celoMainnet = {
     symbol: "CELO",
   },
   rpcUrls: {
-    default: { http: ["https://forno.celo.org"] },
-    public: { http: ["https://forno.celo.org"] },
+    default: { http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"] },
+    public: { http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"] },
   },
   blockExplorers: {
     default: { name: "CeloScan", url: "https://celoscan.io" },
