@@ -21,7 +21,7 @@ import { SiLens, SiFarcaster } from "react-icons/si";
 import { useState, useEffect } from "react";
 import { uploadImageToGrove, needsExternalStorage } from "../utils/groveStorage";
 
-export default function SocialShare({ imageUrl, title = "Ghiblified by https://ghiblify-it.vercel.app" }) {
+export default function SocialShare({ imageUrl, title = "Ghiblified via https://ghiblify-it.vercel.app 🌱" }) {
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(imageUrl);
   const [isUploading, setIsUploading] = useState(false);
@@ -35,12 +35,15 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
       setIsOptimized(false);
       setSharingUrl(imageUrl);
       
-      // Check if we need to upload to Grove
-      if (needsExternalStorage(imageUrl)) {
+      // Always try to upload to Grove for social sharing
+      // Data URLs won't work on social platforms, and Google Storage URLs may expire
+      if (imageUrl) {
         setIsUploading(true);
         try {
+          console.log("Preparing image for sharing:", imageUrl.substring(0, 100) + "...");
           const result = await uploadImageToGrove(imageUrl);
           if (result.success) {
+            console.log("Grove upload successful:", result.gatewayUrl);
             setSharingUrl(result.gatewayUrl);
             setIsOptimized(true);
             toast({
@@ -53,14 +56,25 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
           } else {
             // If Grove upload fails, fallback to original URL
             console.warn("Grove upload failed, using original URL", result.error);
-            setSharingUrl(imageUrl);
-            toast({
-              title: "Using original image URL",
-              description: "Grove optimization failed, but sharing should still work",
-              status: "info",
-              duration: 3000,
-              isClosable: true,
-            });
+            // For data URLs, we can't share them directly, so we'll need to warn the user
+            if (imageUrl.startsWith('data:')) {
+              toast({
+                title: "Sharing may not work properly",
+                description: "Unable to optimize image for sharing. Some platforms may not display the image.",
+                status: "warning",
+                duration: 5000,
+                isClosable: true,
+              });
+            } else {
+              setSharingUrl(imageUrl);
+              toast({
+                title: "Using original image URL",
+                description: "Grove optimization failed, but sharing should still work",
+                status: "info",
+                duration: 3000,
+                isClosable: true,
+              });
+            }
           }
         } catch (error) {
           console.error("Error preparing image for sharing:", error);
@@ -68,8 +82,6 @@ export default function SocialShare({ imageUrl, title = "Ghiblified by https://g
         } finally {
           setIsUploading(false);
         }
-      } else {
-        setSharingUrl(imageUrl);
       }
     };
     

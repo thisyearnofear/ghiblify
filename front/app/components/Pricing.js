@@ -28,8 +28,8 @@ import {
 } from "../contracts/ghiblifyPayments";
 import { parseEther, formatUnits } from "ethers";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const STRIPE_WEBHOOK_URL = process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+const STRIPE_WEBHOOK_URL = process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL || "https://ghiblify.onrender.com/api/stripe/webhook";
 
 if (!API_URL) {
   console.error(
@@ -72,11 +72,13 @@ export default function Pricing({ onPurchaseComplete }) {
         `${API_URL}/api/celo/check-payment/${txHash}`,
         {
           method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
           credentials: "include",
+          mode: "cors",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+          },
         }
       );
 
@@ -312,19 +314,21 @@ export default function Pricing({ onPurchaseComplete }) {
       console.log(
         `[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`
       );
-      const response = await fetch(
-        `${API_URL}/api/stripe/create-checkout-session/${tier.name.toLowerCase()}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            wallet_address: address,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/stripe/create-checkout-session`, {
+        method: "POST",
+        credentials: "include",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+        },
+        body: JSON.stringify({
+          tierId: tier.name,
+          address,
+          returnUrl: window.location.href,
+        }),
+      });
 
       console.log(`[Stripe] Response status: ${response.status}`);
       const responseText = await response.text();
@@ -366,7 +370,17 @@ export default function Pricing({ onPurchaseComplete }) {
             `[Stripe] Checking session ${sessionId} for ${address}...`
           );
           const response = await fetch(
-            `${API_URL}/api/stripe/session/${sessionId}?address=${address}`
+            `${API_URL}/api/stripe/session/${sessionId}?address=${address}`,
+            {
+              method: "GET",
+              credentials: "include",
+              mode: "cors",
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+              },
+            }
           );
 
           if (!response.ok) {

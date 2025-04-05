@@ -15,18 +15,22 @@ app = FastAPI()
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 NGROK_URL = os.getenv('WEBHOOK_BASE_URL', 'http://localhost:8000')
 
-# Configure CORS
+# Configure CORS - ensure all domains are properly allowed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "https://ghiblify-it.vercel.app",
-        "https://ghiblify.onrender.com"
+        "https://ghiblify.vercel.app",
+        "https://ghiblify.onrender.com",
+        "*"  # Allow all origins as a fallback
     ],
+    allow_origin_regex="https://.*\.vercel\.app$",  # Allow all Vercel subdomains
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
+    max_age=86400  # Cache preflight requests for 24 hours
 )
 
 # Include the main API router

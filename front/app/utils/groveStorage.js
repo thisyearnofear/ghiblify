@@ -6,25 +6,70 @@
  */
 export async function uploadImageToGrove(imageUrl) {
   try {
+    console.log("Starting Grove upload process");
+    
     // Convert data URL or fetch remote URL to blob
     let imageBlob;
     let contentType = 'image/png'; // Default content type
     
     if (imageUrl.startsWith('data:')) {
       // Handle data URL
+      console.log("Processing data URL");
       // Extract content type if available
       if (imageUrl.includes(';')) {
         contentType = imageUrl.split(';')[0].split(':')[1];
+        console.log("Detected content type:", contentType);
       }
-      const response = await fetch(imageUrl);
-      imageBlob = await response.blob();
+      
+      // Convert data URL to blob directly
+      try {
+        const byteString = atob(imageUrl.split(',')[1]);
+        const mimeString = imageUrl.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        
+        imageBlob = new Blob([ab], { type: mimeString });
+        console.log("Successfully created blob from data URL, size:", imageBlob.size);
+      } catch (e) {
+        console.error("Error converting data URL to blob:", e);
+        // Fallback to fetch API if direct conversion fails
+        const response = await fetch(imageUrl);
+        imageBlob = await response.blob();
+        console.log("Used fetch API fallback for data URL, blob size:", imageBlob.size);
+      }
     } else {
       // Handle remote URL
-      const response = await fetch(imageUrl);
-      contentType = response.headers.get('Content-Type') || contentType;
-      imageBlob = await response.blob();
+      console.log("Fetching remote URL:", imageUrl);
+      try {
+        const response = await fetch(imageUrl, {
+          cache: 'no-store', // Avoid caching issues
+          mode: 'cors',      // Enable CORS
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        
+        contentType = response.headers.get('Content-Type') || contentType;
+        imageBlob = await response.blob();
+        console.log("Successfully fetched remote image, size:", imageBlob.size, "type:", contentType);
+      } catch (e) {
+        console.error("Error fetching remote URL:", e);
+        throw new Error(`Failed to fetch image: ${e.message}`);
+      }
     }
 
+    // Verify we have a valid blob
+    if (!imageBlob || imageBlob.size === 0) {
+      throw new Error("Invalid image blob: empty or null");
+    }
+
+    console.log("Uploading to Grove, blob size:", imageBlob.size, "type:", contentType);
+    
     // Use the simple one-step upload for immutable content on Celo Mainnet
     const uploadResponse = await fetch(`https://api.grove.storage/?chain_id=42220`, {
       method: 'POST',
@@ -35,10 +80,13 @@ export async function uploadImageToGrove(imageUrl) {
     });
 
     if (!uploadResponse.ok) {
-      throw new Error(`Grove upload failed: ${uploadResponse.status}`);
+      const errorText = await uploadResponse.text();
+      console.error("Grove API error:", errorText);
+      throw new Error(`Grove upload failed: ${uploadResponse.status} - ${errorText}`);
     }
 
     const data = await uploadResponse.json();
+    console.log("Grove upload successful:", data);
     
     return {
       success: true,

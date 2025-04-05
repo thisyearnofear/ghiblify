@@ -86,6 +86,17 @@ export default function Home() {
     process.env.NODE_ENV === "development"
       ? "http://localhost:8000"
       : "https://ghiblify.onrender.com";
+      
+  // Standard fetch options for all API calls to handle CORS properly
+  const fetchOptions = {
+    credentials: "include",
+    mode: "cors",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+    }
+  };
 
   // Load token on mount
   useEffect(() => {
@@ -120,7 +131,7 @@ export default function Home() {
   // Function to poll task status
   const pollTaskStatus = async (taskId) => {
     try {
-      const response = await fetch(`${API_URL}/api/comfyui/status/${taskId}`);
+      const response = await fetch(`${API_URL}/api/comfyui/status/${taskId}`, fetchOptions);
       if (!response.ok) {
         throw new Error("Failed to fetch status");
       }
@@ -183,13 +194,8 @@ export default function Home() {
     try {
       // First, use a credit
       const creditResponse = await fetch(
-        `${API_URL}/api/web3/credits/use?address=${address}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        `${API_URL}/api/web3/credits/check?address=${address}`,
+        fetchOptions
       );
 
       if (!creditResponse.ok) {
@@ -214,10 +220,20 @@ export default function Home() {
 
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
-      const response = await fetch(`${API_URL}${endpoint}?address=${address}`, {
+      
+      // Create a new options object for FormData (can't use Content-Type with FormData)
+      const formDataOptions = {
         method: "POST",
+        credentials: "include",
+        mode: "cors",
+        headers: {
+          "Accept": "application/json",
+          "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+        },
         body: formData,
-      });
+      };
+      
+      const response = await fetch(`${API_URL}${endpoint}?address=${address}`, formDataOptions);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -446,7 +462,7 @@ export default function Home() {
                   width="100%"
                   objectFit="contain"
                 />
-                <SocialShare imageUrl={generatedImageURL} title="Check out my Ghiblified image created with Ghiblify!" />
+                <SocialShare imageUrl={generatedImageURL} title="Ghiblified via https://ghiblify-it.vercel.app 🌱" />
               </Box>
             )}
             {error && (

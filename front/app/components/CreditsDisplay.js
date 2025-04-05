@@ -4,7 +4,7 @@ import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
 if (!API_URL) {
   console.error(
     "[Credits] NEXT_PUBLIC_API_URL environment variable is not set"
@@ -17,11 +17,14 @@ const fetchCredits = async (address) => {
     `${API_URL}/api/web3/credits/check?address=${address}`,
     {
       method: "GET",
+      credentials: "include",  // Include cookies for cross-origin requests
+      mode: "cors",          // Explicitly set CORS mode
       headers: {
-        Accept: "application/json",
+        "Accept": "application/json",
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
-        Pragma: "no-cache",
+        "Pragma": "no-cache",
+        "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
       },
     }
   );
