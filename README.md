@@ -29,7 +29,7 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
   ```env
   COMFY_UI_API_KEY=your_comfyui_key
   IMGBB_API_KEY=your_imgbb_key
-  STRIPE_SECRET_KEY=sk_test_***
+  STRIPE_SECRET_KEY=sk_live_***
   STRIPE_WEBHOOK_SECRET=whsec_***
   REDIS_HOST=joint-mongoose-18966.upstash.io
   REDIS_PASSWORD=your_redis_password
@@ -38,8 +38,8 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
   FRONTEND_URL=https://ghiblify-it.vercel.app
   SUCCESS_URL=https://ghiblify-it.vercel.app/success
   CANCEL_URL=https://ghiblify-it.vercel.app/cancel
-  CELO_RPC_URL=https://alfajores-forno.celo-testnet.org
-  CELO_CONTRACT_ADDRESS=0xee213a1a317093bd4fe9c4b78698da207cbfe14d
+  CELO_RPC_URL=https://celo-mainnet.g.alchemy.com/v2/[KEY]
+  CELO_CONTRACT_ADDRESS=0xC1a6b48d1898815bbD82C980f44f6f5688C2A9e4
   ```
 
 #### Redis (Upstash)
@@ -54,7 +54,7 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
 
 #### Stripe Integration
 
-- Test mode configuration
+- **Live mode configuration**
 - Webhook endpoint: `https://ghiblify.onrender.com/api/stripe/webhook`
 - Required webhook events:
   - `checkout.session.completed`
@@ -64,11 +64,16 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
   - `payment_intent.payment_failed`
 - Idempotency handling for duplicate events
 - Customer ID management for recurring purchases
+- Product: Ghiblify Credits (prod_S4ZE9n2K7Rvcpr)
+- Price tiers:
+  - Starter: $0.50 for 1 credit (price_1RAQ5yLt1uz9HoCm2md6mBsQ)
+  - Pro: $4.99 for 12 credits (price_1RAQ5zLt1uz9HoCm1F5lZyF2)
+  - Unlimited: $9.99 for 30 credits (price_1RAQ5zLt1uz9HoCmXTElLMjT)
 
-#### CELO Integration (Planned)
+#### CELO Integration
 
 - Integration with CELO L2 for stablecoin payments
-- Network: Celo Alfajores Testnet (Chain ID: 44787)
+- Network: **Celo Mainnet (Chain ID: 42220)**
 - Smart contract deployment for payment processing
 - Parallel payment system alongside existing Stripe integration
 
@@ -76,9 +81,9 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
 
 ```javascript
 {
-  "GhiblifyPayments": "0xee213a1a317093bd4fe9c4b78698da207cbfe14d",
-  "cUSD": "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
-  "network": "alfajores",
+  "GhiblifyPayments": "0xC1a6b48d1898815bbD82C980f44f6f5688C2A9e4",
+  "cUSD": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+  "network": "mainnet",
 }
 ```
 
