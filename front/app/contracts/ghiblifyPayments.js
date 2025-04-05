@@ -1,9 +1,9 @@
-// Contract address on Celo Alfajores Testnet
+// Contract address on Celo Mainnet
 export const GHIBLIFY_PAYMENTS_ADDRESS =
-  "0x0972CAe87506900051BC728f10338ffe35C891Ba";
+  "0xC1a6b48d1898815bbD82C980f44f6f5688C2A9e4";
 
-// Alfajores Testnet cUSD token address
-export const CUSD_TOKEN_ADDRESS = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
+// Celo Mainnet cUSD token address
+export const CUSD_TOKEN_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
 
 // Mapping between frontend tier names and contract tier names
 export const TIER_MAPPING = {

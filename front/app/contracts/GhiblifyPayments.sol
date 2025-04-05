@@ -9,7 +9,7 @@ contract GhiblifyPaymentsL2 is Ownable {
     using SafeERC20 for IERC20;
 
     // Celo L2 cUSD address (verify this is correct)
-    IERC20 public constant CUSD_TOKEN = IERC20(0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1);
+    IERC20 public constant CUSD_TOKEN = IERC20(0x765DE816845861e75A25fCA122bb6898B8B1282a);
 
     mapping(string => uint256) public packagePrices;
 
