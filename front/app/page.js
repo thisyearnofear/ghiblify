@@ -39,6 +39,7 @@ import { useAccount } from "wagmi";
 import Pricing from "./components/Pricing";
 import CreditsDisplay from "./components/CreditsDisplay";
 import FAQ from "./components/FAQ";
+import SocialShare from "./components/SocialShare";
 
 export default function Home() {
   const { address } = useAccount();
@@ -445,9 +446,7 @@ export default function Home() {
                   width="100%"
                   objectFit="contain"
                 />
-                <Text fontSize="xs" color="gray.500" textAlign="center" mt={2}>
-                  Right-click to save your transformed image
-                </Text>
+                <SocialShare imageUrl={generatedImageURL} title="Check out my Ghiblified image created with Ghiblify!" />
               </Box>
             )}
             {error && (
