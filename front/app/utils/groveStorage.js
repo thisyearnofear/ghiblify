@@ -1,51 +1,37 @@
 "use client";
 
-// Determine API URL based on environment
-const API_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:8000"
-    : "https://ghiblify.onrender.com";
-
 /**
- * Utility for uploading images to Grove storage via our backend API
+ * Utility for uploading images to Grove storage directly from the frontend
  */
 export async function uploadImageToGrove(imageUrl) {
   try {
-    // Determine if the image is a data URL or a regular URL
-    const isBase64 = imageUrl.startsWith('data:');
-    let imageData;
-    
-    if (isBase64) {
-      // For data URLs, just pass the full URL
-      imageData = imageUrl;
+    // Convert data URL or fetch remote URL to blob
+    let imageBlob;
+    if (imageUrl.startsWith('data:')) {
+      // Handle data URL
+      const response = await fetch(imageUrl);
+      imageBlob = await response.blob();
     } else {
-      // For regular URLs, pass the URL as is
-      imageData = imageUrl;
+      // Handle remote URL
+      const response = await fetch(imageUrl);
+      imageBlob = await response.blob();
     }
 
-    // Call our backend API to handle the upload to Grove
-    const uploadResponse = await fetch(`${API_URL}/api/grove/upload`, {
+    // Use the simple one-step upload for immutable content
+    // Using Celo Mainnet chain ID (42220) as per the project's configuration
+    const uploadResponse = await fetch(`https://api.grove.storage/?chain_id=42220`, {
       method: 'POST',
+      body: imageBlob,
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        image_data: imageData,
-        is_base64: isBase64
-      }),
-      credentials: 'include' // Include cookies for authentication
+        'Content-Type': imageBlob.type,
+      }
     });
 
     if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      throw new Error(`Grove upload failed: ${uploadResponse.status} - ${errorText}`);
+      throw new Error(`Grove upload failed: ${uploadResponse.status}`);
     }
 
     const data = await uploadResponse.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Unknown error during upload');
-    }
     
     return {
       success: true,
