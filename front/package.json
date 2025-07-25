@@ -32,7 +32,8 @@
     "redis": "^4.7.0",
     "socket.io-client": "4.7.1",
     "viem": "^2.24.2",
-    "wagmi": "^2.14.15"
+    "wagmi": "^2.14.15",
+    "react-compare-image": "^3.0.0"
   },
   "eslintConfig": {
     "extends": [

@@ -40,8 +40,11 @@ import Pricing from "./components/Pricing";
 import CreditsDisplay from "./components/CreditsDisplay";
 import FAQ from "./components/FAQ";
 import SocialShare from "./components/SocialShare";
+import CompareSlider from "./components/CompareSlider";
+import { Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, HStack } from "@chakra-ui/react";
 
 export default function Home() {
+  const DEFAULT_PROMPT_STRENGTH = 0.8;
   const { address } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImageURL, setSelectedImageURL] = useState("");
@@ -58,6 +61,7 @@ export default function Home() {
   const [factInterval, setFactInterval] = useState(null);
   const [token, setToken] = useState(null);
   const [creditsRefreshKey, setCreditsRefreshKey] = useState(0);
+  const [promptStrength, setPromptStrength] = useState(DEFAULT_PROMPT_STRENGTH);
 
   // Studio Ghibli facts to display during loading
   const ghibliFacts = [
@@ -217,6 +221,9 @@ export default function Home() {
 
       const formData = new FormData();
       formData.append("file", selectedFile);
+
+      // Add prompt_strength for backend API
+      formData.append("prompt_strength", promptStrength.toString());
 
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
@@ -380,6 +387,37 @@ export default function Home() {
                   upload photo
                 </Button>
               </FormControl>
+              
+              {/* Style Intensity Slider - visible when an image is selected */}
+              {selectedFile && (
+                <Box w="100%" maxW="400px" mt={2}>
+                  <FormLabel htmlFor="intensity-slider" mb={1}>
+                    Ghibli Intensity
+                  </FormLabel>
+                  <HStack spacing={4}>
+                    <Slider
+                      id="intensity-slider"
+                      aria-label="Ghibli Intensity"
+                      min={50}
+                      max={100}
+                      step={1}
+                      value={Math.round(promptStrength * 100)}
+                      onChange={(val) => setPromptStrength(val / 100)}
+                      colorScheme="blue"
+                      flex="1"
+                    >
+                      <SliderTrack>
+                        <SliderFilledTrack />
+                      </SliderTrack>
+                      <SliderThumb />
+                    </Slider>
+                    <Box minW="48px" textAlign="right" fontSize="sm">
+                      {Math.round(promptStrength * 100)}%
+                    </Box>
+                  </HStack>
+                </Box>
+              )}
+              
               {selectedImageURL && (
                 <Button
                   onClick={handleGhiblify}
@@ -430,45 +468,66 @@ export default function Home() {
           </Stack>
         ) : (
           <>
-            {selectedImageURL && (
-              <Box
-                flex={{ base: "1", md: "1" }}
-                maxW={{ base: "100%", md: "50%" }}
-              >
-                <Text textAlign="center" mb={2}>
-                  Original Image
-                </Text>
-                <Image
-                  src={selectedImageURL}
-                  boxShadow="lg"
-                  maxH="400px"
-                  width="100%"
-                  objectFit="contain"
+            {selectedImageURL && generatedImageURL ? (
+              <Box w="100%">
+                <CompareSlider
+                  originalUrl={selectedImageURL}
+                  resultUrl={generatedImageURL}
+                  height="400px"
                 />
+                <Box mt={2}>
+                  <SocialShare
+                    imageUrl={generatedImageURL}
+                    title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
+                  />
+                </Box>
               </Box>
-            )}
-            {generatedImageURL && (
-              <Box
-                flex={{ base: "1", md: "1" }}
-                maxW={{ base: "100%", md: "50%" }}
-              >
-                <Text textAlign="center" mb={2}>
-                  Ghibli Style
-                </Text>
-                <Image
-                  src={generatedImageURL}
-                  boxShadow="lg"
-                  maxH="400px"
-                  width="100%"
-                  objectFit="contain"
-                />
-                <SocialShare imageUrl={generatedImageURL} title="Ghiblified via https://ghiblify-it.vercel.app 🌱" />
-              </Box>
-            )}
-            {error && (
-              <Text color="red.500" mt={4}>
-                {error}
-              </Text>
+            ) : (
+              <>
+                {selectedImageURL && (
+                  <Box
+                    flex={{ base: "1", md: "1" }}
+                    maxW={{ base: "100%", md: "50%" }}
+                  >
+                    <Text textAlign="center" mb={2}>
+                      Original Image
+                    </Text>
+                    <Image
+                      src={selectedImageURL}
+                      boxShadow="lg"
+                      maxH="400px"
+                      width="100%"
+                      objectFit="contain"
+                    />
+                  </Box>
+                )}
+                {generatedImageURL && (
+                  <Box
+                    flex={{ base: "1", md: "1" }}
+                    maxW={{ base: "100%", md: "50%" }}
+                  >
+                    <Text textAlign="center" mb={2}>
+                      Ghibli Style
+                    </Text>
+                    <Image
+                      src={generatedImageURL}
+                      boxShadow="lg"
+                      maxH="400px"
+                      width="100%"
+                      objectFit="contain"
+                    />
+                    <SocialShare
+                      imageUrl={generatedImageURL}
+                      title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
+                    />
+                  </Box>
+                )}
+                {error && (
+                  <Text color="red.500" mt={4}>
+                    {error}
+                  </Text>
+                )}
+              </>
             )}
           </>
         )}
