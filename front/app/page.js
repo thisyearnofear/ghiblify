@@ -41,6 +41,7 @@ import CreditsDisplay from "./components/CreditsDisplay";
 import FAQ from "./components/FAQ";
 import SocialShare from "./components/SocialShare";
 import CompareSlider from "./components/CompareSlider";
+import BatchGhiblify from "./components/BatchGhiblify";
 import { Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, HStack } from "@chakra-ui/react";
 
 export default function Home() {
@@ -196,29 +197,29 @@ export default function Home() {
     cleanupIntervals();
 
     try {
-      // First, use a credit
-      const creditResponse = await fetch(
-        `${API_URL}/api/web3/credits/check?address=${address}`,
-        fetchOptions
+      // Deduct a credit FIRST using the new /credits/use endpoint
+      const creditUseRes = await fetch(
+        `${API_URL}/api/web3/credits/use?address=${address}&amount=1`,
+        {
+          ...fetchOptions,
+          method: "POST",
+        }
       );
 
-      if (!creditResponse.ok) {
-        if (creditResponse.status === 402) {
-          // No credits available
-          setError(
-            "No credits available. Please purchase credits to continue."
-          );
+      if (!creditUseRes.ok) {
+        if (creditUseRes.status === 400) {
+          setError("No credits available. Please purchase credits to continue.");
           document
             .getElementById("pricing")
             ?.scrollIntoView({ behavior: "smooth" });
+          setIsLoading(false);
           return;
         }
         throw new Error("Failed to use credit");
       }
+      setCreditsRefreshKey((prev) => prev + 1);
 
-      const creditData = await creditResponse.json();
-      // Credit used successfully
-
+      // Proceed as before
       const formData = new FormData();
       formData.append("file", selectedFile);
 
@@ -308,64 +309,92 @@ export default function Home() {
         <CreditsDisplay forceRefresh={creditsRefreshKey} />
       </Box>
 
-      <Tabs isFitted variant="enclosed" mt={8}>
+      {/* Controls for style and API choice shared by both tabs */}
+      <Box w="100%" maxW="400px" mb={6} mx="auto">
+        <Text fontSize="lg" mb={3} textAlign="center">
+          Choose Your Ghibli Style
+        </Text>
+        <RadioGroup
+          onChange={setApiChoice}
+          value={apiChoice}
+          display="flex"
+          flexDirection="column"
+          gap={4}
+        >
+          <Box
+            p={4}
+            borderWidth="1px"
+            borderRadius="lg"
+            cursor="pointer"
+            onClick={() => setApiChoice("comfy")}
+            bg={apiChoice === "comfy" ? "blue.50" : "transparent"}
+            _hover={{ bg: "blue.50" }}
+          >
+            <Radio value="comfy" size="lg">
+              <Box ml={3}>
+                <Text fontWeight="bold">Slow Ghibli</Text>
+                <Text fontSize="sm" color="gray.600">
+                  Best for closeups, higher quality
+                </Text>
+              </Box>
+            </Radio>
+          </Box>
+
+          <Box
+            p={4}
+            borderWidth="1px"
+            borderRadius="lg"
+            cursor="pointer"
+            onClick={() => setApiChoice("replicate")}
+            bg={apiChoice === "replicate" ? "blue.50" : "transparent"}
+            _hover={{ bg: "blue.50" }}
+          >
+            <Radio value="replicate" size="lg">
+              <Box ml={3}>
+                <Text fontWeight="bold">Faster Ghibli</Text>
+                <Text fontSize="sm" color="gray.600">
+                  Best for Medium/Long range
+                </Text>
+              </Box>
+            </Radio>
+          </Box>
+        </RadioGroup>
+      </Box>
+      <Box w="100%" maxW="400px" mx="auto" mb={8}>
+        <FormLabel htmlFor="intensity-slider" mb={1}>
+          Ghibli Intensity
+        </FormLabel>
+        <HStack spacing={4}>
+          <Slider
+            id="intensity-slider"
+            aria-label="Ghibli Intensity"
+            min={50}
+            max={100}
+            step={1}
+            value={Math.round(promptStrength * 100)}
+            onChange={(val) => setPromptStrength(val / 100)}
+            colorScheme="blue"
+            flex="1"
+          >
+            <SliderTrack>
+              <SliderFilledTrack />
+            </SliderTrack>
+            <SliderThumb />
+          </Slider>
+          <Box minW="48px" textAlign="right" fontSize="sm">
+            {Math.round(promptStrength * 100)}%
+          </Box>
+        </HStack>
+      </Box>
+      <Tabs isFitted variant="enclosed" mt={2}>
         <TabList mb="1em">
-          <Tab></Tab>
+          <Tab>Single</Tab>
+          <Tab>Batch</Tab>
         </TabList>
         <TabPanels>
+          {/* Single image Tab */}
           <TabPanel>
             <Flex direction="column" align="center" gap={4}>
-              <Box w="100%" maxW="400px" mb={6}>
-                <Text fontSize="lg" mb={3} textAlign="center">
-                  Choose Your Ghibli Style
-                </Text>
-                <RadioGroup
-                  onChange={setApiChoice}
-                  value={apiChoice}
-                  display="flex"
-                  flexDirection="column"
-                  gap={4}
-                >
-                  <Box
-                    p={4}
-                    borderWidth="1px"
-                    borderRadius="lg"
-                    cursor="pointer"
-                    onClick={() => setApiChoice("comfy")}
-                    bg={apiChoice === "comfy" ? "blue.50" : "transparent"}
-                    _hover={{ bg: "blue.50" }}
-                  >
-                    <Radio value="comfy" size="lg">
-                      <Box ml={3}>
-                        <Text fontWeight="bold">Slow Ghibli</Text>
-                        <Text fontSize="sm" color="gray.600">
-                          Best for closeups, higher quality
-                        </Text>
-                      </Box>
-                    </Radio>
-                  </Box>
-
-                  <Box
-                    p={4}
-                    borderWidth="1px"
-                    borderRadius="lg"
-                    cursor="pointer"
-                    onClick={() => setApiChoice("replicate")}
-                    bg={apiChoice === "replicate" ? "blue.50" : "transparent"}
-                    _hover={{ bg: "blue.50" }}
-                  >
-                    <Radio value="replicate" size="lg">
-                      <Box ml={3}>
-                        <Text fontWeight="bold">Faster Ghibli</Text>
-                        <Text fontSize="sm" color="gray.600">
-                          Best for Medium/Long range
-                        </Text>
-                      </Box>
-                    </Radio>
-                  </Box>
-                </RadioGroup>
-              </Box>
-
               <FormControl>
                 <Input
                   type="file"
@@ -387,37 +416,6 @@ export default function Home() {
                   upload photo
                 </Button>
               </FormControl>
-              
-              {/* Style Intensity Slider - visible when an image is selected */}
-              {selectedFile && (
-                <Box w="100%" maxW="400px" mt={2}>
-                  <FormLabel htmlFor="intensity-slider" mb={1}>
-                    Ghibli Intensity
-                  </FormLabel>
-                  <HStack spacing={4}>
-                    <Slider
-                      id="intensity-slider"
-                      aria-label="Ghibli Intensity"
-                      min={50}
-                      max={100}
-                      step={1}
-                      value={Math.round(promptStrength * 100)}
-                      onChange={(val) => setPromptStrength(val / 100)}
-                      colorScheme="blue"
-                      flex="1"
-                    >
-                      <SliderTrack>
-                        <SliderFilledTrack />
-                      </SliderTrack>
-                      <SliderThumb />
-                    </Slider>
-                    <Box minW="48px" textAlign="right" fontSize="sm">
-                      {Math.round(promptStrength * 100)}%
-                    </Box>
-                  </HStack>
-                </Box>
-              )}
-              
               {selectedImageURL && (
                 <Button
                   onClick={handleGhiblify}
@@ -428,6 +426,15 @@ export default function Home() {
                 </Button>
               )}
             </Flex>
+          </TabPanel>
+          {/* Batch Tab */}
+          <TabPanel>
+            <BatchGhiblify
+              apiChoice={apiChoice}
+              promptStrength={promptStrength}
+              address={address}
+              onCreditsUsed={() => setCreditsRefreshKey((k) => k + 1)}
+            />
           </TabPanel>
         </TabPanels>
       </Tabs>
