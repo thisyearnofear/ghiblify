@@ -13,6 +13,7 @@ interface FarcasterContextType {
   user: any;
   isLoading: boolean;
   isReady: boolean;
+  sendNotification?: (type?: string) => Promise<void>;
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
@@ -21,6 +22,7 @@ const FarcasterContext = createContext<FarcasterContextType>({
   user: null,
   isLoading: true,
   isReady: false,
+  sendNotification: async () => {},
 });
 
 export const useFarcaster = () => useContext(FarcasterContext);
@@ -83,12 +85,21 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
       const notificationConfig = FARCASTER_CONFIG.notifications[type];
       if (!notificationConfig) return;
       
-      await FrameSDK.actions.notify({
-        notificationId: createNotificationId(),
-        title: notificationConfig.title,
-        body: notificationConfig.body,
-        targetUrl: FARCASTER_CONFIG.manifest.homeUrl
-      });
+      // Check if notify method is available (may not be in all SDK versions)
+      if ('notify' in FrameSDK.actions) {
+        await (FrameSDK.actions as any).notify({
+          notificationId: createNotificationId(),
+          title: notificationConfig.title,
+          body: notificationConfig.body,
+          targetUrl: FARCASTER_CONFIG.manifest.homeUrl
+        });
+      } else {
+        console.log('Notification would be sent:', {
+          type,
+          title: notificationConfig.title,
+          body: notificationConfig.body
+        });
+      }
     } catch (error) {
       console.error('Failed to send notification:', error);
     }
@@ -100,6 +111,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     user,
     isLoading,
     isReady,
+    sendNotification,
   };
 
   return (

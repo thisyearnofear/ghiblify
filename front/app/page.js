@@ -511,6 +511,7 @@ export default function Home() {
                     </Text>
                     <Image
                       src={selectedImageURL}
+                      alt="Original uploaded image"
                       boxShadow="lg"
                       maxH="400px"
                       width="100%"
@@ -528,6 +529,7 @@ export default function Home() {
                     </Text>
                     <Image
                       src={generatedImageURL}
+                      alt="Generated Ghibli-style image"
                       boxShadow="lg"
                       maxH="400px"
                       width="100%"
