@@ -61,39 +61,91 @@ class ModernRedisService:
         self._initialize_connection()
     
     def _initialize_connection(self):
-        """Initialize Redis connection with modern connection pooling"""
+        """Initialize Redis connection with modern Redis v5+ SSL support"""
         try:
-            # Modern connection pool setup
-            self.pool = ConnectionPool(
-                host=self.config.host,
-                port=self.config.port,
-                username=self.config.username,
-                password=self.config.password,
-                db=self.config.db,
-                ssl=self.config.ssl,
-                ssl_cert_reqs=None,  # Upstash compatibility
-                max_connections=self.config.max_connections,
-                socket_timeout=self.config.socket_timeout,
-                socket_connect_timeout=self.config.socket_connect_timeout,
-                retry_on_timeout=self.config.retry_on_timeout,
-                decode_responses=self.config.decode_responses
-            )
+            # For Redis v5.0+, use direct Redis client initialization instead of ConnectionPool
+            # This handles SSL configuration more reliably for Upstash
             
-            self.client = Redis(connection_pool=self.pool)
+            redis_kwargs = {
+                'host': self.config.host,
+                'port': self.config.port,
+                'username': self.config.username,
+                'password': self.config.password,
+                'db': self.config.db,
+                'socket_timeout': self.config.socket_timeout,
+                'socket_connect_timeout': self.config.socket_connect_timeout,
+                'retry_on_timeout': self.config.retry_on_timeout,
+                'decode_responses': self.config.decode_responses,
+                'health_check_interval': 30  # Keep connection alive
+            }
+            
+            # Add SSL parameters for Upstash (Redis v5+ compatible)
+            if self.config.ssl:
+                redis_kwargs.update({
+                    'ssl': True,
+                    'ssl_cert_reqs': None,      # Don't verify certificates (Upstash compatible)
+                    'ssl_check_hostname': False, # Don't verify hostname (Upstash compatible)
+                    'ssl_ca_certs': None        # Use system CA bundle
+                })
+            
+            # Initialize Redis client directly (not through ConnectionPool for SSL compatibility)
+            self.client = Redis(**redis_kwargs)
             
             # Test connection
-            self.client.ping()
-            self.available = True
-            logger.info(f"[Redis] Modern connection pool initialized - {self.config.host}:{self.config.port}")
-            
-            # Log server info for debugging
-            server_info = self.client.info('server')
-            logger.info(f"[Redis] Server version: {server_info.get('redis_version', 'unknown')}")
+            ping_result = self.client.ping()
+            if ping_result:
+                self.available = True
+                logger.info(f"[Redis] ✅ Successfully connected to {self.config.host}:{self.config.port}")
+                
+                # Log server info for debugging
+                try:
+                    server_info = self.client.info('server')
+                    redis_version = server_info.get('redis_version', 'unknown')
+                    logger.info(f"[Redis] Server version: {redis_version}")
+                    logger.info(f"[Redis] SSL enabled: {self.config.ssl}")
+                except Exception as info_error:
+                    logger.warning(f"[Redis] Could not get server info: {info_error}")
+            else:
+                raise Exception("Redis ping failed")
             
         except Exception as e:
-            logger.error(f"[Redis] Connection failed: {str(e)}")
-            logger.warning("[Redis] Using memory fallback - data will not persist")
+            logger.error(f"[Redis] Primary connection failed: {str(e)}")
+            
+            # Try alternative connection method for Upstash
+            if self.config.ssl and "ssl" in str(e).lower():
+                logger.info("[Redis] Attempting alternative SSL connection method...")
+                try:
+                    # Alternative: Use URL-based connection for Upstash
+                    redis_url = f"rediss://{self.config.username}:{self.config.password}@{self.config.host}:{self.config.port}/{self.config.db}"
+                    self.client = Redis.from_url(
+                        redis_url,
+                        socket_timeout=self.config.socket_timeout,
+                        socket_connect_timeout=self.config.socket_connect_timeout,
+                        retry_on_timeout=self.config.retry_on_timeout,
+                        decode_responses=self.config.decode_responses,
+                        ssl_cert_reqs=None,
+                        ssl_check_hostname=False
+                    )
+                    
+                    # Test alternative connection
+                    if self.client.ping():
+                        self.available = True
+                        logger.info("[Redis] ✅ Alternative SSL connection successful!")
+                        return
+                    
+                except Exception as alt_error:
+                    logger.error(f"[Redis] Alternative connection also failed: {alt_error}")
+            
+            # Fallback to memory storage
+            logger.warning("[Redis] Using memory fallback - data will not persist across restarts")
+            logger.warning("[Redis] Memory fallback may cause issues in multi-instance deployments")
             self.available = False
+            
+            # Log server instance info for debugging
+            import os
+            instance_id = os.getenv('RENDER_INSTANCE_ID', 'unknown')
+            logger.info(f"[Redis] Server instance: {instance_id}")
+            logger.info(f"[Redis] Config - Host: {self.config.host}, Port: {self.config.port}, SSL: {self.config.ssl}")
     
     def _build_key(self, namespace: KeyNamespace, identifier: str, suffix: str = None) -> str:
         """Build consistent Redis keys"""

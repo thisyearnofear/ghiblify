@@ -29,7 +29,7 @@ export default function Web3Button() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
 
       // Send the address to your backend to get/create a session
-      fetch(`${API_URL}/api/web3/login`, {
+      fetch(`${API_URL}/api/web3/login?address=${address}`, {
         method: "POST",
         credentials: "include",
         mode: "cors",
@@ -41,7 +41,6 @@ export default function Web3Button() {
               ? window.location.origin
               : "https://ghiblify-it.vercel.app",
         },
-        body: JSON.stringify({ address }),
       })
         .then((res) => res.json())
         .then((data) => {

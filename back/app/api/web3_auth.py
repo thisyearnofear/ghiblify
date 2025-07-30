@@ -100,13 +100,18 @@ async def verify_siwe(request: SIWEVerifyRequest):
     try:
         # Parse the SIWE message
         parsed = validate_siwe_message(request.message)
+        logger.info(f"[SIWE] Parsed message: {parsed}")
         
         if not parsed.get('nonce'):
+            logger.error(f"[SIWE] No nonce found in message: {request.message[:100]}...")
             raise HTTPException(status_code=400, detail="Invalid SIWE message format")
         
         # Check if nonce exists and is valid using modern Redis service
         nonce = parsed['nonce']
+        logger.info(f"[SIWE] Validating nonce: {nonce}")
+        
         if not redis_service.validate_nonce(nonce):
+            logger.error(f"[SIWE] Nonce validation failed: {nonce}")
             raise HTTPException(status_code=400, detail="Invalid or expired nonce")
         
         # Verify the signature

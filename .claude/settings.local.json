@@ -12,7 +12,8 @@
       "WebFetch(domain:miniapps.farcaster.xyz)",
       "Bash(ls:*)",
       "Bash(identify:*)",
-      "Bash(sips:*)"
+      "Bash(sips:*)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   }

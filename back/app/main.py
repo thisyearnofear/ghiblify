@@ -45,6 +45,20 @@ async def startup_event():
     await start_background_tasks()
     logger.info("Background tasks started successfully")
 
+@app.get("/")
+async def root():
+    """Root endpoint - provides service status."""
+    return {
+        "service": "Ghiblify API",
+        "status": "operational",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "api": "/api",
+            "docs": "/docs"
+        }
+    }
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
