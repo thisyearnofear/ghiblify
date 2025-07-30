@@ -394,13 +394,30 @@ export default function Pricing({ onPurchaseComplete }) {
         return;
       }
 
+      // Check Base Pay configuration
+      if (!BASE_PAY_RECIPIENT) {
+        toast({
+          title: "Configuration Error",
+          description: "Base Pay recipient address is not configured",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
       setIsBasePayProcessing(true);
       setSelectedTier(tier.name.toLowerCase());
 
       console.log(`[Base Pay] Initiating payment for ${tier.name}...`);
+      console.log(`[Base Pay] Configuration:`, {
+        amount: tier.price.replace("$", ""),
+        to: BASE_PAY_RECIPIENT,
+        testnet: BASE_PAY_TESTNET,
+      });
 
       // Trigger Base Pay payment
-      const { id } = await pay({
+      const result = await pay({
         amount: tier.price.replace("$", ""), // Remove $ sign
         to: BASE_PAY_RECIPIENT,
         testnet: BASE_PAY_TESTNET,
@@ -409,15 +426,27 @@ export default function Pricing({ onPurchaseComplete }) {
         },
       });
 
+      console.log(`[Base Pay] Payment result:`, result);
+      const { id } = result;
+
+      if (!id) {
+        throw new Error("Payment initiation failed - no payment ID returned");
+      }
+
       console.log(`[Base Pay] Payment initiated with ID: ${id}`);
 
       // Poll for payment completion
       const pollPaymentStatus = async () => {
         try {
-          const { status } = await getPaymentStatus({
+          console.log(`[Base Pay] Checking payment status for ID: ${id}`);
+
+          const statusResult = await getPaymentStatus({
             id,
             testnet: BASE_PAY_TESTNET, // Must match the testnet setting from pay()
           });
+
+          console.log(`[Base Pay] Status result:`, statusResult);
+          const { status } = statusResult;
 
           if (status === "completed") {
             console.log(`[Base Pay] Payment ${id} completed`);
@@ -453,17 +482,40 @@ export default function Pricing({ onPurchaseComplete }) {
               });
               onPurchaseComplete?.();
             } else {
-              throw new Error("Failed to process payment on backend");
+              const errorText = await response.text();
+              console.error(`[Base Pay] Backend error:`, errorText);
+              throw new Error(
+                `Failed to process payment on backend: ${errorText}`
+              );
             }
           } else if (status === "failed") {
             throw new Error("Payment failed");
-          } else {
+          } else if (status === "pending" || status === "processing") {
+            console.log(
+              `[Base Pay] Payment ${id} still ${status}, checking again in 2 seconds...`
+            );
             // Still processing, check again in 2 seconds
+            setTimeout(pollPaymentStatus, 2000);
+            return;
+          } else {
+            console.warn(`[Base Pay] Unknown payment status: ${status}`);
+            // Unknown status, check again in 2 seconds
             setTimeout(pollPaymentStatus, 2000);
             return;
           }
         } catch (error) {
           console.error(`[Base Pay] Error checking payment status:`, error);
+
+          // Check if it's a network/RPC error that might be temporary
+          if (
+            error.message?.includes("RPC error") ||
+            error.message?.includes("network")
+          ) {
+            console.log(`[Base Pay] Network error, retrying in 3 seconds...`);
+            setTimeout(pollPaymentStatus, 3000);
+            return;
+          }
+
           toast({
             title: "Payment Error",
             description:
