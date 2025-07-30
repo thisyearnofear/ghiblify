@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import os
 import secrets
 import re
+import time
 from redis import Redis
 from eth_account.messages import encode_defunct
 from web3 import Web3
@@ -21,31 +22,37 @@ class SIWEVerifyRequest(BaseModel):
     signature: str
 
 web3_router = APIRouter()
-# Configure Redis client
-redis_host = os.getenv('REDIS_HOST', 'localhost')
+# Configure Redis client with Upstash support
+redis_host = os.getenv('REDIS_HOST', 'active-mosquito-46497.upstash.io')
 redis_port = int(os.getenv('REDIS_PORT', 6379))
-redis_password = os.getenv('REDIS_PASSWORD')
-redis_ssl = os.getenv('REDIS_SSL', 'false').lower() == 'true'
+redis_password = os.getenv('REDIS_PASSWORD')  # Should be set to: AbWhAAIjcDE2ZmM4N2JkNjg0OTU0ZDhkOGI3YmM5YWRkMDE2ZTlkZHAxMA
+redis_ssl = os.getenv('REDIS_SSL', 'true').lower() == 'true'  # Default to true for Upstash
+redis_username = os.getenv('REDIS_USERNAME', 'default')
 
-logger.info(f"[Redis] Connecting to {redis_host}:{redis_port} (SSL: {redis_ssl})")
+logger.info(f"[Redis] Connecting to {redis_host}:{redis_port} (SSL: {redis_ssl}, Username: {redis_username})")
 
 redis_client = Redis(
     host=redis_host,
     port=redis_port,
+    username=redis_username,
     password=redis_password,
     db=0,
     decode_responses=True,
-    ssl=redis_ssl
+    ssl=redis_ssl,
+    ssl_cert_reqs=None  # For Upstash compatibility
 )
 
 # Test Redis connection
+REDIS_AVAILABLE = False
 try:
     redis_client.ping()
+    REDIS_AVAILABLE = True
     logger.info("[Redis] Connection successful")
     logger.info(f"[Redis] Server info: {redis_client.info('server')}")
 except Exception as e:
     logger.error(f"[Redis] Connection failed: {str(e)}")
-    raise
+    logger.warning("[Redis] Continuing without Redis - credits will not persist")
+    REDIS_AVAILABLE = False
 
 def verify_siwe_signature(message: str, signature: str, address: str) -> bool:
     """Verify SIWE signature using eth-account."""
@@ -89,8 +96,17 @@ def validate_siwe_message(message: str, expected_domain: str = None) -> dict:
         logger.error(f"[SIWE] Message parsing failed: {str(e)}")
         return {}
 
+# In-memory fallback storage when Redis is unavailable
+_memory_credits = {}
+_memory_nonces = {}
+
 def get_credits(address: str) -> int:
-    """Get credits for an address from Redis."""
+    """Get credits for an address from Redis or memory fallback."""
+    if not REDIS_AVAILABLE:
+        value = _memory_credits.get(address.lower(), 0)
+        logger.info(f"[Memory GET] Address: {address.lower()}, Value: {value}")
+        return value
+        
     try:
         key = f'credits:{address.lower()}'
         credits = redis_client.get(key)
@@ -99,10 +115,18 @@ def get_credits(address: str) -> int:
         return value
     except Exception as e:
         logger.error(f"[Redis ERROR] Getting credits for {address}: {str(e)}")
-        return 0
+        # Fallback to memory
+        value = _memory_credits.get(address.lower(), 0)
+        logger.info(f"[Memory FALLBACK GET] Address: {address.lower()}, Value: {value}")
+        return value
 
 def set_credits(address: str, amount: int):
-    """Set credits for an address in Redis."""
+    """Set credits for an address in Redis or memory fallback."""
+    if not REDIS_AVAILABLE:
+        _memory_credits[address.lower()] = amount
+        logger.info(f"[Memory SET] Address: {address.lower()}, Value: {amount}")
+        return
+        
     try:
         key = f'credits:{address.lower()}'
         redis_client.set(key, str(amount))
@@ -118,7 +142,10 @@ def set_credits(address: str, amount: int):
         logger.info(f"[Redis VERIFY] Key: {key}, Stored Value: {stored_value}")
     except Exception as e:
         logger.error(f"[Redis ERROR] Setting credits for {address}: {str(e)}")
-        raise
+        # Fallback to memory
+        _memory_credits[address.lower()] = amount
+        logger.info(f"[Memory FALLBACK SET] Address: {address.lower()}, Value: {amount}")
+        logger.warning("Credits set in memory only - will not persist across restarts")
 
 @web3_router.get("/auth/nonce")
 async def get_nonce():
@@ -127,8 +154,14 @@ async def get_nonce():
         # Generate a cryptographically secure random nonce
         nonce = secrets.token_hex(16)
         
-        # Store nonce in Redis with 15 minute expiration
-        redis_client.setex(f"nonce:{nonce}", 900, "valid")
+        if REDIS_AVAILABLE:
+            # Store nonce in Redis with 15 minute expiration
+            redis_client.setex(f"nonce:{nonce}", 900, "valid")
+            logger.info(f"[Redis] Stored nonce: {nonce}")
+        else:
+            # Store nonce in memory with timestamp for expiration
+            _memory_nonces[nonce] = time.time() + 900  # 15 minutes from now
+            logger.info(f"[Memory] Stored nonce: {nonce}")
         
         logger.info(f"[SIWE] Generated nonce: {nonce}")
         return nonce
@@ -147,8 +180,23 @@ async def verify_siwe(request: SIWEVerifyRequest):
             raise HTTPException(status_code=400, detail="Invalid SIWE message format")
         
         # Check if nonce exists and is valid
-        nonce_key = f"nonce:{parsed['nonce']}"
-        if not redis_client.exists(nonce_key):
+        nonce = parsed['nonce']
+        nonce_valid = False
+        
+        if REDIS_AVAILABLE:
+            nonce_key = f"nonce:{nonce}"
+            nonce_valid = redis_client.exists(nonce_key)
+        else:
+            # Check memory nonces and clean up expired ones
+            current_time = time.time()
+            # Clean up expired nonces
+            expired_nonces = [n for n, exp_time in _memory_nonces.items() if current_time > exp_time]
+            for expired_nonce in expired_nonces:
+                del _memory_nonces[expired_nonce]
+            # Check if nonce is valid
+            nonce_valid = nonce in _memory_nonces and current_time <= _memory_nonces[nonce]
+            
+        if not nonce_valid:
             raise HTTPException(status_code=400, detail="Invalid or expired nonce")
         
         # Verify the signature
@@ -160,11 +208,15 @@ async def verify_siwe(request: SIWEVerifyRequest):
             raise HTTPException(status_code=400, detail="Address mismatch")
         
         # Delete the used nonce
-        redis_client.delete(nonce_key)
+        if REDIS_AVAILABLE:
+            redis_client.delete(nonce_key)
+        else:
+            _memory_nonces.pop(nonce, None)
         
         # Initialize credits if new user
-        if not redis_client.exists(f'credits:{request.address.lower()}'):
-            set_credits(request.address, 0)
+        current_credits = get_credits(request.address)
+        if current_credits == 0:  # This handles both new users and existing users with 0 credits
+            set_credits(request.address, 0)  # Ensure the user exists in storage
         
         logger.info(f"[SIWE] Authentication successful for {request.address}")
         
@@ -185,8 +237,9 @@ async def web3_login(address: str):
     """Login with Web3 address."""
     try:
         # Initialize credits if new user
-        if not redis_client.exists(f'credits:{address.lower()}'):
-            set_credits(address, 0)
+        current_credits = get_credits(address)
+        if current_credits == 0:  # This handles both new users and existing users with 0 credits
+            set_credits(address, 0)  # Ensure the user exists in storage
             
         return JSONResponse(content={
             "address": address.lower(),
@@ -198,6 +251,13 @@ async def web3_login(address: str):
 @web3_router.get("/redis/test")
 async def test_redis():
     """Test Redis connection"""
+    if not REDIS_AVAILABLE:
+        return JSONResponse(content={
+            "status": "unavailable",
+            "message": "Redis is not available - using in-memory fallback",
+            "redis_available": False
+        })
+        
     try:
         test_key = "test:connection"
         test_value = "working"
@@ -205,10 +265,18 @@ async def test_redis():
         redis_client.set(test_key, test_value)
         result = redis_client.get(test_key)
         logger.info(f"[Redis TEST] Got value: {result}")
-        return JSONResponse(content={"status": "ok", "value": result})
+        return JSONResponse(content={
+            "status": "ok", 
+            "value": result,
+            "redis_available": True
+        })
     except Exception as e:
         logger.error(f"[Redis TEST] Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(content={
+            "status": "error",
+            "message": str(e),
+            "redis_available": False
+        })
 
 @web3_router.get("/credits/check")
 async def check_credits(address: str):
@@ -242,4 +310,24 @@ async def use_credits(address: str, amount: int = 1):
         set_credits(address, current_credits - amount)
         return JSONResponse(content={"credits": current_credits - amount})
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@web3_router.get("/status")
+async def get_system_status():
+    """Get system status including Redis availability."""
+    try:
+        status = {
+            "redis_available": REDIS_AVAILABLE,
+            "storage_mode": "redis" if REDIS_AVAILABLE else "memory",
+            "timestamp": int(time.time())
+        }
+        
+        if not REDIS_AVAILABLE:
+            status["warning"] = "Using in-memory storage - data will not persist across restarts"
+            status["active_users"] = len(_memory_credits)
+            status["active_nonces"] = len(_memory_nonces)
+        
+        return JSONResponse(content=status)
+    except Exception as e:
+        logger.error(f"[Status] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
