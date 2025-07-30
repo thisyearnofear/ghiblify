@@ -53,8 +53,8 @@ def validate_siwe_message(message: str, expected_domain: str = None) -> dict:
         # Extract address (second line)
         address_line = lines[1] if len(lines) > 1 else ""
         
-        # Extract fields from the message
-        nonce_match = re.search(r'Nonce: (\w+)', message)
+        # Extract fields from the message - handle both quoted and unquoted nonces
+        nonce_match = re.search(r'Nonce: "?([a-fA-F0-9]+)"?', message)
         chain_id_match = re.search(r'Chain ID: (\d+)', message)
         issued_at_match = re.search(r'Issued At: (.+)', message)
         
@@ -89,7 +89,9 @@ async def get_nonce():
         redis_service.store_nonce(nonce, 900)  # 15 minutes
         
         logger.info(f"[SIWE] Generated nonce: {nonce}")
-        return nonce
+        # Return as plain text to avoid JSON encoding issues
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(content=nonce, media_type="text/plain")
     except Exception as e:
         logger.error(f"[SIWE] Nonce generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to generate nonce")

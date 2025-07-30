@@ -77,7 +77,7 @@ export default function SignInWithBase({ onSuccess, onError }) {
       const chainId = 8453; // Base Mainnet
       const issuedAt = new Date().toISOString();
       
-      const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+      const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce.replace(/"/g, '')}\nIssued At: ${issuedAt}`;
       
       console.log(`[DEBUG] Created SIWE message:`, message);
       
