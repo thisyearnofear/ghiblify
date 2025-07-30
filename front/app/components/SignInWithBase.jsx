@@ -55,8 +55,12 @@ export default function SignInWithBase({ onSuccess, onError }) {
           throw new Error(`Nonce request failed: ${nonceResponse.status} ${nonceResponse.statusText}`);
         }
         
-        return await nonceResponse.text();
+        const retrievedNonce = await nonceResponse.text();
+        console.log(`[DEBUG] Retrieved nonce: "${retrievedNonce}"`);
+        return retrievedNonce;
       }, 3, 2000); // 3 retries with 2s base delay
+      
+      console.log(`[DEBUG] Using nonce: "${nonce}"`);
       
       // 2. Connect and get accounts first
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
@@ -74,6 +78,8 @@ export default function SignInWithBase({ onSuccess, onError }) {
       const issuedAt = new Date().toISOString();
       
       const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+      
+      console.log(`[DEBUG] Created SIWE message:`, message);
       
       // 4. Request signature
       const signature = await provider.request({

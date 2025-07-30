@@ -99,11 +99,12 @@ async def verify_siwe(request: SIWEVerifyRequest):
     """Verify SIWE signature and create session - using modern Redis service."""
     try:
         # Parse the SIWE message
+        logger.info(f"[SIWE] Full message received: {repr(request.message)}")
         parsed = validate_siwe_message(request.message)
         logger.info(f"[SIWE] Parsed message: {parsed}")
         
         if not parsed.get('nonce'):
-            logger.error(f"[SIWE] No nonce found in message: {request.message[:100]}...")
+            logger.error(f"[SIWE] No nonce found in message: {request.message[:200]}...")
             raise HTTPException(status_code=400, detail="Invalid SIWE message format")
         
         # Check if nonce exists and is valid using modern Redis service
