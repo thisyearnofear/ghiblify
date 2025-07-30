@@ -6,6 +6,7 @@ import json
 from typing import Optional
 import redis
 from dotenv import load_dotenv
+from ..config.pricing import get_base_pay_pricing, get_tier_pricing, validate_payment_amount
 
 load_dotenv()
 
@@ -36,24 +37,8 @@ except Exception as e:
     logger.error(f"[Base Pay] Redis connection failed: {e}")
     redis_client = None
 
-# Base Pay pricing tiers (in USD)
-BASE_PAY_PRICING = {
-    "starter": {
-        "amount": "0.50",
-        "credits": 1,
-        "description": "1 Ghibli transformation"
-    },
-    "pro": {
-        "amount": "4.99", 
-        "credits": 12,
-        "description": "12 Ghibli transformations"
-    },
-    "unlimited": {
-        "amount": "9.99",
-        "credits": 30,
-        "description": "30 Ghibli transformations"
-    }
-}
+# Get Base Pay pricing from shared configuration
+BASE_PAY_PRICING = get_base_pay_pricing()
 
 @base_pay_router.post("/process-payment")
 async def process_base_pay_payment(request: Request):
@@ -75,13 +60,14 @@ async def process_base_pay_payment(request: Request):
         logger.info(f"[Base Pay] Processing payment {payment_id} for {payer_address}")
         
         if status == "completed":
-            # Verify the payment amount matches the tier
-            if tier not in BASE_PAY_PRICING:
-                raise HTTPException(status_code=400, detail="Invalid tier")
-            
-            expected_amount = BASE_PAY_PRICING[tier]["amount"]
-            if amount != expected_amount:
-                raise HTTPException(status_code=400, detail="Payment amount mismatch")
+            # Verify the payment amount using shared validation
+            if not validate_payment_amount(tier, "base_pay", float(amount)):
+                pricing_info = get_tier_pricing(tier, "base_pay")
+                expected_amounts = [pricing_info["discounted_price"], pricing_info["base_price"]] if pricing_info else []
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Payment amount mismatch. Expected {expected_amounts}, got {amount}"
+                )
             
             # Check if payment was already processed
             processed_key = f"base_pay_processed:{payment_id}"
@@ -105,12 +91,17 @@ async def process_base_pay_payment(request: Request):
                 # Mark payment as processed
                 redis_client.setex(processed_key, 86400, "processed")  # 24 hour expiry
                 
-                # Store transaction history
+                # Store transaction history using shared pricing info
+                pricing_info = get_tier_pricing(tier, "base_pay")
                 history_key = f"base_pay_history:{payer_address.lower()}"
                 transaction_data = {
                     "payment_id": payment_id,
                     "tier": tier,
+                    "payment_method": "base_pay",
                     "amount": amount,
+                    "original_amount": pricing_info["base_price"] if pricing_info else amount,
+                    "discount": pricing_info["discount_percentage"] if pricing_info else "0%",
+                    "savings": pricing_info["savings"] if pricing_info else 0,
                     "credits": credits_to_add,
                     "timestamp": body.get("timestamp"),
                     "status": "completed"

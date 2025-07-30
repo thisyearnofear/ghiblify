@@ -383,6 +383,19 @@ export default function Pricing({ onPurchaseComplete }) {
 
   const handleBasePayPurchase = async (tier) => {
     try {
+      // Check if user has Base Account authentication
+      const baseAuth = localStorage.getItem("ghiblify_auth");
+      if (!baseAuth) {
+        toast({
+          title: "Base Account Required",
+          description: "Please sign in with Base Account to use Base Pay",
+          status: "warning",
+          duration: 8000,
+          isClosable: true,
+        });
+        return;
+      }
+
       if (!address) {
         toast({
           title: "Wallet not connected",
@@ -409,16 +422,21 @@ export default function Pricing({ onPurchaseComplete }) {
       setIsBasePayProcessing(true);
       setSelectedTier(tier.name.toLowerCase());
 
+      // Calculate 30% discount for Base Pay
+      const originalPrice = parseFloat(tier.price.replace("$", ""));
+      const discountedPrice = (originalPrice * 0.7).toFixed(2); // 30% discount
+
       console.log(`[Base Pay] Initiating payment for ${tier.name}...`);
       console.log(`[Base Pay] Configuration:`, {
-        amount: tier.price.replace("$", ""),
+        originalAmount: tier.price.replace("$", ""),
+        discountedAmount: discountedPrice,
         to: BASE_PAY_RECIPIENT,
         testnet: BASE_PAY_TESTNET,
       });
 
-      // Trigger Base Pay payment
+      // Trigger Base Pay payment with 30% discount
       const result = await pay({
-        amount: tier.price.replace("$", ""), // Remove $ sign
+        amount: discountedPrice, // 30% discount applied
         to: BASE_PAY_RECIPIENT,
         testnet: BASE_PAY_TESTNET,
         payerInfo: {
@@ -462,7 +480,9 @@ export default function Pricing({ onPurchaseComplete }) {
                 body: JSON.stringify({
                   id,
                   status: "completed",
-                  amount: tier.price.replace("$", ""),
+                  amount: discountedPrice, // Use discounted amount
+                  originalAmount: tier.price.replace("$", ""),
+                  discount: "30%",
                   to: BASE_PAY_RECIPIENT,
                   from: address,
                   tier: tier.name.toLowerCase(),
@@ -763,14 +783,44 @@ export default function Pricing({ onPurchaseComplete }) {
                       30% OFF
                     </Badge>
                   </Box>
-                  <BasePayButton
-                    colorScheme="light"
-                    onClick={() => handleBasePayPurchase(tier)}
-                    isLoading={
-                      isBasePayProcessing && selectedTier === tier.name
-                    }
-                    style={{ width: "100%" }}
-                  />
+                  <Box position="relative" w="full">
+                    <BasePayButton
+                      colorScheme="light"
+                      onClick={() => handleBasePayPurchase(tier)}
+                      isLoading={
+                        isBasePayProcessing && selectedTier === tier.name
+                      }
+                      style={{ width: "100%" }}
+                    />
+                    {typeof window !== "undefined" &&
+                    !localStorage.getItem("ghiblify_auth") ? (
+                      <Badge
+                        colorScheme="blue"
+                        position="absolute"
+                        top="-2"
+                        right="-2"
+                        rounded="full"
+                        px={2}
+                        py={0.5}
+                        fontSize="xs"
+                      >
+                        Base Account Required
+                      </Badge>
+                    ) : (
+                      <Badge
+                        colorScheme="red"
+                        position="absolute"
+                        top="-2"
+                        right="-2"
+                        rounded="full"
+                        px={2}
+                        py={0.5}
+                        fontSize="xs"
+                      >
+                        30% OFF
+                      </Badge>
+                    )}
+                  </Box>
                 </VStack>
               </VStack>
             </Box>
