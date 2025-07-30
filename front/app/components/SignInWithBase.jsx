@@ -4,6 +4,18 @@ import { createBaseAccountSDK } from "@base-org/account";
 import { SignInWithBaseButton } from '@base-org/account-ui/react';
 import { useState } from 'react';
 
+// Base Account SDK configuration
+const BASE_ACCOUNT_CONFIG = {
+  appName: "Ghiblify",
+  appLogoUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+  appDescription: "Transform your photos into Studio Ghibli style art",
+  appUrl: "https://ghiblify-it.vercel.app",
+  // Optional: Add chain configuration
+  chainId: 8453, // Base Mainnet
+  // Optional: Add RPC URL for Base
+  rpcUrl: "https://mainnet.base.org"
+};
+
 export default function SignInWithBase({ onSuccess, onError }) {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -11,8 +23,10 @@ export default function SignInWithBase({ onSuccess, onError }) {
     setIsLoading(true);
     
     try {
-      // Initialize the SDK (no config needed for defaults as per docs)
-      const provider = createBaseAccountSDK().getProvider();
+      // Initialize the SDK with required configuration
+      const baseAccountSDK = createBaseAccountSDK(BASE_ACCOUNT_CONFIG);
+      
+      const provider = baseAccountSDK.getProvider();
       
       // 1. Get nonce from backend (with fallback to local generation)
       let nonce;
@@ -114,7 +128,9 @@ export default function SignInWithBase({ onSuccess, onError }) {
   };
 
   const handleFallbackAuth = async () => {
-    const provider = createBaseAccountSDK().getProvider();
+    const baseAccountSDK = createBaseAccountSDK(BASE_ACCOUNT_CONFIG);
+    
+    const provider = baseAccountSDK.getProvider();
     
     // Fallback: use eth_requestAccounts and personal_sign
     const accounts = await provider.request({ method: 'eth_requestAccounts' });
