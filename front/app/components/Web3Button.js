@@ -91,8 +91,8 @@ export default function Web3Button() {
                 </button>
               </div>
               <div className="text-xs text-gray-600 text-center max-w-md">
-                <span className="font-medium">💡 Tip:</span> Use "Sign in with
-                Base" for Base Pay discounts and seamless payments
+                <span className="font-medium">💡 Tip:</span> Use &ldquo;Sign in
+                with Base&rdquo; for Base Pay discounts and seamless payments
               </div>
             </div>
           );
