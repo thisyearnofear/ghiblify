@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional, List
-from .web3_auth import get_credits, set_credits, redis_client
+from ..services.redis_service import redis_service, get_credits, set_credits
 import json
 from datetime import datetime
 from eth_utils import event_abi_to_log_topic
@@ -236,7 +236,7 @@ async def process_pending_events():
     try:
         # Get the last processed block
         last_block_key = 'celo_last_processed_block'
-        last_processed_block = int(redis_client.get(last_block_key) or 0)
+        last_processed_block = int(redis_service.get(last_block_key) or 0)
 
         # Get current block
         current_block = w3.eth.block_number
@@ -269,7 +269,7 @@ async def process_pending_events():
                 
                 # Check if already processed
                 processed_key = f'processed_tx:42220:{tx_hash}'
-                if redis_client.get(processed_key):
+                if redis_service.get(processed_key):
                     continue
 
                 # Process the event with checksum address
@@ -333,7 +333,7 @@ async def process_pending_events():
                 continue
 
         # Update last processed block
-        redis_client.set(last_block_key, current_block)
+        redis_service.set(last_block_key, str(current_block))
 
         return JSONResponse(content={
             "status": "success",

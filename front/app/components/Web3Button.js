@@ -2,15 +2,26 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
+import { 
+  Box, 
+  Button, 
+  VStack, 
+  HStack, 
+  Text, 
+  Badge
+} from "@chakra-ui/react";
 import Web3Avatar from "./Web3Avatar";
 import SignInWithBase from "./SignInWithBase.jsx";
+import { COLORS, GRADIENTS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../theme";
+import MagicalButton from "./ui/MagicalButton";
+import MagicalModal from "./ui/MagicalModal";
+
 
 export default function Web3Button() {
   const { address, isConnected } = useAccount();
-  const [showConnectionModal, setShowConnectionModal] = useState(false);
-  const [showBaseAuth, setShowBaseAuth] = useState(false);
-  const modalRef = useRef(null);
+  const [isConnectionOpen, setIsConnectionOpen] = useState(false);
+  const [isBaseAuthOpen, setIsBaseAuthOpen] = useState(false);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -47,32 +58,17 @@ export default function Web3Button() {
     }
   }, [isConnected, address]);
 
-  // Close modal when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (modalRef.current && !modalRef.current.contains(event.target)) {
-        setShowConnectionModal(false);
-        setShowBaseAuth(false);
-      }
-    }
-
-    if (showConnectionModal || showBaseAuth) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showConnectionModal, showBaseAuth]);
 
   const handleBaseAuthSuccess = (result) => {
     console.log("Base authentication successful:", result);
     localStorage.setItem("ghiblify_auth", JSON.stringify(result));
-    setShowBaseAuth(false);
-    setShowConnectionModal(false);
+    setIsBaseAuthOpen(false);
+    setIsConnectionOpen(false);
   };
 
   const handleBaseAuthError = (error) => {
     console.error("Base authentication failed:", error);
-    setShowBaseAuth(false);
+    setIsBaseAuthOpen(false);
   };
 
   return (
@@ -90,128 +86,139 @@ export default function Web3Button() {
 
         if (!account) {
           return (
-            <div className="relative">
-              <button
-                onClick={() => setShowConnectionModal(!showConnectionModal)}
-                type="button"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-              >
-                Connect Wallet
-                <svg
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    showConnectionModal ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
+            <Box position="relative">
+              <MagicalButton
+                onClick={() => setIsConnectionOpen(true)}
+                variant="primary"
+                size={{ base: "md", md: "sm" }}
+                isAnimated={true}
+                leftIcon={
+                  <Box
+                    w="4px"
+                    h="4px"
+                    bg="whiteAlpha.800"
+                    borderRadius="full"
+                    animation={ANIMATION_PRESETS.pulseDefault}
                   />
-                </svg>
-              </button>
+                }
+              >
+                Connect Wallet ✨
+              </MagicalButton>
 
               {/* Connection Options Modal */}
-              {showConnectionModal && (
-                <div
-                  ref={modalRef}
-                  className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 p-3 z-50"
-                >
-                  <div className="space-y-2">
-                    {/* RainbowKit Option */}
-                    <button
-                      onClick={() => {
-                        openConnectModal();
-                        setShowConnectionModal(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 text-left"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                        </svg>
-                      </div>
-                      <div className="font-medium text-gray-900">
-                        RainbowKit
-                      </div>
-                    </button>
+              <MagicalModal
+                isOpen={isConnectionOpen}
+                onClose={() => setIsConnectionOpen(false)}
+                title="Choose Your Magic Portal ✨"
+                borderColor={COLORS.ghibli.green}
+              >
+                    <VStack spacing={4}>
+                      {/* RainbowKit Option */}
+                      <Button
+                        onClick={() => {
+                          openConnectModal();
+                          setIsConnectionOpen(false);
+                        }}
+                        w="full"
+                        h="60px"
+                        borderRadius="xl"
+                        bg="gray.50"
+                        border="2px solid"
+                        borderColor="gray.200"
+                        _hover={{
+                          borderColor: COLORS.ghibli.green,
+                          bg: "gray.100",
+                          transform: "translateY(-2px)",
+                          boxShadow: "0 8px 25px rgba(79, 209, 197, 0.2)"
+                        }}
+                        transition="all 0.3s ease"
+                      >
+                        <HStack spacing={4} w="full" justify="flex-start">
+                          <Box
+                            w="40px"
+                            h="40px"
+                            borderRadius="full"
+                            bgGradient="linear(to-r, purple.500, pink.500)"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <Text color="white" fontSize="lg">🌈</Text>
+                          </Box>
+                          <Text fontWeight="bold" color={COLORS.primary}>
+                            RainbowKit Wallet
+                          </Text>
+                        </HStack>
+                      </Button>
 
-                    {/* Base Option */}
-                    <button
-                      onClick={() => {
-                        setShowBaseAuth(true);
-                        setShowConnectionModal(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 text-left"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">B</span>
-                      </div>
-                      <div className="font-medium text-gray-900">
-                        Sign in with Base
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
+                      {/* Base Option */}
+                      <Button
+                        onClick={() => {
+                          setIsBaseAuthOpen(true);
+                          setIsConnectionOpen(false);
+                        }}
+                        w="full"
+                        h="60px"
+                        borderRadius="xl"
+                        bg="gray.50"
+                        border="2px solid"
+                        borderColor="gray.200"
+                        _hover={{
+                          borderColor: COLORS.ghibli.blue,
+                          bg: "gray.100",
+                          transform: "translateY(-2px)",
+                          boxShadow: "0 8px 25px rgba(70, 130, 169, 0.2)"
+                        }}
+                        transition="all 0.3s ease"
+                      >
+                        <HStack spacing={4} w="full" justify="flex-start">
+                          <Box
+                            w="40px"
+                            h="40px"
+                            borderRadius="full"
+                            bg={COLORS.ghibli.blue}
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                          >
+                            <Text color="white" fontWeight="bold" fontSize="lg">
+                              🔵
+                            </Text>
+                          </Box>
+                          <Text fontWeight="bold" color={COLORS.primary}>
+                            Sign in with Base
+                          </Text>
+                        </HStack>
+                      </Button>
+                    </VStack>
+              </MagicalModal>
 
               {/* Base Auth Modal */}
-              {showBaseAuth && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div
-                    ref={modalRef}
-                    className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl"
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Sign in with Base
-                      </h3>
-                      <button
-                        onClick={() => setShowBaseAuth(false)}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                      >
-                        <svg
-                          className="w-6 h-6"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <SignInWithBase
-                      onSuccess={handleBaseAuthSuccess}
-                      onError={handleBaseAuthError}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+              <MagicalModal
+                isOpen={isBaseAuthOpen}
+                onClose={() => setIsBaseAuthOpen(false)}
+                title="Sign in with Base 🔵"
+                borderColor={COLORS.ghibli.blue}
+              >
+                <SignInWithBase
+                  onSuccess={handleBaseAuthSuccess}
+                  onError={handleBaseAuthError}
+                />
+              </MagicalModal>
+            </Box>
           );
         }
 
         if (chain?.unsupported) {
           return (
-            <button
+            <MagicalButton
               onClick={openChainModal}
-              type="button"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors font-medium"
+              variant="danger"
+              px={6}
+              leftIcon={<Text>⚠️</Text>}
             >
               Wrong Network
-            </button>
+            </MagicalButton>
           );
         }
 
@@ -220,39 +227,53 @@ export default function Web3Button() {
           localStorage.getItem("ghiblify_auth");
 
         return (
-          <div className="flex items-center gap-3">
+          <HStack spacing={3}>
             {/* Chain Selector */}
-            <button
+            <MagicalButton
               onClick={openChainModal}
-              type="button"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium"
+              variant="glass"
+              size="sm"
+              px={4}
             >
               {chain.name}
-            </button>
+            </MagicalButton>
 
             {/* Account Button */}
-            <button
+            <MagicalButton
               onClick={openAccountModal}
-              type="button"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+              variant="glass"
+              px={4}
+              leftIcon={<Web3Avatar address={account.address} size={24} />}
             >
-              <Web3Avatar address={account.address} size={24} />
-              <span className="font-medium">{account.displayName}</span>
-              {account.displayBalance && (
-                <span className="text-gray-500 text-sm">
-                  {account.displayBalance}
-                </span>
-              )}
-            </button>
+              <VStack spacing={0} align="flex-start">
+                <Text fontSize="sm" fontWeight="bold">
+                  {account.displayName}
+                </Text>
+                {account.displayBalance && (
+                  <Text fontSize="xs" color="whiteAlpha.800">
+                    {account.displayBalance}
+                  </Text>
+                )}
+              </VStack>
+            </MagicalButton>
 
             {/* Base Account Status */}
             {hasBaseAuth && (
-              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
-                <span>🔵</span>
-                <span>Base Pay</span>
-              </div>
+              <Badge
+                colorScheme="blue"
+                borderRadius="full"
+                px={3}
+                py={1}
+                bg={COLORS.ghibli.blue}
+                color="white"
+                fontWeight="bold"
+                fontSize="xs"
+                animation={ANIMATION_PRESETS.pulseDefault}
+              >
+                🔵 Base Pay
+              </Badge>
             )}
-          </div>
+          </HStack>
         );
       }}
     </ConnectButton.Custom>

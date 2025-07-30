@@ -11,7 +11,11 @@ export default function SignInWithBase({ onSuccess, onError }) {
     setIsLoading(true);
     
     try {
-      const provider = createBaseAccountSDK().getProvider();
+      const provider = createBaseAccountSDK({
+        appName: 'Ghiblify',
+        appLogoUrl: '/ghibli-it.png',
+        appDescription: 'Transform your photos into Studio Ghibli style art'
+      }).getProvider();
       
       // 1. Get fresh nonce from backend
       const nonceResponse = await fetch('/api/auth/nonce');
@@ -54,7 +58,11 @@ export default function SignInWithBase({ onSuccess, onError }) {
       // Fallback to traditional wallet connection if wallet_connect is not supported
       if (error.message?.includes('method_not_supported')) {
         try {
-          const provider = createBaseAccountSDK().getProvider();
+          const provider = createBaseAccountSDK({
+            appName: 'Ghiblify',
+            appLogoUrl: '/ghibli-it.png',
+            appDescription: 'Transform your photos into Studio Ghibli style art'
+          }).getProvider();
           
           // Fallback: use eth_requestAccounts and personal_sign
           const accounts = await provider.request({ method: 'eth_requestAccounts' });

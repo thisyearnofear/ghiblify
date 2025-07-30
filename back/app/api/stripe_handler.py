@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional
-from .web3_auth import get_credits, set_credits, REDIS_AVAILABLE, redis_get, redis_set, redis_exists, redis_pipeline, MemoryPipeline
+from ..services.redis_service import redis_service, get_credits, set_credits
 
 load_dotenv()
 
@@ -110,7 +110,7 @@ def get_customer_id_from_address(address: str) -> Optional[str]:
 
 def set_customer_id_for_address(address: str, customer_id: str):
     """Store Stripe customer ID for web3 address"""
-    redis_set(f'stripe_customer:{address.lower()}', customer_id)
+    redis_service.set(f'stripe_customer:{address.lower()}', customer_id)
 
 
 @stripe_router.post("/webhook")
@@ -367,7 +367,7 @@ async def link_customer_to_wallet(wallet_address: str, customer_id: str):
             raise HTTPException(status_code=404, detail="Customer not found in Stripe")
             
         # Store the customer ID in Redis
-        redis_set(f'stripe_customer:{wallet_address.lower()}', customer_id)
+        redis_service.set(f'stripe_customer:{wallet_address.lower()}', customer_id)
         logger.info(f"[Stripe] Linked customer {customer_id} to wallet {wallet_address}")
         
         return JSONResponse(content={

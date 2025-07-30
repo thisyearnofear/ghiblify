@@ -642,7 +642,7 @@ export default function Pricing({ onPurchaseComplete }) {
       // Run the session check
       checkSessionStatus();
     }
-  }, []);
+  }, [address, onPurchaseComplete, toast]);
 
   const tiers = [
     {

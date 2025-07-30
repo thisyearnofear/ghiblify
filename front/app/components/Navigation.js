@@ -1,12 +1,14 @@
 "use client";
 
-import { Box, Flex, Link, Button, HStack } from "@chakra-ui/react";
+import { Box, Flex, Button, HStack, Text } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
 import Web3Button from "./Web3Button";
+import { COLORS, GRADIENTS, LAYOUTS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../theme";
+import SparkleEffect from "./ui/SparkleEffect";
 
 const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
   ssr: false,
@@ -25,18 +27,10 @@ export default function Navigation() {
   if (!mounted) {
     return (
       <Box
-        py={2}
-        px={4}
-        sm={{ py: 4, px: 8 }}
-        borderBottom="1px"
-        borderColor="gray.200"
+        {...LAYOUTS.headerContainer}
+        bgGradient={GRADIENTS.ghibliPrimary}
       >
-        <Flex
-          justify="space-between"
-          align="center"
-          maxW="container.lg"
-          mx="auto"
-        >
+        <Flex {...LAYOUTS.centeredFlex}>
           <HStack spacing={4} />
           <Web3Button />
         </Flex>
@@ -46,27 +40,48 @@ export default function Navigation() {
 
   return (
     <Box
-      py={2}
-      px={4}
-      sm={{ py: 4, px: 8 }}
-      borderBottom="1px"
-      borderColor="gray.200"
+      {...LAYOUTS.headerContainer}
+      bgGradient={GRADIENTS.ghibliPrimary}
+      _before={{
+        content: '""',
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        bgGradient: GRADIENTS.shimmerOverlay,
+        animation: ANIMATION_PRESETS.sparkleSlow,
+      }}
     >
-      <Flex
-        justify="space-between"
-        align="center"
-        maxW="container.lg"
-        mx="auto"
-      >
-        <HStack spacing={4}>
+      {/* Magical sparkles */}
+      <SparkleEffect />
+
+      <Flex {...LAYOUTS.centeredFlex}>
+        <HStack spacing={6}>
+          {/* Logo/Brand */}
+          <Text
+            fontSize={{ base: "xl", md: "2xl" }}
+            fontWeight="bold"
+            color="white"
+            textShadow="0 2px 4px rgba(0,0,0,0.3)"
+            animation={ANIMATION_PRESETS.floatGentle}
+            cursor="pointer"
+            onClick={() => router.push("/")}
+            _hover={INTERACTIONS.scaleHover}
+            transition="all 0.3s ease"
+          >
+            ✨ Ghiblify
+          </Text>
+
           {isConnected && (
             <Button
+              {...PATTERNS.glassButton}
               variant="ghost"
               size="sm"
               onClick={() => router.push("/account")}
-              color="gray.600"
-              _hover={{ color: "#4682A9" }}
+              color="whiteAlpha.900"
               display={{ base: "none", sm: "flex" }}
+              px={6}
             >
               My Account
             </Button>

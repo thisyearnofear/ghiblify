@@ -17,7 +17,7 @@ import {
   Link,
   Badge,
 } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 
@@ -54,23 +54,7 @@ export default function Account() {
   const toast = useToast();
   const { address, isConnected } = useAccount();
 
-  useEffect(() => {
-    if (!isConnected || !address) {
-      router.push("/");
-      toast({
-        title: "Please connect your wallet",
-        description: "You need to connect your wallet to view your account",
-        status: "warning",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-
-    fetchAllPurchaseHistory();
-  }, [isConnected, address, router]);
-
-  const fetchAllPurchaseHistory = async () => {
+  const fetchAllPurchaseHistory = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch Stripe history
@@ -142,7 +126,23 @@ export default function Account() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [address, toast]);
+
+  useEffect(() => {
+    if (!isConnected || !address) {
+      router.push("/");
+      toast({
+        title: "Please connect your wallet",
+        description: "You need to connect your wallet to view your account",
+        status: "warning",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    fetchAllPurchaseHistory();
+  }, [isConnected, address, router, fetchAllPurchaseHistory, toast]);
 
   const openCustomerPortal = async () => {
     try {

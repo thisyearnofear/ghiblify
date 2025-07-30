@@ -61,6 +61,16 @@ export const COLORS = {
   }
 };
 
+// Performance optimization - memoized common color values
+export const RGBA_COLORS = {
+  ghibliGreenAlpha: 'rgba(79, 209, 197, 0.7)',
+  ghibliGreenShadow: 'rgba(79, 209, 197, 0.4)',
+  ghibliBlueShadow: 'rgba(70, 130, 169, 0.2)',
+  redShadow: 'rgba(239, 68, 68, 0.4)',
+  whiteShadow: 'rgba(255,255,255,0.2)',
+  blackShadow: 'rgba(0,0,0,0.2)'
+};
+
 // Common responsive patterns
 export const RESPONSIVE_PATTERNS = {
   mobileFirst: {

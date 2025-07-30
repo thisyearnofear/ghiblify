@@ -249,7 +249,12 @@ const App = () => {
                     <Text textAlign="center" mb={2}>
                       Original Image
                     </Text>
-                    <Image src={selectedImageURL} boxShadow="lg" maxH="400px" />
+                    <Image
+                      src={selectedImageURL}
+                      alt="Original uploaded image"
+                      boxShadow="lg"
+                      maxH="400px"
+                    />
                   </Box>
                 )}
                 {generatedImageURL && (
@@ -259,6 +264,7 @@ const App = () => {
                     </Text>
                     <Image
                       src={generatedImageURL}
+                      alt="Generated Ghibli-style image"
                       boxShadow="lg"
                       maxH="400px"
                     />

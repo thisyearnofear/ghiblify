@@ -1,7 +1,20 @@
 {
   "short_name": "Ghiblify",
   "name": "Ghiblify - Transform your photos into Ghibli style",
-  "icons": [],
+  "icons": [
+    {
+      "src": "ghibli-it.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "ghibli-it.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",

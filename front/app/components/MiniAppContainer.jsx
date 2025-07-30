@@ -18,7 +18,7 @@ export default function MiniAppContainer({ children }) {
     my: 0,
     borderRadius: { base: 0, sm: "xl" },
     bg: "white",
-    overflow: "hidden",
+    overflowX: "hidden",
     // Ensure proper mobile viewport handling
     maxH: { base: "100vh", sm: "695px" }
   } : {

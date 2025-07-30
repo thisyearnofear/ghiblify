@@ -4,8 +4,8 @@ import os
 import logging
 import json
 from typing import Optional
-import redis
 from dotenv import load_dotenv
+from ..services.redis_service import redis_service
 from ..config.pricing import get_base_pay_pricing, get_tier_pricing, validate_payment_amount
 
 load_dotenv()
@@ -17,25 +17,8 @@ logger = logging.getLogger(__name__)
 # Initialize router
 base_pay_router = APIRouter()
 
-# Redis connection
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() == "true"
-
-try:
-    redis_client = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        password=REDIS_PASSWORD if REDIS_PASSWORD else None,
-        ssl=REDIS_SSL,
-        decode_responses=True
-    )
-    redis_client.ping()
-    logger.info("[Base Pay] Redis connection successful")
-except Exception as e:
-    logger.error(f"[Base Pay] Redis connection failed: {e}")
-    redis_client = None
+# Use the modern Redis service instead of direct connection
+logger.info(f"[Base Pay] Using modern Redis service - Available: {redis_service.available}")
 
 # Get Base Pay pricing from shared configuration
 BASE_PAY_PRICING = get_base_pay_pricing()

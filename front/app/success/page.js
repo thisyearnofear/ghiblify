@@ -3,7 +3,7 @@
 import { Box, Container, Heading, Text, Button } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from 'wagmi';
+import { useAccount } from "wagmi";
 
 export default function Success() {
   const router = useRouter();
@@ -12,17 +12,25 @@ export default function Success() {
   useEffect(() => {
     const fetchSessionToken = async () => {
       const params = new URLSearchParams(window.location.search);
-      const sessionId = params.get('session_id');
+      const sessionId = params.get("session_id");
 
       if (sessionId && isConnected && address) {
         try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/stripe/session/${sessionId}?address=${address}`);
-          if (!response.ok) throw new Error('Failed to process payment');
+          const response = await fetch(
+            `${
+              process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+            }/api/stripe/session/${sessionId}?address=${address}`
+          );
+          if (!response.ok) throw new Error("Failed to process payment");
 
           // Clear URL params
-          window.history.replaceState({}, document.title, window.location.pathname);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
         } catch (error) {
-          console.error('Error processing payment:', error);
+          console.error("Error processing payment:", error);
         }
       }
     };
@@ -34,7 +42,7 @@ export default function Success() {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [router, address, isConnected]);
 
   return (
     <Container centerContent py={20}>
