@@ -31,7 +31,8 @@ export default function SignInWithBase({ onSuccess, onError }) {
       // 1. Get nonce from backend (with fallback to local generation)
       let nonce;
       try {
-        const nonceResponse = await fetch('/api/auth/nonce', {
+        const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+        const nonceResponse = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
           signal: AbortSignal.timeout(10000) // 10 second timeout
         });
         
@@ -70,7 +71,8 @@ export default function SignInWithBase({ onSuccess, onError }) {
       });
       
       // 5. Verify signature with backend (with extended timeout for Render)
-      const verifyResponse = await fetch('/api/auth/verify', {
+      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+      const verifyResponse = await fetch(`${backendUrl}/api/web3/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, message, signature }),
@@ -123,7 +125,8 @@ export default function SignInWithBase({ onSuccess, onError }) {
     // Get nonce (with fallback to local generation)
     let nonce;
     try {
-      const nonceResponse = await fetch('/api/auth/nonce', {
+      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+      const nonceResponse = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
         signal: AbortSignal.timeout(10000)
       });
       
@@ -152,7 +155,8 @@ export default function SignInWithBase({ onSuccess, onError }) {
     });
     
     // Verify with backend
-    const verifyResponse = await fetch('/api/auth/verify', {
+    const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+    const verifyResponse = await fetch(`${backendUrl}/api/web3/auth/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address, message, signature }),

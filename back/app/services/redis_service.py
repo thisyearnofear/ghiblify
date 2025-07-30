@@ -40,6 +40,16 @@ class RedisConfig:
     socket_connect_timeout: float = 5.0
     retry_on_timeout: bool = True
     decode_responses: bool = True
+    
+    def __post_init__(self):
+        # Clean up host URL if it has protocol prefix
+        if self.host.startswith('https://'):
+            self.host = self.host.replace('https://', '')
+        elif self.host.startswith('http://'):
+            self.host = self.host.replace('http://', '')
+        
+        # Remove trailing slash if present
+        self.host = self.host.rstrip('/')
 
 class ModernRedisService:
     """
