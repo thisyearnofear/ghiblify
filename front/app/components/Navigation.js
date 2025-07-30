@@ -3,10 +3,10 @@
 import { Box, Flex, Link, Button, HStack } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
+import Web3Button from "./Web3Button";
 
 const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
   ssr: false,
@@ -38,7 +38,7 @@ export default function Navigation() {
           mx="auto"
         >
           <HStack spacing={4} />
-          <ConnectButton />
+          <Web3Button />
         </Flex>
       </Box>
     );
@@ -73,7 +73,7 @@ export default function Navigation() {
           )}
         </HStack>
 
-        <ConnectButton />
+        <Web3Button />
       </Flex>
     </Box>
   );

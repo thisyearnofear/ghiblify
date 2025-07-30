@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
 import Web3Avatar from "./Web3Avatar";
-import SignInWithBase from "./SignInWithBase";
+import SignInWithBase from "./SignInWithBase.jsx";
 
 export default function Web3Button() {
   const { address, isConnected } = useAccount();
@@ -12,19 +12,36 @@ export default function Web3Button() {
 
   useEffect(() => {
     if (isConnected && address) {
+      // Use environment-aware API URL
+      const API_URL =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : "https://ghiblify.onrender.com";
+
       // Send the address to your backend to get/create a session
-      fetch("http://localhost:8000/api/auth/web3/login", {
+      fetch(`${API_URL}/api/auth/web3/login`, {
         method: "POST",
+        credentials: "include",
+        mode: "cors",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
+          Origin:
+            typeof window !== "undefined"
+              ? window.location.origin
+              : "https://ghiblify-it.vercel.app",
         },
         body: JSON.stringify({ address }),
       })
         .then((res) => res.json())
         .then((data) => {
-          localStorage.setItem("ghiblify_token", data.token);
+          if (data.token) {
+            localStorage.setItem("ghiblify_token", data.token);
+          }
         })
-        .catch(console.error);
+        .catch((error) => {
+          console.error("Web3 login error:", error);
+        });
     }
   }, [isConnected, address]);
 
