@@ -18,6 +18,8 @@ import {
   usePublicClient,
 } from "wagmi";
 import { FiCheck, FiCreditCard, FiDollarSign } from "react-icons/fi";
+import { pay, getPaymentStatus } from "@base-org/account";
+import { BasePayButton } from "@base-org/account-ui/react";
 import { celo } from "viem/chains";
 import {
   GHIBLIFY_PAYMENTS_ADDRESS,
@@ -28,8 +30,11 @@ import {
 } from "../contracts/ghiblifyPayments";
 import { parseEther, formatUnits } from "ethers";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
-const STRIPE_WEBHOOK_URL = process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL || "https://ghiblify.onrender.com/api/stripe/webhook";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+const STRIPE_WEBHOOK_URL =
+  process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL ||
+  "https://ghiblify.onrender.com/api/stripe/webhook";
 
 if (!API_URL) {
   console.error(
@@ -47,6 +52,7 @@ export default function Pricing({ onPurchaseComplete }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const [isCeloProcessing, setIsCeloProcessing] = useState(false);
+  const [isBasePayProcessing, setIsBasePayProcessing] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const { writeContractAsync: approveAsync } = useWriteContract();
@@ -75,9 +81,12 @@ export default function Pricing({ onPurchaseComplete }) {
           credentials: "include",
           mode: "cors",
           headers: {
-            "Accept": "application/json",
+            Accept: "application/json",
             "Content-Type": "application/json",
-            "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+            Origin:
+              typeof window !== "undefined"
+                ? window.location.origin
+                : "https://ghiblify-it.vercel.app",
           },
         }
       );
@@ -163,8 +172,7 @@ export default function Pricing({ onPurchaseComplete }) {
         // Celo Mainnet chain ID
         toast({
           title: "Wrong Network",
-          description:
-            "Please switch to Celo Mainnet to make a purchase",
+          description: "Please switch to Celo Mainnet to make a purchase",
           status: "warning",
           duration: 10000,
           isClosable: true,
@@ -314,21 +322,27 @@ export default function Pricing({ onPurchaseComplete }) {
       console.log(
         `[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`
       );
-      const response = await fetch(`${API_URL}/api/stripe/create-checkout-session`, {
-        method: "POST",
-        credentials: "include",
-        mode: "cors",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-          "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
-        },
-        body: JSON.stringify({
-          tierId: tier.name,
-          address,
-          returnUrl: window.location.href,
-        }),
-      });
+      const response = await fetch(
+        `${API_URL}/api/stripe/create-checkout-session`,
+        {
+          method: "POST",
+          credentials: "include",
+          mode: "cors",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Origin:
+              typeof window !== "undefined"
+                ? window.location.origin
+                : "https://ghiblify-it.vercel.app",
+          },
+          body: JSON.stringify({
+            tierId: tier.name,
+            address,
+            returnUrl: window.location.href,
+          }),
+        }
+      );
 
       console.log(`[Stripe] Response status: ${response.status}`);
       const responseText = await response.text();
@@ -357,6 +371,118 @@ export default function Pricing({ onPurchaseComplete }) {
     }
   };
 
+  const handleBasePayPurchase = async (tier) => {
+    try {
+      if (!address) {
+        toast({
+          title: "Wallet not connected",
+          description: "Please connect your wallet to make a purchase",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      setIsBasePayProcessing(true);
+      setSelectedTier(tier.name.toLowerCase());
+
+      console.log(`[Base Pay] Initiating payment for ${tier.name}...`);
+
+      // Trigger Base Pay payment
+      const { id } = await pay({
+        amount: tier.price.replace("$", ""), // Remove $ sign
+        to: BASE_PAY_RECIPIENT,
+        testnet: BASE_PAY_TESTNET,
+        payerInfo: {
+          requests: [{ type: "email", optional: true }],
+        },
+      });
+
+      console.log(`[Base Pay] Payment initiated with ID: ${id}`);
+
+      // Poll for payment completion
+      const pollPaymentStatus = async () => {
+        try {
+          const { status } = await getPaymentStatus({
+            id,
+            testnet: BASE_PAY_TESTNET, // Must match the testnet setting from pay()
+          });
+
+          if (status === "completed") {
+            console.log(`[Base Pay] Payment ${id} completed`);
+
+            // Notify backend about the payment
+            const response = await fetch(
+              `${API_URL}/api/base-pay/process-payment`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  id,
+                  status: "completed",
+                  amount: tier.price.replace("$", ""),
+                  to: BASE_PAY_RECIPIENT,
+                  from: address,
+                  tier: tier.name.toLowerCase(),
+                  timestamp: new Date().toISOString(),
+                }),
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              toast({
+                title: "Payment Successful!",
+                description: `${data.credits_added} credits have been added to your account.`,
+                status: "success",
+                duration: 5000,
+                isClosable: true,
+              });
+              onPurchaseComplete?.();
+            } else {
+              throw new Error("Failed to process payment on backend");
+            }
+          } else if (status === "failed") {
+            throw new Error("Payment failed");
+          } else {
+            // Still processing, check again in 2 seconds
+            setTimeout(pollPaymentStatus, 2000);
+            return;
+          }
+        } catch (error) {
+          console.error(`[Base Pay] Error checking payment status:`, error);
+          toast({
+            title: "Payment Error",
+            description:
+              error.message || "There was an error processing your payment.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        } finally {
+          setIsBasePayProcessing(false);
+        }
+      };
+
+      // Start polling
+      pollPaymentStatus();
+    } catch (error) {
+      console.error(`[Base Pay] Payment error:`, error);
+      toast({
+        title: "Payment Failed",
+        description:
+          error.message || "There was an error initiating the payment.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      setIsBasePayProcessing(false);
+    }
+  };
+
   // Check URL params for successful payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -376,9 +502,12 @@ export default function Pricing({ onPurchaseComplete }) {
               credentials: "include",
               mode: "cors",
               headers: {
-                "Accept": "application/json",
+                Accept: "application/json",
                 "Content-Type": "application/json",
-                "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+                Origin:
+                  typeof window !== "undefined"
+                    ? window.location.origin
+                    : "https://ghiblify-it.vercel.app",
               },
             }
           );
@@ -572,6 +701,14 @@ export default function Pricing({ onPurchaseComplete }) {
                       30% OFF
                     </Badge>
                   </Box>
+                  <BasePayButton
+                    colorScheme="light"
+                    onClick={() => handleBasePayPurchase(tier)}
+                    isLoading={
+                      isBasePayProcessing && selectedTier === tier.name
+                    }
+                    style={{ width: "100%" }}
+                  />
                 </VStack>
               </VStack>
             </Box>

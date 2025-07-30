@@ -6,6 +6,7 @@ from .stripe_handler import stripe_router
 from .credits import credits_router
 from .web3_auth import web3_router
 from .celo_handler import celo_router
+from .base_pay_handler import base_pay_router
 from .health import router as health_router
 
 router = APIRouter()
@@ -19,3 +20,4 @@ router.include_router(stripe_router, prefix="/stripe", tags=["payments"])
 router.include_router(credits_router, prefix="/credits", tags=["credits"])
 router.include_router(web3_router, prefix="/web3", tags=["web3"])
 router.include_router(celo_router, prefix="/celo", tags=["celo"])
+router.include_router(base_pay_router, prefix="/base-pay", tags=["base-pay"])

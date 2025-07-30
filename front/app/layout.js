@@ -1,5 +1,6 @@
 import { ChakraProvider } from "@chakra-ui/react";
 import { Web3Provider } from "./providers/Web3Provider";
+import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
 import Navigation from "./components/Navigation";
 
 export const metadata = {
@@ -21,6 +22,13 @@ export const metadata = {
     description: "Transform your photos into Studio Ghibli style art",
     images: ["/ghibli-time.png"],
     creator: "@ghiblify"
+  },
+  other: {
+    "fc:miniapp": "https://ghiblify-it.vercel.app/api/farcaster",
+    "fc:miniapp:image": "https://ghiblify-it.vercel.app/ghibli-time.png",
+    "fc:miniapp:button:1": "Transform Photo",
+    "fc:miniapp:button:1:action": "launch",
+    "fc:miniapp:button:1:target": "https://ghiblify-it.vercel.app"
   }
 };
 
@@ -37,8 +45,10 @@ export default function RootLayout({ children }) {
       <body>
         <ChakraProvider>
           <Web3Provider>
-            <Navigation />
-            {children}
+            <FarcasterFrameProvider>
+              <Navigation />
+              {children}
+            </FarcasterFrameProvider>
           </Web3Provider>
         </ChakraProvider>
       </body>

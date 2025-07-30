@@ -2,15 +2,19 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   return NextResponse.json({
-    frame: {
-      version: "1",
-      name: "Ghiblify",
-      homeUrl: "https://ghiblify-it.vercel.app",
-      iconUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
-      imageUrl: "https://ghiblify-it.vercel.app/ghibli-time.png",
-      buttonTitle: "Transform Photo",
-      splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
-      splashBackgroundColor: "#ffffff",
-    },
+    version: "1",
+    name: "Ghiblify",
+    homeUrl: "https://ghiblify-it.vercel.app",
+    iconUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+    imageUrl: "https://ghiblify-it.vercel.app/ghibli-time.png",
+    buttonTitle: "Transform Photo",
+    splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+    splashBackgroundColor: "#4FD1C5",
+    webhookUrl: "https://ghiblify-it.vercel.app/api/farcaster/webhook",
+    accountAssociation: {
+      header: "eyJmaWQiOjM2NzcsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhkMzNiNmU4YTE4NzQzYTE4NTlmMzQ1ZjFmOTY2MTNkYzBjMWEzMzk4In0",
+      payload: "eyJkb21haW4iOiJnaGlibGlmeS1pdC52ZXJjZWwuYXBwIn0",
+      signature: "MHg5NDNhMTBjMTczYjc4NDZhZGEzZjE3NzBmMmRjNzNjNDQzYjkzYWU5YzY2YzFhMTQwZjc0ZGJlYjczOGQ1OWJiNzIzMzRhOGY2YmExYjc1YTllNGQ3ODg2YjUyNDNjMzNlNjI3YjU0MzkyMDM2NWFkYmZlNGRhZTI1YzZmOTFiZjFiMGFiYzJlNGM0ZGJkYzJhZjFkM2UyOWM4ZDNjZmRmNDcyZTY3NWJjYjNiNTg1MzYyZmZkOGE4M2ExNTZhNGQ3ZmI0NzFmZGJjMDZhYTI2NjMyYmY3NzM2NGUyNGYzM2M0YTFlOGQzNjQ1Zjg5NzI0ZmQ5MThjZjI1M2U0"
+    }
   });
 }

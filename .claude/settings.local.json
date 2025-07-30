@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(python -m pytest -xvs)",
+      "Bash(python:*)",
+      "Bash(source:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "WebFetch(domain:docs.farcaster.xyz)",
+      "WebFetch(domain:miniapps.farcaster.xyz)",
+      "Bash(ls:*)",
+      "Bash(identify:*)",
+      "Bash(sips:*)"
+    ],
+    "deny": []
+  }
+}

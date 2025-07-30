@@ -36,17 +36,39 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
-import Pricing from "./components/Pricing";
+import dynamic from 'next/dynamic';
 import CreditsDisplay from "./components/CreditsDisplay";
-import FAQ from "./components/FAQ";
-import SocialShare from "./components/SocialShare";
-import CompareSlider from "./components/CompareSlider";
-import BatchGhiblify from "./components/BatchGhiblify";
+
+// Dynamically import large components to improve initial load time
+const Pricing = dynamic(() => import("./components/Pricing"), {
+  loading: () => <Box p={4} textAlign="center">Loading pricing...</Box>
+});
+
+const FAQ = dynamic(() => import("./components/FAQ"), {
+  loading: () => <Box p={4} textAlign="center">Loading FAQ...</Box>
+});
+
+const SocialShare = dynamic(() => import("./components/SocialShare"), {
+  loading: () => <Box p={2}>Loading share options...</Box>
+});
+
+const CompareSlider = dynamic(() => import("./components/CompareSlider"), {
+  loading: () => <Box p={4} h="300px" bg="gray.100" borderRadius="md" />
+});
+
+const BatchGhiblify = dynamic(() => import("./components/BatchGhiblify"), {
+  loading: () => <Box p={4} textAlign="center">Loading batch processor...</Box>
+});
+import MobileFileUpload from "./components/MobileFileUpload";
+import MiniAppContainer from "./components/MiniAppContainer";
+import SplashScreen from "./components/SplashScreen";
+import { useFarcaster } from "./components/FarcasterFrameProvider";
 import { Slider, SliderTrack, SliderFilledTrack, SliderThumb, SliderMark, HStack } from "@chakra-ui/react";
 
 export default function Home() {
   const DEFAULT_PROMPT_STRENGTH = 0.8;
   const { address } = useAccount();
+  const { isInFrame, isLoading: frameLoading, isReady } = useFarcaster();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImageURL, setSelectedImageURL] = useState("");
   const [generatedImageURL, setGeneratedImageURL] = useState("");
@@ -115,22 +137,6 @@ export default function Home() {
     setToken(newToken);
     // Force a refresh of the credits display
     setCreditsRefreshKey((prev) => prev + 1);
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      setSelectedImageURL(reader.result);
-      setSelectedFile(file);
-      setGeneratedImageURL(""); // Clear previous result
-      setError(""); // Clear previous errors
-    };
-
-    if (file) {
-      reader.readAsDataURL(file);
-    }
   };
 
   // Function to poll task status
@@ -291,7 +297,9 @@ export default function Home() {
   };
 
   return (
-    <Container>
+    <>
+      <SplashScreen isLoading={frameLoading} />
+      <MiniAppContainer>
       <Box borderWidth="0px" mx="0px" my="10px">
         <Text
           color="#4682A9"
@@ -395,34 +403,36 @@ export default function Home() {
           {/* Single image Tab */}
           <TabPanel>
             <Flex direction="column" align="center" gap={4}>
-              <FormControl>
-                <Input
-                  type="file"
-                  id="fileInput"
-                  onChange={handleImageChange}
-                  style={{ display: "none" }}
-                />
-                <Button
-                  mx="5px"
-                  my="20px"
-                  as="label"
-                  htmlFor="fileInput"
-                  color="#4682A9"
-                  display="flex"
-                  justifyContent="center"
-                  alignItems="center"
-                  width="100%"
-                >
-                  upload photo
-                </Button>
-              </FormControl>
+              <MobileFileUpload 
+                onFileSelect={(file) => {
+                  if (file) {
+                    setSelectedFile(file);
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      setSelectedImageURL(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                  } else {
+                    setSelectedFile(null);
+                    setSelectedImageURL("");
+                  }
+                }}
+                isLoading={isLoading}
+              />
               {selectedImageURL && (
                 <Button
                   onClick={handleGhiblify}
-                  color="#4682A9"
+                  colorScheme="blue"
+                  size={{ base: "lg", md: "md" }}
+                  minH={{ base: "56px", md: "40px" }}
+                  fontSize={{ base: "lg", md: "md" }}
+                  w={{ base: "full", md: "auto" }}
+                  px={8}
                   isDisabled={isLoading}
+                  isLoading={isLoading}
+                  loadingText="✨ Ghiblifying..."
                 >
-                  {isLoading ? "Ghiblifying..." : "Ghiblify!"}
+                  ✨ Ghiblify!
                 </Button>
               )}
             </Flex>
@@ -620,6 +630,7 @@ export default function Home() {
           </ModalBody>
         </ModalContent>
       </Modal>
-    </Container>
+    </MiniAppContainer>
+    </>
   );
 }

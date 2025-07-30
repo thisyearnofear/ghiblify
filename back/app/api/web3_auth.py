@@ -1,7 +1,10 @@
 """Web3 authentication handler."""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import os
+import secrets
+import re
 from redis import Redis
 from eth_account.messages import encode_defunct
 from web3 import Web3
@@ -11,6 +14,11 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+class SIWEVerifyRequest(BaseModel):
+    address: str
+    message: str
+    signature: str
 
 web3_router = APIRouter()
 # Configure Redis client
@@ -39,11 +47,47 @@ except Exception as e:
     logger.error(f"[Redis] Connection failed: {str(e)}")
     raise
 
-import logging
+def verify_siwe_signature(message: str, signature: str, address: str) -> bool:
+    """Verify SIWE signature using eth-account."""
+    try:
+        # Create the message hash
+        message_hash = encode_defunct(text=message)
+        
+        # Recover the address from signature
+        recovered_address = w3.eth.account.recover_message(message_hash, signature=signature)
+        
+        # Compare addresses (case insensitive)
+        return recovered_address.lower() == address.lower()
+    except Exception as e:
+        logger.error(f"[SIWE] Signature verification failed: {str(e)}")
+        return False
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+def validate_siwe_message(message: str, expected_domain: str = None) -> dict:
+    """Parse and validate SIWE message format."""
+    try:
+        lines = message.strip().split('\n')
+        
+        # Extract domain (first line)
+        domain_line = lines[0].split(' wants you to sign in')[0] if lines else ""
+        
+        # Extract address (second line)
+        address_line = lines[1] if len(lines) > 1 else ""
+        
+        # Extract fields from the message
+        nonce_match = re.search(r'Nonce: (\w+)', message)
+        chain_id_match = re.search(r'Chain ID: (\d+)', message)
+        issued_at_match = re.search(r'Issued At: (.+)', message)
+        
+        return {
+            'domain': domain_line,
+            'address': address_line,
+            'nonce': nonce_match.group(1) if nonce_match else None,
+            'chain_id': int(chain_id_match.group(1)) if chain_id_match else None,
+            'issued_at': issued_at_match.group(1) if issued_at_match else None,
+        }
+    except Exception as e:
+        logger.error(f"[SIWE] Message parsing failed: {str(e)}")
+        return {}
 
 def get_credits(address: str) -> int:
     """Get credits for an address from Redis."""
@@ -75,6 +119,66 @@ def set_credits(address: str, amount: int):
     except Exception as e:
         logger.error(f"[Redis ERROR] Setting credits for {address}: {str(e)}")
         raise
+
+@web3_router.get("/auth/nonce")
+async def get_nonce():
+    """Generate a secure nonce for SIWE authentication."""
+    try:
+        # Generate a cryptographically secure random nonce
+        nonce = secrets.token_hex(16)
+        
+        # Store nonce in Redis with 15 minute expiration
+        redis_client.setex(f"nonce:{nonce}", 900, "valid")
+        
+        logger.info(f"[SIWE] Generated nonce: {nonce}")
+        return nonce
+    except Exception as e:
+        logger.error(f"[SIWE] Nonce generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate nonce")
+
+@web3_router.post("/auth/verify")
+async def verify_siwe(request: SIWEVerifyRequest):
+    """Verify SIWE signature and create session."""
+    try:
+        # Parse the SIWE message
+        parsed = validate_siwe_message(request.message)
+        
+        if not parsed.get('nonce'):
+            raise HTTPException(status_code=400, detail="Invalid SIWE message format")
+        
+        # Check if nonce exists and is valid
+        nonce_key = f"nonce:{parsed['nonce']}"
+        if not redis_client.exists(nonce_key):
+            raise HTTPException(status_code=400, detail="Invalid or expired nonce")
+        
+        # Verify the signature
+        if not verify_siwe_signature(request.message, request.signature, request.address):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        # Ensure the message address matches the claimed address
+        if parsed['address'].lower() != request.address.lower():
+            raise HTTPException(status_code=400, detail="Address mismatch")
+        
+        # Delete the used nonce
+        redis_client.delete(nonce_key)
+        
+        # Initialize credits if new user
+        if not redis_client.exists(f'credits:{request.address.lower()}'):
+            set_credits(request.address, 0)
+        
+        logger.info(f"[SIWE] Authentication successful for {request.address}")
+        
+        return JSONResponse(content={
+            "ok": True,
+            "address": request.address.lower(),
+            "credits": get_credits(request.address)
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[SIWE] Verification failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Authentication failed")
 
 @web3_router.post("/login")
 async def web3_login(address: str):
