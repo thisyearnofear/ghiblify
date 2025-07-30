@@ -4,22 +4,14 @@ export async function GET() {
   try {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     
-    // During build time, don't try to fetch from backend
-    if (process.env.NODE_ENV === 'production' && !process.env.VERCEL_URL) {
-      // Generate a temporary nonce for build time
-      const tempNonce = Math.random().toString(36).substring(2, 15);
-      return new NextResponse(tempNonce, {
-        headers: { 'Content-Type': 'text/plain' }
-      });
-    }
-    
-    const response = await fetch(`${backendUrl}/api/auth/nonce`, {
+    // Use the existing backend Redis-backed nonce endpoint
+    const response = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      // Add timeout for build process
-      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+      // Add timeout to handle Render backend sleep
+      signal: AbortSignal.timeout(15000) // 15 second timeout for sleeping backend
     });
     
     if (!response.ok) {
@@ -31,14 +23,17 @@ export async function GET() {
       headers: { 'Content-Type': 'text/plain' }
     });
   } catch (error) {
-    console.error('Nonce generation error:', error);
+    console.error('Backend nonce generation error:', error);
     
-    // Fallback: generate client-side nonce
-    const fallbackNonce = Math.random().toString(36).substring(2, 15) + 
-                         Date.now().toString(36);
+    // Fallback: generate client-side nonce (as recommended in Base docs)
+    const fallbackNonce = crypto.randomUUID().replace(/-/g, '');
     
+    console.log('Using client-side fallback nonce due to backend unavailability');
     return new NextResponse(fallbackNonce, {
-      headers: { 'Content-Type': 'text/plain' }
+      headers: {
+        'Content-Type': 'text/plain',
+        'X-Fallback': 'true' // Indicate this is a fallback nonce
+      }
     });
   }
 }

@@ -11,95 +11,96 @@ export default function SignInWithBase({ onSuccess, onError }) {
     setIsLoading(true);
     
     try {
-      const provider = createBaseAccountSDK({
-        appName: 'Ghiblify',
-        appLogoUrl: '/ghibli-it.png',
-        appDescription: 'Transform your photos into Studio Ghibli style art'
-      }).getProvider();
+      // Initialize the SDK (no config needed for defaults as per docs)
+      const provider = createBaseAccountSDK().getProvider();
       
-      // 1. Get fresh nonce from backend
-      const nonceResponse = await fetch('/api/auth/nonce');
-      const nonce = await nonceResponse.text();
+      // 1. Get nonce from backend (with fallback to local generation)
+      let nonce;
+      try {
+        const nonceResponse = await fetch('/api/auth/nonce', {
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        if (nonceResponse.ok) {
+          nonce = await nonceResponse.text();
+        } else {
+          throw new Error('Backend nonce failed');
+        }
+      } catch (nonceError) {
+        console.warn('Backend nonce generation failed, using local fallback:', nonceError);
+        // Fallback to local nonce generation as recommended in Base docs
+        nonce = window.crypto.randomUUID().replace(/-/g, '');
+      }
       
       // 2. Connect and authenticate with Base Account
-      const { accounts } = await provider.request({
+      const result = await provider.request({
         method: 'wallet_connect',
         params: [{
           version: '1',
           capabilities: {
-            signInWithEthereum: { 
-              nonce, 
+            signInWithEthereum: {
+              nonce,
               chainId: '0x2105' // Base Mainnet - 8453
             }
           }
         }]
       });
       
-      const { address } = accounts[0];
-      const { message, signature } = accounts[0].capabilities.signInWithEthereum;
+      // Safely extract data with proper error handling
+      if (!result?.accounts?.[0]) {
+        throw new Error('No accounts returned from wallet connection');
+      }
       
-      // 3. Verify signature with backend
+      const account = result.accounts[0];
+      const { address } = account;
+      
+      if (!account.capabilities?.signInWithEthereum) {
+        throw new Error('Sign in with Ethereum capability not available');
+      }
+      
+      const { message, signature } = account.capabilities.signInWithEthereum;
+      
+      if (!address || !message || !signature) {
+        throw new Error('Missing required authentication data');
+      }
+      
+      // 3. Verify signature with backend (with extended timeout for Render)
       const verifyResponse = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, message, signature })
+        body: JSON.stringify({ address, message, signature }),
+        signal: AbortSignal.timeout(20000) // 20 second timeout for sleeping backend
       });
       
       if (!verifyResponse.ok) {
-        throw new Error('Authentication failed');
+        const errorData = await verifyResponse.json().catch(() => ({ error: 'Unknown error' }));
+        
+        // Handle specific backend unavailability
+        if (verifyResponse.status === 503 || verifyResponse.status === 504) {
+          throw new Error('Backend service is starting up. Please wait a moment and try again.');
+        }
+        
+        throw new Error(errorData.error || `Authentication failed: ${verifyResponse.status}`);
       }
       
-      const result = await verifyResponse.json();
-      onSuccess?.(result);
+      const authResult = await verifyResponse.json();
+      
+      // Store authentication data
+      localStorage.setItem('ghiblify_auth', JSON.stringify({
+        address,
+        timestamp: Date.now(),
+        credits: authResult.credits || 0
+      }));
+      
+      onSuccess?.(authResult);
       
     } catch (error) {
       console.error('Sign in with Base error:', error);
       
       // Fallback to traditional wallet connection if wallet_connect is not supported
-      if (error.message?.includes('method_not_supported')) {
+      if (error?.message?.includes('method_not_supported') || error?.code === -32601) {
         try {
-          const provider = createBaseAccountSDK({
-            appName: 'Ghiblify',
-            appLogoUrl: '/ghibli-it.png',
-            appDescription: 'Transform your photos into Studio Ghibli style art'
-          }).getProvider();
-          
-          // Fallback: use eth_requestAccounts and personal_sign
-          const accounts = await provider.request({ method: 'eth_requestAccounts' });
-          const address = accounts[0];
-          
-          // Get nonce for signing
-          const nonceResponse = await fetch('/api/auth/nonce');
-          const nonce = await nonceResponse.text();
-          
-          // Create SIWE message manually
-          const domain = window.location.host;
-          const uri = window.location.origin;
-          const version = '1';
-          const chainId = 8453; // Base Mainnet
-          const issuedAt = new Date().toISOString();
-          
-          const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
-          
-          const signature = await provider.request({
-            method: 'personal_sign',
-            params: [message, address]
-          });
-          
-          // Verify with backend
-          const verifyResponse = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address, message, signature })
-          });
-          
-          if (!verifyResponse.ok) {
-            throw new Error('Authentication failed');
-          }
-          
-          const result = await verifyResponse.json();
-          onSuccess?.(result);
-          
+          await handleFallbackAuth();
         } catch (fallbackError) {
           console.error('Fallback authentication failed:', fallbackError);
           onError?.(fallbackError);
@@ -110,6 +111,79 @@ export default function SignInWithBase({ onSuccess, onError }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFallbackAuth = async () => {
+    const provider = createBaseAccountSDK().getProvider();
+    
+    // Fallback: use eth_requestAccounts and personal_sign
+    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+    const address = accounts[0];
+    
+    if (!address) {
+      throw new Error('No address returned from wallet');
+    }
+    
+    // Get nonce (with fallback to local generation)
+    let nonce;
+    try {
+      const nonceResponse = await fetch('/api/auth/nonce', {
+        signal: AbortSignal.timeout(10000)
+      });
+      
+      if (nonceResponse.ok) {
+        nonce = await nonceResponse.text();
+      } else {
+        throw new Error('Backend nonce failed');
+      }
+    } catch (nonceError) {
+      console.warn('Backend nonce generation failed, using local fallback:', nonceError);
+      nonce = window.crypto.randomUUID().replace(/-/g, '');
+    }
+    
+    // Create SIWE message manually
+    const domain = window.location.host;
+    const uri = window.location.origin;
+    const version = '1';
+    const chainId = 8453; // Base Mainnet
+    const issuedAt = new Date().toISOString();
+    
+    const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+    
+    const signature = await provider.request({
+      method: 'personal_sign',
+      params: [message, address]
+    });
+    
+    // Verify with backend
+    const verifyResponse = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address, message, signature }),
+      signal: AbortSignal.timeout(20000) // 20 second timeout for sleeping backend
+    });
+    
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json().catch(() => ({ error: 'Unknown error' }));
+      
+      // Handle specific backend unavailability
+      if (verifyResponse.status === 503 || verifyResponse.status === 504) {
+        throw new Error('Backend service is starting up. Please wait a moment and try again.');
+      }
+      
+      throw new Error(errorData.error || `Fallback authentication failed: ${verifyResponse.status}`);
+    }
+    
+    const result = await verifyResponse.json();
+    
+    // Store authentication data
+    localStorage.setItem('ghiblify_auth', JSON.stringify({
+      address,
+      timestamp: Date.now(),
+      credits: result.credits || 0
+    }));
+    
+    onSuccess?.(result);
   };
 
   return (
