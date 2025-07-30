@@ -12,6 +12,9 @@ export function useMobile() {
   
   useEffect(() => {
     const checkMobile = () => {
+      // SSR-safe checks
+      if (typeof window === 'undefined') return;
+      
       // Screen size detection
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
@@ -19,15 +22,12 @@ export function useMobile() {
       
       // Touch capability detection
       const hasTouchScreen = 'ontouchstart' in window || 
-                           navigator.maxTouchPoints > 0 || 
-                           navigator.msMaxTouchPoints > 0;
+                           (navigator && navigator.maxTouchPoints > 0) || 
+                           (navigator && navigator.msMaxTouchPoints > 0);
       
       // User agent detection (as fallback)
-      const userAgent = navigator.userAgent.toLowerCase();
+      const userAgent = navigator ? navigator.userAgent.toLowerCase() : '';
       const isUserAgentMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-      
-      // Orientation detection
-      const isPortrait = screenHeight > screenWidth;
       
       setIsMobile(isSmallScreen || isUserAgentMobile);
       setIsTouch(hasTouchScreen);
@@ -36,13 +36,15 @@ export function useMobile() {
     checkMobile();
     
     // Listen for window resize and orientation changes
-    window.addEventListener('resize', checkMobile);
-    window.addEventListener('orientationchange', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-      window.removeEventListener('orientationchange', checkMobile);
-    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', checkMobile);
+      window.addEventListener('orientationchange', checkMobile);
+      
+      return () => {
+        window.removeEventListener('resize', checkMobile);
+        window.removeEventListener('orientationchange', checkMobile);
+      };
+    }
   }, []);
   
   return {

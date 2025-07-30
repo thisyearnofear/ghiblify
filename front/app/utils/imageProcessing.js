@@ -140,6 +140,14 @@ export function supportsCamera() {
  * Gets appropriate file input accept types based on device
  */
 export function getAcceptTypes() {
+  // SSR-safe check
+  if (typeof navigator === 'undefined') {
+    // Default to all formats during SSR
+    return {
+      'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.gif']
+    };
+  }
+  
   // More restrictive on mobile for better performance
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   

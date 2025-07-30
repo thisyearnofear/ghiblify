@@ -73,13 +73,18 @@ export const FARCASTER_CONFIG = {
 
 // Helper functions
 export function isFarcasterEnvironment() {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
   
-  return !!(
-    window?.parent !== window ||
-    FARCASTER_CONFIG.userAgentPatterns.farcaster.test(navigator.userAgent) ||
-    window?.location?.ancestorOrigins?.length > 0
-  );
+  try {
+    return !!(
+      window?.parent !== window ||
+      FARCASTER_CONFIG.userAgentPatterns.farcaster.test(navigator.userAgent) ||
+      window?.location?.ancestorOrigins?.length > 0
+    );
+  } catch (error) {
+    // Fallback for SSR or restricted environments
+    return false;
+  }
 }
 
 export function getNotificationConfig(type) {

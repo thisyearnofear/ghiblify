@@ -32,7 +32,7 @@ const celoMainnet = {
 // Create base config using RainbowKit's helper
 const config = getDefaultConfig({
   appName: "Ghiblify",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "dummy-project-id-for-build",
   chains: [celoMainnet, mainnet, polygon, base],
   transports: {
     [celoMainnet.id]: http(),

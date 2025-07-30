@@ -59,7 +59,15 @@ const CompareSlider = dynamic(() => import("./components/CompareSlider"), {
 const BatchGhiblify = dynamic(() => import("./components/BatchGhiblify"), {
   loading: () => <Box p={4} textAlign="center">Loading batch processor...</Box>
 });
-import MobileFileUpload from "./components/MobileFileUpload";
+
+const MobileFileUpload = dynamic(() => import("./components/MobileFileUpload"), {
+  ssr: false,
+  loading: () => (
+    <Box p={4} textAlign="center" borderRadius="xl" border="2px dashed" borderColor="gray.200">
+      <Text>Loading file upload...</Text>
+    </Box>
+  )
+});
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
