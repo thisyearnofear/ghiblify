@@ -36,6 +36,10 @@ const STRIPE_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL ||
   "https://ghiblify.onrender.com/api/stripe/webhook";
 
+// Base Pay Configuration
+const BASE_PAY_RECIPIENT = process.env.NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS;
+const BASE_PAY_TESTNET = process.env.NEXT_PUBLIC_BASE_PAY_TESTNET === "true";
+
 if (!API_URL) {
   console.error(
     "[Pricing] NEXT_PUBLIC_API_URL environment variable is not set"
@@ -45,6 +49,12 @@ if (!API_URL) {
 if (!STRIPE_WEBHOOK_URL) {
   console.error(
     "[Pricing] NEXT_PUBLIC_STRIPE_WEBHOOK_URL environment variable is not set"
+  );
+}
+
+if (!BASE_PAY_RECIPIENT) {
+  console.error(
+    "[Pricing] NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS environment variable is not set"
   );
 }
 

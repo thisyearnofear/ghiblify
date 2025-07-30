@@ -42,17 +42,25 @@ redis_client = Redis(
     ssl_cert_reqs=None  # For Upstash compatibility
 )
 
-# Test Redis connection
+# Initialize Redis availability flag
 REDIS_AVAILABLE = False
-try:
-    redis_client.ping()
-    REDIS_AVAILABLE = True
-    logger.info("[Redis] Connection successful")
-    logger.info(f"[Redis] Server info: {redis_client.info('server')}")
-except Exception as e:
-    logger.error(f"[Redis] Connection failed: {str(e)}")
-    logger.warning("[Redis] Continuing without Redis - credits will not persist")
-    REDIS_AVAILABLE = False
+
+def test_redis_connection():
+    """Test Redis connection and set global availability flag."""
+    global REDIS_AVAILABLE
+    try:
+        redis_client.ping()
+        REDIS_AVAILABLE = True
+        logger.info("[Redis] Connection successful")
+        logger.info(f"[Redis] Server info: {redis_client.info('server')}")
+    except Exception as e:
+        logger.error(f"[Redis] Connection failed: {str(e)}")
+        logger.warning("[Redis] Continuing without Redis - credits will not persist")
+        REDIS_AVAILABLE = False
+    return REDIS_AVAILABLE
+
+# Test connection immediately but don't crash on failure
+test_redis_connection()
 
 def verify_siwe_signature(message: str, signature: str, address: str) -> bool:
     """Verify SIWE signature using eth-account."""
@@ -99,6 +107,7 @@ def validate_siwe_message(message: str, expected_domain: str = None) -> dict:
 # In-memory fallback storage when Redis is unavailable
 _memory_credits = {}
 _memory_nonces = {}
+_memory_general = {}  # For general key-value storage used by other modules
 
 def get_credits(address: str) -> int:
     """Get credits for an address from Redis or memory fallback."""
@@ -331,3 +340,67 @@ async def get_system_status():
     except Exception as e:
         logger.error(f"[Status] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Helper functions for other modules to use Redis with fallback
+def redis_get(key: str) -> str:
+    """Get a value from Redis or memory fallback."""
+    if not REDIS_AVAILABLE:
+        return _memory_general.get(key)
+    
+    try:
+        return redis_client.get(key)
+    except Exception as e:
+        logger.error(f"[Redis ERROR] Getting key {key}: {str(e)}")
+        return _memory_general.get(key)
+
+def redis_set(key: str, value: str, ex: int = None) -> bool:
+    """Set a value in Redis or memory fallback."""
+    if not REDIS_AVAILABLE:
+        _memory_general[key] = value
+        # TODO: Handle expiration in memory (would need background task)
+        return True
+    
+    try:
+        redis_client.set(key, value, ex=ex)
+        return True
+    except Exception as e:
+        logger.error(f"[Redis ERROR] Setting key {key}: {str(e)}")
+        _memory_general[key] = value
+        return False
+
+def redis_exists(key: str) -> bool:
+    """Check if key exists in Redis or memory fallback."""
+    if not REDIS_AVAILABLE:
+        return key in _memory_general
+    
+    try:
+        return redis_client.exists(key)
+    except Exception as e:
+        logger.error(f"[Redis ERROR] Checking key {key}: {str(e)}")
+        return key in _memory_general
+
+def redis_pipeline():
+    """Get a Redis pipeline or None if Redis unavailable."""
+    if not REDIS_AVAILABLE:
+        return None
+    
+    try:
+        return redis_client.pipeline()
+    except Exception as e:
+        logger.error(f"[Redis ERROR] Creating pipeline: {str(e)}")
+        return None
+
+class MemoryPipeline:
+    """Mock pipeline for memory fallback."""
+    def __init__(self):
+        self.operations = []
+    
+    def set(self, key: str, value: str, ex: int = None):
+        self.operations.append(('set', key, value, ex))
+        return self
+    
+    def execute(self):
+        for op in self.operations:
+            if op[0] == 'set':
+                _memory_general[op[1]] = op[2]
+        return [True] * len(self.operations)

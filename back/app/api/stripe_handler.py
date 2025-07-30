@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional
-from .web3_auth import get_credits, set_credits, redis_client
+from .web3_auth import get_credits, set_credits, REDIS_AVAILABLE, redis_get, redis_set, redis_exists, redis_pipeline, MemoryPipeline
 
 load_dotenv()
 
@@ -103,14 +103,14 @@ def get_customer_id_from_address(address: str) -> Optional[str]:
     """Get Stripe customer ID from web3 address"""
     try:
         # Get customer ID from Redis using web3 address as key
-        customer_id = redis_client.get(f'stripe_customer:{address.lower()}')
+        customer_id = redis_get(f'stripe_customer:{address.lower()}')
         return customer_id
     except:
         return None
 
 def set_customer_id_for_address(address: str, customer_id: str):
     """Store Stripe customer ID for web3 address"""
-    redis_client.set(f'stripe_customer:{address.lower()}', customer_id)
+    redis_set(f'stripe_customer:{address.lower()}', customer_id)
 
 
 @stripe_router.post("/webhook")
@@ -161,67 +161,52 @@ async def stripe_webhook(request: Request):
                 logger.error(f"[Stripe] Missing metadata: tier={tier}, credits={credits}, wallet={wallet_address}")
                 return JSONResponse(status_code=200, content={"status": "skipped", "reason": "missing_metadata"})
             
+            # Initialize variables for later use
+            actual_credits = 0
+            
             try:
-                # Use Redis transaction to ensure atomicity
-                with redis_client.pipeline() as pipe:
-                    while True:
-                        try:
-                            # Watch the credit key for changes
-                            credit_key = f'credits:{wallet_address.lower()}'
-                            session_key = f'credited:session:{session.id}'
-                            pipe.watch(credit_key, session_key)
-                            
-                            # Check if credits were already added
-                            if redis_client.get(session_key):
-                                logger.info(f"[Stripe] Credits already added for session {session.id}")
-                                return JSONResponse(content={"status": "already_credited"})
-                            
-                            # Get current credits atomically
-                            current_credits = int(pipe.get(credit_key) or 0)
-                            new_credits = current_credits + int(credits)
-                            
-                            # Start transaction
-                            pipe.multi()
-                            
-                            # Update credits and mark session as processed
-                            pipe.set(credit_key, new_credits)
-                            pipe.set(session_key, '1', ex=86400)  # 24h expiry
-                            
-                            # Execute transaction
-                            pipe.execute()
-                            
-                            # Verify the update
-                            actual_credits = get_credits(wallet_address)
-                            if actual_credits != new_credits:
-                                logger.error(f"[Stripe] Credit verification failed: expected {new_credits}, got {actual_credits}")
-                                return JSONResponse(status_code=500, content={"status": "error", "reason": "verification_failed"})
-                            
-                            logger.info(f"[Stripe] Successfully credited {credits} to {wallet_address}. New balance: {actual_credits}")
-                            break
-                            
-                        except redis_client.WatchError:
-                            logger.warning(f"[Stripe] Concurrent modification detected for {wallet_address}, retrying...")
-                            continue
-                        except Exception as e:
-                            logger.error(f"[Stripe] Redis error: {str(e)}")
-                            return JSONResponse(status_code=500, content={"status": "error", "reason": "redis_error"})
+                # Check if credits were already added (idempotency)
+                session_key = f'credited:session:{session.id}'
+                if redis_get(session_key):
+                    logger.info(f"[Stripe] Credits already added for session {session.id}")
+                    return JSONResponse(content={"status": "already_credited"})
                 
-                # Store customer ID if needed
-                if session.customer:
-                    try:
-                        existing_customer = get_customer_id_from_address(wallet_address)
-                        if not existing_customer:
-                            set_customer_id_for_address(wallet_address, session.customer)
-                            logger.info(f"[Stripe] Stored customer ID {session.customer} for {wallet_address}")
-                        elif existing_customer != session.customer:
-                            logger.warning(f"[Stripe] Different customer ID found for {wallet_address}: stored={existing_customer}, new={session.customer}")
-                    except Exception as e:
-                        logger.error(f"[Stripe] Error storing customer ID: {str(e)}")
-                        # Don't fail the webhook for customer ID storage issues
-                    
+                # Get current credits and add new ones
+                current_credits = get_credits(wallet_address)
+                new_credits = current_credits + int(credits)
+                
+                # Update credits using the existing function (which handles fallback)
+                set_credits(wallet_address, new_credits)
+                
+                # Mark session as processed
+                redis_set(session_key, '1', ex=86400)  # 24h expiry
+                
+                # Verify the update
+                actual_credits = get_credits(wallet_address)
+                logger.info(f"[Stripe] Successfully credited {credits} to {wallet_address}. New balance: {actual_credits}")
+                
             except Exception as e:
-                logger.error(f"[Stripe] Error processing credits for {wallet_address}: {str(e)}")
+                logger.error(f"[Stripe] Error processing credits: {str(e)}")
                 return JSONResponse(status_code=500, content={"status": "error", "reason": "processing_error"})
+            
+            # Store customer ID if needed
+            if session.customer:
+                try:
+                    existing_customer = get_customer_id_from_address(wallet_address)
+                    if not existing_customer:
+                        set_customer_id_for_address(wallet_address, session.customer)
+                        logger.info(f"[Stripe] Stored customer ID {session.customer} for {wallet_address}")
+                    elif existing_customer != session.customer:
+                        logger.warning(f"[Stripe] Different customer ID found for {wallet_address}: stored={existing_customer}, new={session.customer}")
+                except Exception as e:
+                    logger.error(f"[Stripe] Error storing customer ID: {str(e)}")
+                    # Don't fail the webhook for customer ID storage issues
+            
+            return JSONResponse(content={
+                "status": "completed",
+                "credits_added": int(credits),
+                "new_total": actual_credits
+            })
                 
         elif event.type == 'payment_intent.succeeded':
             payment_intent = event.data.object
@@ -262,7 +247,7 @@ async def check_session_status(session_id: str, address: str):
 
         # Check if credits were already added for this session
         credit_key = f'credited:session:{session_id}'
-        if redis_client.get(credit_key):
+        if redis_get(credit_key):
             logger.info(f"[Stripe] Credits already added for session {session_id}")
             current_credits = get_credits(address)
             return JSONResponse(content={
@@ -291,7 +276,7 @@ async def check_session_status(session_id: str, address: str):
                 set_credits(address, new_credits)
 
                 # Mark session as credited
-                redis_client.set(credit_key, '1', ex=86400)  # 24h expiry
+                redis_set(credit_key, '1', ex=86400)  # 24h expiry
 
                 logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {new_credits}")
 
@@ -382,7 +367,7 @@ async def link_customer_to_wallet(wallet_address: str, customer_id: str):
             raise HTTPException(status_code=404, detail="Customer not found in Stripe")
             
         # Store the customer ID in Redis
-        redis_client.set(f'stripe_customer:{wallet_address.lower()}', customer_id)
+        redis_set(f'stripe_customer:{wallet_address.lower()}', customer_id)
         logger.info(f"[Stripe] Linked customer {customer_id} to wallet {wallet_address}")
         
         return JSONResponse(content={
