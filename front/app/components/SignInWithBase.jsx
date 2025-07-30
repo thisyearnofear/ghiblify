@@ -19,6 +19,21 @@ const BASE_ACCOUNT_CONFIG = {
 export default function SignInWithBase({ onSuccess, onError }) {
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper function for exponential backoff retry
+  const retryWithBackoff = async (fn, maxRetries = 3, baseDelay = 1000) => {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (attempt === maxRetries - 1) throw error;
+        
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  };
+
   const handleSignIn = async () => {
     setIsLoading(true);
     
@@ -28,24 +43,20 @@ export default function SignInWithBase({ onSuccess, onError }) {
       
       const provider = baseAccountSDK.getProvider();
       
-      // 1. Get nonce from backend (with fallback to local generation)
-      let nonce;
-      try {
-        const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+      // 1. Get nonce from backend with retry logic and extended timeout
+      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+      
+      const nonce = await retryWithBackoff(async () => {
         const nonceResponse = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(30000) // 30 second timeout for cold starts
         });
         
-        if (nonceResponse.ok) {
-          nonce = await nonceResponse.text();
-        } else {
-          throw new Error('Backend nonce failed');
+        if (!nonceResponse.ok) {
+          throw new Error(`Nonce request failed: ${nonceResponse.status} ${nonceResponse.statusText}`);
         }
-      } catch (nonceError) {
-        console.warn('Backend nonce generation failed, using local fallback:', nonceError);
-        // Fallback to local nonce generation as recommended in Base docs
-        nonce = window.crypto.randomUUID().replace(/-/g, '');
-      }
+        
+        return await nonceResponse.text();
+      }, 3, 2000); // 3 retries with 2s base delay
       
       // 2. Connect and get accounts first
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
@@ -71,12 +82,11 @@ export default function SignInWithBase({ onSuccess, onError }) {
       });
       
       // 5. Verify signature with backend (with extended timeout for Render)
-      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
       const verifyResponse = await fetch(`${backendUrl}/api/web3/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, message, signature }),
-        signal: AbortSignal.timeout(20000) // 20 second timeout for sleeping backend
+        signal: AbortSignal.timeout(30000) // 30 second timeout for sleeping backend
       });
       
       if (!verifyResponse.ok) {
@@ -109,82 +119,6 @@ export default function SignInWithBase({ onSuccess, onError }) {
     }
   };
 
-  const handleFallbackAuth = async () => {
-    const baseAccountSDK = createBaseAccountSDK(BASE_ACCOUNT_CONFIG);
-    
-    const provider = baseAccountSDK.getProvider();
-    
-    // Fallback: use eth_requestAccounts and personal_sign
-    const accounts = await provider.request({ method: 'eth_requestAccounts' });
-    const address = accounts[0];
-    
-    if (!address) {
-      throw new Error('No address returned from wallet');
-    }
-    
-    // Get nonce (with fallback to local generation)
-    let nonce;
-    try {
-      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
-      const nonceResponse = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
-        signal: AbortSignal.timeout(10000)
-      });
-      
-      if (nonceResponse.ok) {
-        nonce = await nonceResponse.text();
-      } else {
-        throw new Error('Backend nonce failed');
-      }
-    } catch (nonceError) {
-      console.warn('Backend nonce generation failed, using local fallback:', nonceError);
-      nonce = window.crypto.randomUUID().replace(/-/g, '');
-    }
-    
-    // Create SIWE message manually
-    const domain = window.location.host;
-    const uri = window.location.origin;
-    const version = '1';
-    const chainId = 8453; // Base Mainnet
-    const issuedAt = new Date().toISOString();
-    
-    const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
-    
-    const signature = await provider.request({
-      method: 'personal_sign',
-      params: [message, address]
-    });
-    
-    // Verify with backend
-    const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
-    const verifyResponse = await fetch(`${backendUrl}/api/web3/auth/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, message, signature }),
-      signal: AbortSignal.timeout(20000) // 20 second timeout for sleeping backend
-    });
-    
-    if (!verifyResponse.ok) {
-      const errorData = await verifyResponse.json().catch(() => ({ error: 'Unknown error' }));
-      
-      // Handle specific backend unavailability
-      if (verifyResponse.status === 503 || verifyResponse.status === 504) {
-        throw new Error('Backend service is starting up. Please wait a moment and try again.');
-      }
-      
-      throw new Error(errorData.error || `Fallback authentication failed: ${verifyResponse.status}`);
-    }
-    
-    const result = await verifyResponse.json();
-    
-    // Store authentication data
-    localStorage.setItem('ghiblify_auth', JSON.stringify({
-      address,
-      timestamp: Date.now(),
-      credits: result.credits || 0
-    }));
-    
-    onSuccess?.(result);
-  };
 
   return (
     <SignInWithBaseButton
