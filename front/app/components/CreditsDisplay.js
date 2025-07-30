@@ -30,6 +30,10 @@ const fetchCredits = async (address) => {
   );
 
   if (!response.ok) {
+    // Handle specific backend unavailability cases
+    if (response.status === 503 || response.status === 504) {
+      throw new Error('Backend service is starting up. Please wait a moment and try again.');
+    }
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 

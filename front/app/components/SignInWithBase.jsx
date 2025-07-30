@@ -46,39 +46,30 @@ export default function SignInWithBase({ onSuccess, onError }) {
         nonce = window.crypto.randomUUID().replace(/-/g, '');
       }
       
-      // 2. Connect and authenticate with Base Account
-      const result = await provider.request({
-        method: 'wallet_connect',
-        params: [{
-          version: '1',
-          capabilities: {
-            signInWithEthereum: {
-              nonce,
-              chainId: '0x2105' // Base Mainnet - 8453
-            }
-          }
-        }]
+      // 2. Connect and get accounts first
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const address = accounts[0];
+      
+      if (!address) {
+        throw new Error('No address returned from wallet');
+      }
+      
+      // 3. Create SIWE message manually for better compatibility
+      const domain = window.location.host;
+      const uri = window.location.origin;
+      const version = '1';
+      const chainId = 8453; // Base Mainnet
+      const issuedAt = new Date().toISOString();
+      
+      const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
+      
+      // 4. Request signature
+      const signature = await provider.request({
+        method: 'personal_sign',
+        params: [message, address]
       });
       
-      // Safely extract data with proper error handling
-      if (!result?.accounts?.[0]) {
-        throw new Error('No accounts returned from wallet connection');
-      }
-      
-      const account = result.accounts[0];
-      const { address } = account;
-      
-      if (!account.capabilities?.signInWithEthereum) {
-        throw new Error('Sign in with Ethereum capability not available');
-      }
-      
-      const { message, signature } = account.capabilities.signInWithEthereum;
-      
-      if (!address || !message || !signature) {
-        throw new Error('Missing required authentication data');
-      }
-      
-      // 3. Verify signature with backend (with extended timeout for Render)
+      // 5. Verify signature with backend (with extended timeout for Render)
       const verifyResponse = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,18 +101,7 @@ export default function SignInWithBase({ onSuccess, onError }) {
       
     } catch (error) {
       console.error('Sign in with Base error:', error);
-      
-      // Fallback to traditional wallet connection if wallet_connect is not supported
-      if (error?.message?.includes('method_not_supported') || error?.code === -32601) {
-        try {
-          await handleFallbackAuth();
-        } catch (fallbackError) {
-          console.error('Fallback authentication failed:', fallbackError);
-          onError?.(fallbackError);
-        }
-      } else {
-        onError?.(error);
-      }
+      onError?.(error);
     } finally {
       setIsLoading(false);
     }

@@ -25,14 +25,11 @@ export default function Web3Button() {
 
   useEffect(() => {
     if (isConnected && address) {
-      // Use environment-aware API URL
-      const API_URL =
-        process.env.NODE_ENV === "development"
-          ? "http://localhost:8000"
-          : "https://ghiblify.onrender.com";
+      // Use consistent API URL configuration
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
 
       // Send the address to your backend to get/create a session
-      fetch(`${API_URL}/api/auth/web3/login`, {
+      fetch(`${API_URL}/api/web3/login`, {
         method: "POST",
         credentials: "include",
         mode: "cors",
