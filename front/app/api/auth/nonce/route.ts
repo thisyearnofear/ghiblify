@@ -19,7 +19,9 @@ export async function GET() {
     }
     
     const nonce = await response.text();
-    return new NextResponse(nonce, {
+    // Clean up any extra quotes from the backend response
+    const cleanNonce = nonce.replace(/^["']+|["']+$/g, '');
+    return new NextResponse(cleanNonce, {
       headers: { 'Content-Type': 'text/plain' }
     });
   } catch (error) {

@@ -54,8 +54,10 @@ export default function SignInWithBase({ onSuccess, onError }) {
         }
         
         const retrievedNonce = await nonceResponse.text();
-        console.log(`[DEBUG] Retrieved nonce: "${retrievedNonce}"`);
-        return retrievedNonce;
+        // Clean up any extra quotes
+        const cleanNonce = retrievedNonce.replace(/^["']+|["']+$/g, '');
+        console.log(`[DEBUG] Retrieved nonce: "${cleanNonce}"`);
+        return cleanNonce;
       }, 3, 2000); // 3 retries with 2s base delay
       
       console.log(`[DEBUG] Using nonce: "${nonce}"`);
@@ -75,7 +77,7 @@ export default function SignInWithBase({ onSuccess, onError }) {
       const chainId = 8453; // Base Mainnet
       const issuedAt = new Date().toISOString();
       
-      const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce.replace(/"/g, '')}\nIssued At: ${issuedAt}`;
+      const message = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nSign in with Ethereum to the app.\n\nURI: ${uri}\nVersion: ${version}\nChain ID: ${chainId}\nNonce: ${nonce}\nIssued At: ${issuedAt}`;
       
       console.log(`[DEBUG] Created SIWE message:`, message);
       

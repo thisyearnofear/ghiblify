@@ -49,16 +49,13 @@ export async function POST(request: NextRequest) {
     } catch (backendError) {
       console.error('Backend verification failed, attempting client-side verification:', backendError);
 
-      // Fallback: Client-side signature verification
+      // Fallback: Client-side signature verification using ethers
       try {
-        const { verifyMessage } = await import('viem');
+        const { ethers } = await import('ethers');
 
         // Verify the signature client-side
-        const isValid = await verifyMessage({
-          address: address as `0x${string}`,
-          message,
-          signature: signature as `0x${string}`,
-        });
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+        const isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
 
         if (!isValid) {
           return NextResponse.json(
