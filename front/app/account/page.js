@@ -53,6 +53,29 @@ export default function Account() {
   const router = useRouter();
   const toast = useToast();
   const { address, isConnected } = useAccount();
+  
+  // Check for Base authentication
+  const [baseAuth, setBaseAuth] = useState(null);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedAuth = localStorage.getItem("ghiblify_auth");
+      if (storedAuth) {
+        try {
+          const authData = JSON.parse(storedAuth);
+          if (authData.authenticated) {
+            setBaseAuth(authData);
+          }
+        } catch (error) {
+          console.error("Error parsing stored auth:", error);
+        }
+      }
+    }
+  }, []);
+  
+  // Determine if user is connected (either via Wagmi or Base auth)
+  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
+  const userAddress = address || (baseAuth && baseAuth.address);
 
   const fetchAllPurchaseHistory = useCallback(async () => {
     setLoading(true);
@@ -64,7 +87,7 @@ export default function Account() {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "X-Web3-Address": address,
+            "X-Web3-Address": userAddress,
           },
         }
       );
@@ -126,10 +149,10 @@ export default function Account() {
     } finally {
       setLoading(false);
     }
-  }, [address, toast]);
+  }, [userAddress, toast]);
 
   useEffect(() => {
-    if (!isConnected || !address) {
+    if (!userConnected || !userAddress) {
       router.push("/");
       toast({
         title: "Please connect your wallet",
@@ -142,7 +165,7 @@ export default function Account() {
     }
 
     fetchAllPurchaseHistory();
-  }, [isConnected, address, router, fetchAllPurchaseHistory, toast]);
+  }, [userConnected, userAddress, router, fetchAllPurchaseHistory, toast]);
 
   const openCustomerPortal = async () => {
     try {
@@ -153,7 +176,7 @@ export default function Account() {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "X-Web3-Address": address,
+            "X-Web3-Address": userAddress,
           },
         }
       );

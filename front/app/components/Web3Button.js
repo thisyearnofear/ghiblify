@@ -245,8 +245,12 @@ export default function Web3Button() {
               {/* Base Account Button */}
               <MagicalButton
                 onClick={() => {
-                  // Show account details or logout option
-                  console.log("Base account clicked:", baseAuth);
+                  // Handle Base account menu (logout, etc.)
+                  const shouldLogout = window.confirm("Do you want to disconnect your Base account?");
+                  if (shouldLogout) {
+                    localStorage.removeItem("ghiblify_auth");
+                    setBaseAuth(null);
+                  }
                 }}
                 variant="glass"
                 px={4}

@@ -48,16 +48,39 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [shouldShowBuyButton, setShouldShowBuyButton] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
+  
+  // Check for Base authentication
+  const [baseAuth, setBaseAuth] = useState(null);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedAuth = localStorage.getItem("ghiblify_auth");
+      if (storedAuth) {
+        try {
+          const authData = JSON.parse(storedAuth);
+          if (authData.authenticated) {
+            setBaseAuth(authData);
+          }
+        } catch (error) {
+          console.error("Error parsing stored auth:", error);
+        }
+      }
+    }
+  }, []);
+  
+  // Determine if user is connected (either via Wagmi or Base auth)
+  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
+  const userAddress = address || (baseAuth && baseAuth.address);
 
   const checkCredits = useCallback(async () => {
-    if (!isConnected || !address) {
+    if (!userConnected || !userAddress) {
       setCredits(0);
       return;
     }
 
     setIsLoading(true);
     try {
-      const newCredits = await fetchCredits(address);
+      const newCredits = await fetchCredits(userAddress);
       setCredits(newCredits);
       setShouldShowBuyButton(newCredits === 0);
       if (onCreditsUpdate) onCreditsUpdate(newCredits);
@@ -79,15 +102,15 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
     } finally {
       setIsLoading(false);
     }
-  }, [address, isConnected, onCreditsUpdate, toast]);
+  }, [userAddress, userConnected, onCreditsUpdate, toast]);
 
   // Handle hydration and initial load
   useEffect(() => {
     setIsMounted(true);
-    if (address && isConnected) {
+    if (userAddress && userConnected) {
       checkCredits();
     }
-  }, [address, isConnected, checkCredits]);
+  }, [userAddress, userConnected, checkCredits]);
 
   // Handle force refresh
   useEffect(() => {
