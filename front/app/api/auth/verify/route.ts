@@ -12,74 +12,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
+    // Pure client-side signature verification using ethers
     try {
-      // Try backend verification first (for credits/nonce validation)
-      const response = await fetch(`${backendUrl}/api/web3/auth/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address, message, signature }),
-        signal: AbortSignal.timeout(10000) // Shorter timeout
+      const { ethers } = await import('ethers');
+
+      // Verify the signature client-side
+      const recoveredAddress = ethers.verifyMessage(message, signature);
+      const isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
+
+      if (!isValid) {
+        return NextResponse.json(
+          { error: 'Invalid signature' },
+          { status: 401 }
+        );
+      }
+
+      // Basic SIWE message validation
+      const lines = message.split('\n');
+      const addressLine = lines.find(line => line.startsWith('0x'));
+      const domainLine = lines[0];
+
+      // Verify the address in the message matches the claimed address
+      if (addressLine && addressLine.toLowerCase() !== address.toLowerCase()) {
+        return NextResponse.json(
+          { error: 'Address mismatch in message' },
+          { status: 400 }
+        );
+      }
+
+      // Verify the domain matches
+      if (!domainLine.includes(request.nextUrl.hostname)) {
+        return NextResponse.json(
+          { error: 'Domain mismatch in message' },
+          { status: 400 }
+        );
+      }
+
+      console.log(`✅ Authentication successful for ${address} (client-side verification)`);
+
+      // Return success - no backend dependency
+      return NextResponse.json({
+        ok: true,
+        address: address.toLowerCase(),
+        credits: 0, // Will be fetched separately when needed
+        authenticated: true
       });
-    
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      console.error(`Backend verification failed: ${response.status} ${errorText}`);
-      
-      // Return more specific error information
-      if (response.status === 504) {
-        return NextResponse.json(
-          { error: 'Backend service temporarily unavailable. Please try again in a moment.' },
-          { status: 503 }
-        );
-      }
-      
+
+    } catch (verificationError) {
+      console.error('Client-side verification failed:', verificationError);
+
       return NextResponse.json(
-        { error: `Authentication failed: ${errorText}` },
-        { status: response.status }
+        { error: 'Signature verification failed' },
+        { status: 401 }
       );
-    }
-
-      const result = await response.json();
-      return NextResponse.json(result);
-
-    } catch (backendError) {
-      console.error('Backend verification failed, attempting client-side verification:', backendError);
-
-      // Fallback: Client-side signature verification using ethers
-      try {
-        const { ethers } = await import('ethers');
-
-        // Verify the signature client-side
-        const recoveredAddress = ethers.verifyMessage(message, signature);
-        const isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-
-        if (!isValid) {
-          return NextResponse.json(
-            { error: 'Invalid signature' },
-            { status: 401 }
-          );
-        }
-
-        // Return success with fallback indication
-        return NextResponse.json({
-          ok: true,
-          address: address.toLowerCase(),
-          credits: 0, // Default credits when backend unavailable
-          fallback: true // Indicate this was verified client-side
-        });
-
-      } catch (fallbackError) {
-        console.error('Client-side verification also failed:', fallbackError);
-
-        return NextResponse.json(
-          { error: 'Authentication service temporarily unavailable' },
-          { status: 503 }
-        );
-      }
     }
 
   } catch (error) {
@@ -87,10 +72,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'Authentication service temporarily unavailable',
+        error: 'Authentication failed',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 503 }
+      { status: 500 }
     );
   }
 }

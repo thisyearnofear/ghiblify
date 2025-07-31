@@ -107,15 +107,31 @@ export default function SignInWithBase({ onSuccess, onError }) {
       }
       
       const authResult = await verifyResponse.json();
-      
+
+      // Fetch credits separately from backend (optional)
+      let credits = 0;
+      try {
+        const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
+        const creditsResponse = await fetch(`${backendUrl}/api/web3/credits/get?address=${address}`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (creditsResponse.ok) {
+          const creditsData = await creditsResponse.json();
+          credits = creditsData.credits || 0;
+        }
+      } catch (creditsError) {
+        console.log('Could not fetch credits from backend, using default:', creditsError.message);
+      }
+
       // Store authentication data
       localStorage.setItem('ghiblify_auth', JSON.stringify({
         address,
         timestamp: Date.now(),
-        credits: authResult.credits || 0
+        credits,
+        authenticated: true
       }));
-      
-      onSuccess?.(authResult);
+
+      onSuccess?.({ ...authResult, credits });
       
     } catch (error) {
       console.error('Sign in with Base error:', error);
