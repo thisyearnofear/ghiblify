@@ -68,6 +68,29 @@ export default function Pricing({ onPurchaseComplete }) {
   const { writeContractAsync: approveAsync } = useWriteContract();
   const { writeContractAsync: purchaseAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  
+  // Check for Base authentication
+  const [baseAuth, setBaseAuth] = useState(null);
+  
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedAuth = localStorage.getItem("ghiblify_auth");
+      if (storedAuth) {
+        try {
+          const authData = JSON.parse(storedAuth);
+          if (authData.authenticated) {
+            setBaseAuth(authData);
+          }
+        } catch (error) {
+          console.error("Error parsing stored auth:", error);
+        }
+      }
+    }
+  }, []);
+  
+  // Determine if user is connected (either via Wagmi or Base auth)
+  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
+  const userAddress = address || (baseAuth && baseAuth.address);
 
   // Watch for contract events
   useWatchContractEvent({
@@ -76,7 +99,7 @@ export default function Pricing({ onPurchaseComplete }) {
     eventName: "CreditsPurchased",
     onLogs(logs) {
       const log = logs[0];
-      if (log && log.args && log.args.buyer === address) {
+      if (log && log.args && log.args.buyer === userAddress) {
         handleSuccess(log.transactionHash);
       }
     },
@@ -165,7 +188,7 @@ export default function Pricing({ onPurchaseComplete }) {
 
   const handleCeloPurchase = async (tier) => {
     try {
-      if (!address) {
+      if (!userAddress) {
         toast({
           title: "Wallet not connected",
           description: "Please connect your wallet to make a purchase",
@@ -219,7 +242,7 @@ export default function Pricing({ onPurchaseComplete }) {
       const balance = await publicClient.readContract({
         ...cusdContract,
         functionName: "balanceOf",
-        args: [address],
+        args: [userAddress],
       });
       console.log("[CELO] Current cUSD balance:", balance.toString());
 
@@ -237,7 +260,7 @@ export default function Pricing({ onPurchaseComplete }) {
       const allowance = await publicClient.readContract({
         ...cusdContract,
         functionName: "allowance",
-        args: [address, GHIBLIFY_PAYMENTS_ADDRESS],
+        args: [userAddress, GHIBLIFY_PAYMENTS_ADDRESS],
       });
       console.log("[CELO] Current allowance:", allowance.toString());
 
@@ -313,7 +336,7 @@ export default function Pricing({ onPurchaseComplete }) {
   };
 
   const handleStripePurchase = async (tier) => {
-    if (!isConnected || !address) {
+    if (!userConnected || !userAddress) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet before making a purchase.",
@@ -396,7 +419,7 @@ export default function Pricing({ onPurchaseComplete }) {
         return;
       }
 
-      if (!address) {
+      if (!userAddress) {
         toast({
           title: "Wallet not connected",
           description: "Please connect your wallet to make a purchase",
