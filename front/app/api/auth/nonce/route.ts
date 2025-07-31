@@ -10,8 +10,8 @@ export async function GET() {
       headers: {
         'Content-Type': 'application/json',
       },
-      // Add timeout to handle Render backend sleep
-      signal: AbortSignal.timeout(15000) // 15 second timeout for sleeping backend
+      // Shorter timeout for better UX
+      signal: AbortSignal.timeout(5000) // 5 second timeout
     });
     
     if (!response.ok) {

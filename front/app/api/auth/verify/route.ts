@@ -4,26 +4,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { address, message, signature } = body;
-    
+
     if (!address || !message || !signature) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-    
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    
-    // Use the existing backend Redis-backed verification endpoint
-    const response = await fetch(`${backendUrl}/api/web3/auth/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ address, message, signature }),
-      // Add timeout to handle Render backend sleep
-      signal: AbortSignal.timeout(15000) // 15 second timeout for sleeping backend
-    });
+
+    try {
+      // Try backend verification first (for credits/nonce validation)
+      const response = await fetch(`${backendUrl}/api/web3/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address, message, signature }),
+        signal: AbortSignal.timeout(10000) // Shorter timeout
+      });
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
@@ -42,21 +42,52 @@ export async function POST(request: NextRequest) {
         { status: response.status }
       );
     }
-    
-    const result = await response.json();
-    return NextResponse.json(result);
-    
+
+      const result = await response.json();
+      return NextResponse.json(result);
+
+    } catch (backendError) {
+      console.error('Backend verification failed, attempting client-side verification:', backendError);
+
+      // Fallback: Client-side signature verification
+      try {
+        const { verifyMessage } = await import('viem');
+
+        // Verify the signature client-side
+        const isValid = await verifyMessage({
+          address: address as `0x${string}`,
+          message,
+          signature: signature as `0x${string}`,
+        });
+
+        if (!isValid) {
+          return NextResponse.json(
+            { error: 'Invalid signature' },
+            { status: 401 }
+          );
+        }
+
+        // Return success with fallback indication
+        return NextResponse.json({
+          ok: true,
+          address: address.toLowerCase(),
+          credits: 0, // Default credits when backend unavailable
+          fallback: true // Indicate this was verified client-side
+        });
+
+      } catch (fallbackError) {
+        console.error('Client-side verification also failed:', fallbackError);
+
+        return NextResponse.json(
+          { error: 'Authentication service temporarily unavailable' },
+          { status: 503 }
+        );
+      }
+    }
+
   } catch (error) {
     console.error('Verification error:', error);
-    
-    // Handle timeout specifically
-    if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
-      return NextResponse.json(
-        { error: 'Backend service is starting up. Please wait a moment and try again.' },
-        { status: 503 }
-      );
-    }
-    
+
     return NextResponse.json(
       {
         error: 'Authentication service temporarily unavailable',

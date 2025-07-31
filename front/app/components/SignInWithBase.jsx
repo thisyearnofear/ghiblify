@@ -43,12 +43,10 @@ export default function SignInWithBase({ onSuccess, onError }) {
       
       const provider = baseAccountSDK.getProvider();
       
-      // 1. Get nonce from backend with retry logic and extended timeout
-      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://ghiblify.onrender.com' : 'http://localhost:8000';
-      
+      // 1. Get nonce from Next.js API route (more reliable)
       const nonce = await retryWithBackoff(async () => {
-        const nonceResponse = await fetch(`${backendUrl}/api/web3/auth/nonce`, {
-          signal: AbortSignal.timeout(30000) // 30 second timeout for cold starts
+        const nonceResponse = await fetch(`/api/auth/nonce`, {
+          signal: AbortSignal.timeout(10000) // Shorter timeout since it's local
         });
         
         if (!nonceResponse.ok) {
@@ -87,12 +85,12 @@ export default function SignInWithBase({ onSuccess, onError }) {
         params: [message, address]
       });
       
-      // 5. Verify signature with backend (with extended timeout for Render)
-      const verifyResponse = await fetch(`${backendUrl}/api/web3/auth/verify`, {
+      // 5. Verify signature with Next.js API route (more reliable)
+      const verifyResponse = await fetch(`/api/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, message, signature }),
-        signal: AbortSignal.timeout(30000) // 30 second timeout for sleeping backend
+        signal: AbortSignal.timeout(15000) // Shorter timeout since it's local
       });
       
       if (!verifyResponse.ok) {
