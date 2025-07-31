@@ -18,37 +18,27 @@ export async function POST(request: NextRequest) {
 
       console.log('Verifying signature for:', { address, messageLength: message.length, signature: signature.substring(0, 20) + '...' });
 
-      // Try different verification approaches
+      // Verify signature using ethers v6
       let recoveredAddress;
       let isValid = false;
 
       try {
-        // Method 1: Direct verifyMessage (ethers v6)
+        // Primary method: Direct verifyMessage (ethers v6)
         recoveredAddress = ethers.verifyMessage(message, signature);
         isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-        console.log('Method 1 - Recovered address:', recoveredAddress, 'Valid:', isValid);
+        console.log('Signature verification - Recovered:', recoveredAddress, 'Expected:', address, 'Valid:', isValid);
       } catch (error1) {
-        console.log('Method 1 failed:', error1.message);
+        console.log('Primary verification failed:', error1.message);
 
+        // Fallback: Manual recovery using recoverAddress
         try {
-          // Method 2: Using utils.verifyMessage (ethers v6 alternative)
-          recoveredAddress = ethers.utils?.verifyMessage?.(message, signature) ||
-                           ethers.verifyMessage(message, signature);
+          const messageHash = ethers.hashMessage(message);
+          recoveredAddress = ethers.recoverAddress(messageHash, signature);
           isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-          console.log('Method 2 - Recovered address:', recoveredAddress, 'Valid:', isValid);
+          console.log('Fallback verification - Recovered:', recoveredAddress, 'Expected:', address, 'Valid:', isValid);
         } catch (error2) {
-          console.log('Method 2 failed:', error2.message);
-
-          // Method 3: Manual recovery using recoverAddress
-          try {
-            const messageHash = ethers.hashMessage(message);
-            recoveredAddress = ethers.recoverAddress(messageHash, signature);
-            isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-            console.log('Method 3 - Recovered address:', recoveredAddress, 'Valid:', isValid);
-          } catch (error3) {
-            console.log('Method 3 failed:', error3.message);
-            throw new Error('All signature verification methods failed');
-          }
+          console.log('Fallback verification failed:', error2.message);
+          throw new Error('All signature verification methods failed');
         }
       }
 
