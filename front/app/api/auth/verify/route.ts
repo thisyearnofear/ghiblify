@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
+
+// Simple in-memory nonce store (swap for Redis or DB in production)
+const usedNonces = new Set<string>();
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { address, message, signature } = body;
+    const { address, message, signature } = await request.json();
 
     if (!address || !message || !signature) {
       return NextResponse.json(
@@ -12,96 +16,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Pure client-side signature verification using ethers
-    try {
-      const { ethers } = await import('ethers');
-
-      console.log('Verifying signature for:', { address, messageLength: message.length, signature: signature.substring(0, 20) + '...' });
-
-      // Verify signature using ethers v6
-      let recoveredAddress;
-      let isValid = false;
-
-      try {
-        // Primary method: Direct verifyMessage (ethers v6)
-        recoveredAddress = ethers.verifyMessage(message, signature);
-        isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-        console.log('Signature verification - Recovered:', recoveredAddress, 'Expected:', address, 'Valid:', isValid);
-      } catch (error1) {
-        console.log('Primary verification failed:', error1.message);
-
-        // Fallback: Manual recovery using recoverAddress
-        try {
-          const messageHash = ethers.hashMessage(message);
-          recoveredAddress = ethers.recoverAddress(messageHash, signature);
-          isValid = recoveredAddress.toLowerCase() === address.toLowerCase();
-          console.log('Fallback verification - Recovered:', recoveredAddress, 'Expected:', address, 'Valid:', isValid);
-        } catch (error2) {
-          console.log('Fallback verification failed:', error2.message);
-          throw new Error('All signature verification methods failed');
-        }
-      }
-
-      if (!isValid) {
-        console.error('Signature verification failed:', {
-          recovered: recoveredAddress,
-          expected: address,
-          message: message.substring(0, 100) + '...'
-        });
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        );
-      }
-
-      // Basic SIWE message validation
-      const lines = message.split('\n');
-      const addressLine = lines.find(line => line.startsWith('0x'));
-      const domainLine = lines[0];
-
-      // Verify the address in the message matches the claimed address
-      if (addressLine && addressLine.toLowerCase() !== address.toLowerCase()) {
-        return NextResponse.json(
-          { error: 'Address mismatch in message' },
-          { status: 400 }
-        );
-      }
-
-      // Verify the domain matches
-      if (!domainLine.includes(request.nextUrl.hostname)) {
-        return NextResponse.json(
-          { error: 'Domain mismatch in message' },
-          { status: 400 }
-        );
-      }
-
-      console.log(`✅ Authentication successful for ${address} (client-side verification)`);
-
-      // Return success - no backend dependency
-      return NextResponse.json({
-        ok: true,
-        address: address.toLowerCase(),
-        credits: 0, // Will be fetched separately when needed
-        authenticated: true
-      });
-
-    } catch (verificationError) {
-      console.error('Client-side verification failed:', verificationError);
-
+    // 1. Check nonce hasn't been reused (extract from message)
+    const nonceMatch = message.match(/Nonce: ([a-f0-9]{32})/);
+    if (!nonceMatch) {
       return NextResponse.json(
-        { error: 'Signature verification failed' },
+        { error: 'Invalid message format - no nonce found' },
+        { status: 400 }
+      );
+    }
+    
+    const nonce = nonceMatch[1];
+    if (usedNonces.has(nonce)) {
+      return NextResponse.json(
+        { error: 'Invalid or reused nonce' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Verify signature using viem (handles ERC-6492 automatically)
+    const client = createPublicClient({ 
+      chain: base, 
+      transport: http() 
+    });
+
+    const isValid = await client.verifyMessage({
+      address: address as `0x${string}`,
+      message,
+      signature: signature as `0x${string}`,
+    });
+
+    if (!isValid) {
+      return NextResponse.json(
+        { error: 'Invalid signature' },
         { status: 401 }
       );
     }
 
+    // 3. Mark nonce as used
+    usedNonces.add(nonce);
+
+    console.log(`✅ Authentication successful for ${address}`);
+
+    // 4. Create session / JWT here (simplified for now)
+    return NextResponse.json({ 
+      ok: true,
+      address: address.toLowerCase(),
+      authenticated: true
+    });
+
   } catch (error) {
     console.error('Verification error:', error);
-
     return NextResponse.json(
-      {
-        error: 'Authentication failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Authentication failed' },
       { status: 500 }
     );
   }
