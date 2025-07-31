@@ -88,6 +88,13 @@ export default function SignInWithBase({ onSuccess, onError }) {
       });
       
       // 5. Verify signature with Next.js API route (more reliable)
+      console.log('[DEBUG] Sending verification request:', {
+        address,
+        messageLength: message.length,
+        signatureLength: signature.length,
+        messagePreview: message.substring(0, 200) + '...'
+      });
+
       const verifyResponse = await fetch(`/api/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
