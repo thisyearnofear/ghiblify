@@ -15,7 +15,7 @@ interface UseBaseAccountAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  authenticate: () => Promise<void>;
+  authenticate: () => Promise<BaseAccountUser>;
   signOut: () => void;
   refreshCredits: () => Promise<void>;
   clearError: () => void;
@@ -35,11 +35,15 @@ export function useBaseAccountAuth(): UseBaseAccountAuthReturn {
 
     // Subscribe to status changes
     const unsubscribe = baseAccountAuth.onStatusChange((newStatus) => {
+      console.log('[Hook] Status changed to:', newStatus);
       setStatus(newStatus);
       if (newStatus === 'authenticated') {
-        setUser(baseAccountAuth.getCurrentUser());
+        const currentUser = baseAccountAuth.getCurrentUser();
+        console.log('[Hook] Setting user:', currentUser);
+        setUser(currentUser);
         setError(null);
       } else if (newStatus === 'idle') {
+        console.log('[Hook] Clearing user');
         setUser(null);
         setError(null);
       }
@@ -57,15 +61,20 @@ export function useBaseAccountAuth(): UseBaseAccountAuthReturn {
 
   const authenticate = useCallback(async () => {
     try {
+      console.log('[Hook] Starting authentication...');
       setError(null);
       const authenticatedUser = await baseAccountAuth.authenticate();
+      console.log('[Hook] Authentication successful, setting user:', authenticatedUser);
       setUser(authenticatedUser);
+      return authenticatedUser;
     } catch (err) {
       const errorMessage = err instanceof BaseAccountError 
         ? err.message 
         : 'Authentication failed';
+      console.log('[Hook] Authentication failed:', errorMessage);
       setError(errorMessage);
       console.error('Authentication error:', err);
+      throw err;
     }
   }, []);
 

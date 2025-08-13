@@ -76,13 +76,17 @@ class BaseAccountPaymentService {
         throw new BaseAccountError(`Pricing not found for tier: ${tierName}`);
       }
 
+      // Backend uses different field names: amount, original_amount instead of discounted_price, base_price
+      const discountedPrice = parseFloat(pricing.amount);
+      const originalPrice = parseFloat(pricing.original_amount);
+
       return {
         name: tierName,
-        original: pricing.base_price,
-        discounted: pricing.discounted_price,
+        original: originalPrice,
+        discounted: discountedPrice,
         credits: pricing.credits,
-        savings: pricing.base_price - pricing.discounted_price,
-        discount: pricing.discount_percentage || 0,
+        savings: originalPrice - discountedPrice,
+        discount: pricing.discount === '30%' ? 30 : 0,
       };
     } catch (error) {
       throw new BaseAccountError(`Failed to fetch pricing: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -92,14 +96,17 @@ class BaseAccountPaymentService {
   // Fixed payment initiation using correct SDK v1.1.1 API
   private async initiatePayment(pricing: TierPricing): Promise<PaymentResult> {
     try {
+      // Validate pricing object
+      if (!pricing || typeof pricing.discounted !== 'number' || isNaN(pricing.discounted)) {
+        throw new BaseAccountError(`Invalid pricing data: ${JSON.stringify(pricing)}`);
+      }
+
+      // Simplified payment request without callback URL for now
+      // We'll poll for payment status instead of relying on webhooks
       const paymentRequest = {
         amount: pricing.discounted.toString(),
         to: this.config.recipientAddress,
         testnet: this.config.testnet,
-        payerInfo: {
-          requests: [{ type: "email", optional: true }],
-          callbackURL: `${typeof window !== 'undefined' ? window.location.origin : 'https://ghiblify-it.vercel.app'}/api/base-pay/callback`,
-        },
       };
 
       console.log(`[Base Pay] Initiating payment for ${pricing.name}:`, {

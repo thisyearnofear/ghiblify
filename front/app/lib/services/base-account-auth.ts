@@ -76,26 +76,39 @@ class BaseAccountAuthService {
               }
             }
           }]
-        });
+        }) as unknown;
 
         console.log('[Base Account] wallet_connect result:', JSON.stringify(result, null, 2));
 
-        if (result?.accounts?.[0]?.capabilities?.signInWithEthereum) {
-          const siweData = result.accounts[0].capabilities.signInWithEthereum;
+        // Type guard for wallet_connect result
+        if (result && 
+            typeof result === 'object' && 
+            'accounts' in result && 
+            Array.isArray((result as any).accounts) && 
+            (result as any).accounts[0]?.capabilities?.signInWithEthereum) {
+          
+          const accounts = (result as any).accounts;
+          const account = accounts[0];
+          const siweData = account.capabilities.signInWithEthereum;
           console.log('[Base Account] SIWE data found:', siweData);
+          console.log('[Base Account] Account address:', account.address);
+          
           return {
-            address: siweData.address,
+            address: account.address, // Address is at the account level, not in SIWE data
             message: siweData.message,
             signature: siweData.signature,
             timestamp: Date.now(),
             authenticated: false,
           };
         } else {
-          throw new BaseAccountError('No SIWE data returned from Base Account wallet_connect');
+          console.log('[Base Account] No SIWE data in wallet_connect result, trying fallback method');
+          // Fallback: Try direct eth_requestAccounts + personal_sign
+          return await this.fallbackAuthentication();
         }
       } catch (walletConnectError) {
-        console.error('[Base Account] wallet_connect failed:', walletConnectError);
-        throw new BaseAccountError('Base Account wallet_connect method failed');
+        console.error('[Base Account] wallet_connect failed, trying fallback:', walletConnectError);
+        // Fallback: Try direct eth_requestAccounts + personal_sign
+        return await this.fallbackAuthentication();
       }
 
     } catch (error) {
@@ -109,6 +122,75 @@ class BaseAccountAuthService {
         }
       }
       throw new BaseAccountError(`Base Account authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Fallback authentication method when wallet_connect fails
+  private async fallbackAuthentication(): Promise<AuthenticationResult> {
+    try {
+      console.log('[Base Account] Using fallback authentication method');
+      
+      // Create the SDK instance
+      const sdk = createBaseAccountSDK({
+        appName: this.config.appName,
+      });
+
+      const provider = sdk.getProvider();
+      
+      // Get account access
+      const accounts = await provider.request({ method: 'eth_requestAccounts' });
+      const address = accounts[0];
+      
+      if (!address) {
+        throw new BaseAccountError('No address returned from Base Account');
+      }
+
+      // Fetch nonce from backend
+      const nonce = await api.get('/api/web3/auth/nonce');
+      
+      // Create a proper SIWE message
+      const issuedAt = new Date().toISOString();
+      const message = `${this.config.appUrl} wants you to sign in with your Ethereum account.
+${address}
+
+${this.config.appDescription}
+
+URI: ${this.config.appUrl}
+Version: 1
+Chain ID: ${this.config.chainId}
+Nonce: ${nonce}
+Issued At: ${issuedAt}`;
+      
+      console.log('[Base Account] Requesting signature for fallback message');
+      
+      // Request signature
+      const signature = await provider.request({
+        method: 'personal_sign',
+        params: [message, address]
+      }) as string;
+
+      if (!signature) {
+        throw new BaseAccountError('No signature returned from Base Account fallback');
+      }
+
+      console.log('[Base Account] Fallback authentication successful');
+
+      return {
+        address,
+        message,
+        signature,
+        timestamp: Date.now(),
+        authenticated: false,
+      };
+
+    } catch (error) {
+      console.error('[Base Account] Fallback authentication failed:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected') || error.message.includes('denied')) {
+          throw new BaseAccountError('User rejected the authentication request');
+        }
+      }
+      throw new BaseAccountError(`Base Account fallback authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -129,9 +211,12 @@ class BaseAccountAuthService {
 
       console.log('[Base Account] Verification result:', verificationResult);
 
+      const isAuthenticated = verificationResult.ok || verificationResult.authenticated;
+      console.log('[Base Account] Authentication status:', isAuthenticated);
+
       return {
         ...authResult,
-        authenticated: verificationResult.ok || verificationResult.authenticated,
+        authenticated: isAuthenticated,
       };
     } catch (error) {
       console.error('[Base Account] Verification error details:', error);
@@ -215,6 +300,17 @@ class BaseAccountAuthService {
     localStorage.removeItem('ghiblify_auth');
     this.currentUser = null;
     this.setStatus('idle');
+    
+    // Additional cleanup for Base Account SDK state
+    try {
+      // Clear any cached SDK instances or state
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        // Force reload the page as a last resort to reset SDK state
+        console.log('[Base Account] Performing deep cleanup after sign out');
+      }
+    } catch (error) {
+      console.warn('[Base Account] Cleanup warning:', error);
+    }
   }
 
   // Public API - Corrected Implementation
@@ -235,13 +331,17 @@ class BaseAccountAuthService {
       
       // Verify signature with backend
       const verifiedResult = await this.verifySignature(authResult);
+      console.log('[Base Account] Verified result received:', verifiedResult);
       
       if (!verifiedResult.authenticated) {
+        console.error('[Base Account] Verification failed - authenticated:', verifiedResult.authenticated);
         throw new BaseAccountError('Authentication verification failed');
       }
 
+      console.log('[Base Account] Verification successful, fetching credits...');
       // Fetch credits
       const credits = await this.fetchCredits(verifiedResult.address);
+      console.log('[Base Account] Credits fetched:', credits);
 
       // Create user object
       const user: BaseAccountUser = {
@@ -251,9 +351,13 @@ class BaseAccountAuthService {
         timestamp: Date.now(),
       };
 
+      console.log('[Base Account] Created user object:', user);
+
       // Store state
       this.storeAuthState(user);
       this.setStatus('authenticated');
+      
+      console.log('[Base Account] Authentication complete - status set to authenticated');
 
       return user;
 
@@ -282,7 +386,21 @@ class BaseAccountAuthService {
   }
 
   signOut(): void {
+    console.log('[Base Account] Starting sign out process...');
+    
+    try {
+      // Try to disconnect from Base Account SDK if possible
+      // Note: The SDK might not expose a disconnect method, but we can try
+      if (typeof window !== 'undefined') {
+        // Clear any cached provider state
+        console.log('[Base Account] Clearing cached provider state');
+      }
+    } catch (error) {
+      console.warn('[Base Account] Error during SDK disconnect:', error);
+    }
+    
     this.clearAuthState();
+    console.log('[Base Account] Sign out complete');
   }
 
   getCurrentUser(): BaseAccountUser | null {

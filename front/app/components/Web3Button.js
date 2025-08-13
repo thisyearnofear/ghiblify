@@ -16,13 +16,14 @@ import SignInWithBase from "./SignInWithBase.jsx";
 import { COLORS, GRADIENTS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../theme";
 import MagicalButton from "./ui/MagicalButton";
 import MagicalModal from "./ui/MagicalModal";
+import { useBaseAccountAuth } from "../lib/hooks/useBaseAccountAuth";
 
 
 export default function Web3Button() {
   const { address, isConnected } = useAccount();
+  const { user: baseUser, isAuthenticated: isBaseAuthenticated, signOut: baseSignOut } = useBaseAccountAuth();
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const [isBaseAuthOpen, setIsBaseAuthOpen] = useState(false);
-  const [baseAuth, setBaseAuth] = useState(null);
 
   useEffect(() => {
     if (isConnected && address) {
@@ -55,28 +56,8 @@ export default function Web3Button() {
     }
   }, [isConnected, address]);
 
-  // Check for existing Base authentication on component mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedAuth = localStorage.getItem("ghiblify_auth");
-      if (storedAuth) {
-        try {
-          const authData = JSON.parse(storedAuth);
-          if (authData.authenticated) {
-            setBaseAuth(authData);
-          }
-        } catch (error) {
-          console.error("Error parsing stored auth:", error);
-        }
-      }
-    }
-  }, []);
-
-
   const handleBaseAuthSuccess = (result) => {
     console.log("Base authentication successful:", result);
-    localStorage.setItem("ghiblify_auth", JSON.stringify(result));
-    setBaseAuth(result);
     setIsBaseAuthOpen(false);
     setIsConnectionOpen(false);
   };
@@ -100,7 +81,7 @@ export default function Web3Button() {
         if (!ready) return null;
 
         // Show authenticated state if either RainbowKit account or Base auth is present
-        if (!account && !baseAuth) {
+        if (!account && !isBaseAuthenticated) {
           return (
             <Box position="relative">
               <MagicalButton
@@ -239,7 +220,7 @@ export default function Web3Button() {
         }
 
         // If we have Base auth but no RainbowKit account, show Base auth state
-        if (baseAuth && !account) {
+        if (isBaseAuthenticated && baseUser && !account) {
           return (
             <HStack spacing={3}>
               {/* Base Account Button */}
@@ -248,20 +229,19 @@ export default function Web3Button() {
                   // Handle Base account menu (logout, etc.)
                   const shouldLogout = window.confirm("Do you want to disconnect your Base account?");
                   if (shouldLogout) {
-                    localStorage.removeItem("ghiblify_auth");
-                    setBaseAuth(null);
+                    baseSignOut();
                   }
                 }}
                 variant="glass"
                 px={4}
-                leftIcon={<Web3Avatar address={baseAuth.address} size={24} />}
+                leftIcon={<Web3Avatar address={baseUser.address} size={24} />}
               >
                 <VStack spacing={0} align="flex-start">
                   <Text fontSize="sm" fontWeight="bold">
-                    {baseAuth.address.slice(0, 6)}...{baseAuth.address.slice(-4)}
+                    {baseUser.address.slice(0, 6)}...{baseUser.address.slice(-4)}
                   </Text>
                   <Text fontSize="xs" color="whiteAlpha.800">
-                    Credits: {baseAuth.credits || 0}
+                    Credits: {baseUser.credits || 0}
                   </Text>
                 </VStack>
               </MagicalButton>
@@ -285,7 +265,7 @@ export default function Web3Button() {
         }
 
         // If we have RainbowKit account, show the original logic
-        const hasBaseAuth = baseAuth !== null;
+        const hasBaseAuth = isBaseAuthenticated && baseUser;
 
         return (
           <HStack spacing={3}>

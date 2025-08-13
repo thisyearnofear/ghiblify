@@ -158,3 +158,36 @@ async def get_base_pay_history(address: str):
     except Exception as e:
         logger.error(f"[Base Pay] Error getting payment history: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@base_pay_router.post("/callback")
+async def base_pay_callback(request: Request):
+    """Base Pay webhook callback endpoint for payment notifications"""
+    try:
+        body = await request.json()
+        payment_id = body.get("id")
+        status = body.get("status")
+        
+        logger.info(f"[Base Pay] Callback received for payment {payment_id} with status {status}")
+        logger.info(f"[Base Pay] Full callback payload: {body}")
+        
+        # For now, just acknowledge the callback
+        # The actual payment processing happens when the frontend polls for completion
+        # via the existing /check-payment and /process-payment endpoints
+        
+        if payment_id:
+            # Store callback data for debugging
+            callback_key = f"base_pay_callback:{payment_id}"
+            redis_service.set(callback_key, json.dumps(body), ex=3600)  # 1 hour expiry
+            
+        return JSONResponse(content={
+            "status": "received",
+            "message": "Callback processed successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"[Base Pay] Error processing callback: {str(e)}")
+        # Don't raise HTTP exception for webhooks - return 200 to avoid retries
+        return JSONResponse(content={
+            "status": "error",
+            "message": str(e)
+        }, status_code=200)

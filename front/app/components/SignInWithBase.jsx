@@ -9,11 +9,15 @@ import { useBaseAccountAuth } from '../lib/hooks/useBaseAccountAuth';
 export default function SignInWithBase({ onSuccess, onError }) {
   const { 
     user, 
+    isAuthenticated,
     isLoading, 
     error, 
     authenticate, 
+    signOut,
     clearError 
   } = useBaseAccountAuth();
+
+  console.log('[SignIn Component] Render state:', { user, isAuthenticated, isLoading });
 
   const handleSignIn = async () => {
     try {
@@ -31,6 +35,29 @@ export default function SignInWithBase({ onSuccess, onError }) {
       }
     }
   };
+
+  // Show authenticated state if user is logged in
+  if (isAuthenticated && user) {
+    return (
+      <Box>
+        <Alert status="success" mb={4} borderRadius="md">
+          <AlertIcon />
+          <AlertDescription>
+            Connected as {user.address.slice(0, 6)}...{user.address.slice(-4)} | Credits: {user.credits}
+          </AlertDescription>
+        </Alert>
+        <Button
+          onClick={signOut}
+          colorScheme="red"
+          variant="outline"
+          size="lg"
+          width="full"
+        >
+          Sign Out
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -67,7 +94,7 @@ export default function SignInWithBase({ onSuccess, onError }) {
           </Box>
         }
       >
-        Sign in with Base
+        Sign in with Base 🔵
       </Button>
     </Box>
   );

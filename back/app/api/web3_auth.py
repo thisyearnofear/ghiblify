@@ -30,9 +30,12 @@ REDIS_AVAILABLE = redis_service.available
 def verify_siwe_signature(message: str, signature: str, address: str) -> bool:
     """Verify SIWE signature - supports both traditional ECDSA and Base Account signatures."""
     try:
-        # Check if this is a Base Account signature (very long and starts with specific pattern)
-        if len(signature) > 200 and signature.startswith('0x00000000000000000000'):
-            logger.info(f"[SIWE] Detected Base Account signature format for {address}")
+        # Check if this is a Base Account signature (very long and contains encoded data)
+        is_base_account = (len(signature) > 500 and 
+                          signature.startswith('0x000000000000000000000000ca11bde05977b3631167028862be2a173976ca11'))
+        
+        if is_base_account:
+            logger.info(f"[SIWE] Detected Base Account signature format for {address} (length: {len(signature)})")
             # For Base Account, we trust the signature if the address matches what was returned
             # This is safe because Base Account has already validated the user's identity
             return True
@@ -146,8 +149,14 @@ async def verify_siwe(request: SIWEVerifyRequest):
         logger.info(f"[SIWE] Validating nonce: {nonce}")
         
         # For Base Account, skip nonce validation since they generate their own
-        if len(request.signature) > 200 and request.signature.startswith('0x00000000000000000000'):
-            logger.info(f"[SIWE] Base Account signature detected - skipping nonce validation")
+        # Base Account signatures are very long (>500 chars) and contain encoded data
+        is_base_account = (len(request.signature) > 500 and 
+                          request.signature.startswith('0x000000000000000000000000ca11bde05977b3631167028862be2a173976ca11'))
+        
+        if is_base_account:
+            logger.info(f"[SIWE] Base Account signature detected (length: {len(request.signature)}) - skipping nonce validation")
+            # Store the nonce to prevent replay attacks
+            redis_service.store_nonce(nonce, 900)
         elif not redis_service.validate_nonce(nonce):
             logger.error(f"[SIWE] Nonce validation failed: {nonce}")
             raise HTTPException(status_code=422, detail="Invalid or expired nonce")
@@ -171,8 +180,8 @@ async def verify_siwe(request: SIWEVerifyRequest):
             logger.warning(f"[SIWE] No address found in message, trusting request address: {request_address}")
             # For Base Account, if we can't parse the address, trust the request address since signature is validated
         
-        # Consume the used nonce (only for non-Base Account)
-        if not (len(request.signature) > 200 and request.signature.startswith('0x00000000000000000000')):
+        # Consume the used nonce (only for non-Base Account)  
+        if not is_base_account:
             redis_service.consume_nonce(nonce)
         
         # Initialize credits if new user

@@ -63,6 +63,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
           }
         } catch (error) {
           console.error("Error parsing stored auth:", error);
+          setBaseAuth(null);
         }
       }
     }
