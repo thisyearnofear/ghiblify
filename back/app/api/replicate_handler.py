@@ -22,9 +22,13 @@ TIMEOUT = httpx.Timeout(60.0, connect=60.0)
 httpx.Client(timeout=TIMEOUT)
 
 # Configure Replicate
-os.environ["REPLICATE_API_TOKEN"] = os.getenv("REPLICATE_API_TOKEN")
-if not os.environ.get("REPLICATE_API_TOKEN"):
-    raise Exception("REPLICATE_API_TOKEN not found in environment")
+replicate_token = os.getenv("REPLICATE_API_TOKEN")
+if replicate_token:
+    os.environ["REPLICATE_API_TOKEN"] = replicate_token
+else:
+    print("⚠️  REPLICATE_API_TOKEN not found - Replicate features will be disabled")
+    # Set a dummy token to prevent crashes
+    os.environ["REPLICATE_API_TOKEN"] = "dummy_token_for_development"
 
 BASE64_PREAMBLE = "data:image/png;base64,"
 REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7eaddb4f65c257a3403c9b3253"
