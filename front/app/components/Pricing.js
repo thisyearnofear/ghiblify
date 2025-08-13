@@ -18,9 +18,7 @@ import {
   usePublicClient,
 } from "wagmi";
 import { FiCheck, FiCreditCard, FiDollarSign } from "react-icons/fi";
-import { pay, getPaymentStatus } from "@base-org/account";
 import { BasePayButton } from "@base-org/account-ui/react";
-import { celo } from "viem/chains";
 import {
   GHIBLIFY_PAYMENTS_ADDRESS,
   GHIBLIFY_PAYMENTS_ABI,
@@ -29,6 +27,7 @@ import {
   PACKAGES,
 } from "../contracts/ghiblifyPayments";
 import { parseEther, formatUnits } from "ethers";
+import { createPaymentHandler } from "../utils/paymentUtils";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
@@ -187,6 +186,8 @@ export default function Pricing({ onPurchaseComplete }) {
   };
 
   const handleCeloPurchase = async (tier) => {
+    // For now, we'll keep the existing Celo implementation since it's more complex
+    // and involves direct contract interactions that aren't easily abstracted
     try {
       if (!userAddress) {
         toast({
@@ -336,256 +337,33 @@ export default function Pricing({ onPurchaseComplete }) {
   };
 
   const handleStripePurchase = async (tier) => {
-    if (!userConnected || !userAddress) {
-      toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet before making a purchase.",
-        status: "warning",
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
+    const stripeHandler = createPaymentHandler("stripe", {
+      // Configuration would go here if needed
+    });
 
-    setIsLoading(true);
-    setSelectedTier(tier.name.toLowerCase());
-
-    try {
-      // Create Stripe checkout session
-      console.log(
-        `[Stripe] Creating checkout session for ${tier.name.toLowerCase()}...`
-      );
-      const response = await fetch(
-        `${API_URL}/api/stripe/create-checkout-session`,
-        {
-          method: "POST",
-          credentials: "include",
-          mode: "cors",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Origin:
-              typeof window !== "undefined"
-                ? window.location.origin
-                : "https://ghiblify-it.vercel.app",
-          },
-          body: JSON.stringify({
-            tierId: tier.name,
-            address,
-            returnUrl: window.location.href,
-          }),
-        }
-      );
-
-      console.log(`[Stripe] Response status: ${response.status}`);
-      const responseText = await response.text();
-      console.log(`[Stripe] Response body: ${responseText}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to create checkout session: ${responseText}`);
-      }
-
-      const data = JSON.parse(responseText);
-      console.log(`[Stripe] Redirecting to: ${data.url}`);
-
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
-    } catch (error) {
-      console.error("Purchase error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to process purchase. Please try again.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await stripeHandler(tier, {
+      address: userAddress,
+      toast,
+      setLoading: setIsLoading,
+      setSelectedTier,
+      onComplete: onPurchaseComplete,
+      apiUrl: API_URL,
+    });
   };
 
   const handleBasePayPurchase = async (tier) => {
-    try {
-      // Check if user has Base Account authentication
-      const baseAuth = localStorage.getItem("ghiblify_auth");
-      if (!baseAuth) {
-        toast({
-          title: "Base Account Required",
-          description: "Please sign in with Base Account to use Base Pay",
-          status: "warning",
-          duration: 8000,
-          isClosable: true,
-        });
-        return;
-      }
+    const basePayHandler = createPaymentHandler("basePay", {
+      // Configuration would go here if needed
+    });
 
-      if (!userAddress) {
-        toast({
-          title: "Wallet not connected",
-          description: "Please connect your wallet to make a purchase",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      // Check Base Pay configuration
-      if (!BASE_PAY_RECIPIENT) {
-        toast({
-          title: "Configuration Error",
-          description: "Base Pay recipient address is not configured",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-        return;
-      }
-
-      setIsBasePayProcessing(true);
-      setSelectedTier(tier.name.toLowerCase());
-
-      // Calculate 30% discount for Base Pay
-      const originalPrice = parseFloat(tier.price.replace("$", ""));
-      const discountedPrice = (originalPrice * 0.7).toFixed(2); // 30% discount
-
-      console.log(`[Base Pay] Initiating payment for ${tier.name}...`);
-      console.log(`[Base Pay] Configuration:`, {
-        originalAmount: tier.price.replace("$", ""),
-        discountedAmount: discountedPrice,
-        to: BASE_PAY_RECIPIENT,
-        testnet: BASE_PAY_TESTNET,
-      });
-
-      // Trigger Base Pay payment with 30% discount
-      const result = await pay({
-        amount: discountedPrice, // 30% discount applied
-        to: BASE_PAY_RECIPIENT,
-        testnet: BASE_PAY_TESTNET,
-        payerInfo: {
-          requests: [{ type: "email", optional: true }],
-        },
-      });
-
-      console.log(`[Base Pay] Payment result:`, result);
-      const { id } = result;
-
-      if (!id) {
-        throw new Error("Payment initiation failed - no payment ID returned");
-      }
-
-      console.log(`[Base Pay] Payment initiated with ID: ${id}`);
-
-      // Poll for payment completion
-      const pollPaymentStatus = async () => {
-        try {
-          console.log(`[Base Pay] Checking payment status for ID: ${id}`);
-
-          const statusResult = await getPaymentStatus({
-            id,
-            testnet: BASE_PAY_TESTNET, // Must match the testnet setting from pay()
-          });
-
-          console.log(`[Base Pay] Status result:`, statusResult);
-          const { status } = statusResult;
-
-          if (status === "completed") {
-            console.log(`[Base Pay] Payment ${id} completed`);
-
-            // Notify backend about the payment
-            const response = await fetch(
-              `${API_URL}/api/base-pay/process-payment`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  id,
-                  status: "completed",
-                  amount: discountedPrice, // Use discounted amount
-                  originalAmount: tier.price.replace("$", ""),
-                  discount: "30%",
-                  to: BASE_PAY_RECIPIENT,
-                  from: address,
-                  tier: tier.name.toLowerCase(),
-                  timestamp: new Date().toISOString(),
-                }),
-              }
-            );
-
-            if (response.ok) {
-              const data = await response.json();
-              toast({
-                title: "Payment Successful!",
-                description: `${data.credits_added} credits have been added to your account.`,
-                status: "success",
-                duration: 5000,
-                isClosable: true,
-              });
-              onPurchaseComplete?.();
-            } else {
-              const errorText = await response.text();
-              console.error(`[Base Pay] Backend error:`, errorText);
-              throw new Error(
-                `Failed to process payment on backend: ${errorText}`
-              );
-            }
-          } else if (status === "failed") {
-            throw new Error("Payment failed");
-          } else if (status === "pending" || status === "processing") {
-            console.log(
-              `[Base Pay] Payment ${id} still ${status}, checking again in 2 seconds...`
-            );
-            // Still processing, check again in 2 seconds
-            setTimeout(pollPaymentStatus, 2000);
-            return;
-          } else {
-            console.warn(`[Base Pay] Unknown payment status: ${status}`);
-            // Unknown status, check again in 2 seconds
-            setTimeout(pollPaymentStatus, 2000);
-            return;
-          }
-        } catch (error) {
-          console.error(`[Base Pay] Error checking payment status:`, error);
-
-          // Check if it's a network/RPC error that might be temporary
-          if (
-            error.message?.includes("RPC error") ||
-            error.message?.includes("network")
-          ) {
-            console.log(`[Base Pay] Network error, retrying in 3 seconds...`);
-            setTimeout(pollPaymentStatus, 3000);
-            return;
-          }
-
-          toast({
-            title: "Payment Error",
-            description:
-              error.message || "There was an error processing your payment.",
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-        } finally {
-          setIsBasePayProcessing(false);
-        }
-      };
-
-      // Start polling
-      pollPaymentStatus();
-    } catch (error) {
-      console.error(`[Base Pay] Payment error:`, error);
-      toast({
-        title: "Payment Failed",
-        description:
-          error.message || "There was an error initiating the payment.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-      setIsBasePayProcessing(false);
-    }
+    await basePayHandler(tier, {
+      address: userAddress,
+      toast,
+      setLoading: setIsBasePayProcessing,
+      setSelectedTier,
+      onComplete: onPurchaseComplete,
+      apiUrl: API_URL,
+    });
   };
 
   // Check URL params for successful payment

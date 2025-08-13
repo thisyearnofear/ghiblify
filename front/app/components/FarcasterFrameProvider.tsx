@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, createContext, useContext } from "react";
-import FrameSDK from "@farcaster/frame-sdk";
+import { sdk } from "@farcaster/miniapp-sdk";
 import farcasterFrame from "@farcaster/frame-wagmi-connector";
 import { connect } from "@wagmi/core";
 import { config } from "./WagmiConfig";
@@ -37,7 +37,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
   useEffect(() => {
     const init = async () => {
       try {
-        const frameContext = await FrameSDK.context;
+        const frameContext = await sdk.context;
         setContext(frameContext);
         
         // Check if we're running in a Mini App environment using config
@@ -63,7 +63,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
         // Notify frame we're ready - using config timeout
         const readyDelay = inFrame ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
         setTimeout(() => {
-          FrameSDK.actions.ready();
+          sdk.actions.ready();
           setIsReady(true);
         }, readyDelay);
 
@@ -86,8 +86,8 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
       if (!notificationConfig) return;
       
       // Check if notify method is available (may not be in all SDK versions)
-      if ('notify' in FrameSDK.actions) {
-        await (FrameSDK.actions as any).notify({
+      if ('notify' in sdk.actions) {
+        await (sdk.actions as any).notify({
           notificationId: createNotificationId(),
           title: notificationConfig.title,
           body: notificationConfig.body,

@@ -6,7 +6,7 @@ import json
 from typing import Optional
 from dotenv import load_dotenv
 from ..services.redis_service import redis_service
-from ..config.pricing import get_base_pay_pricing, get_tier_pricing, validate_payment_amount
+from ..config.pricing import get_base_pay_pricing, get_tier_pricing, validate_payment_amount, BASE_PRICING
 
 load_dotenv()
 
@@ -22,6 +22,9 @@ logger.info(f"[Base Pay] Using modern Redis service - Available: {redis_service.
 
 # Get Base Pay pricing from shared configuration
 BASE_PAY_PRICING = get_base_pay_pricing()
+
+# Valid tiers
+VALID_TIERS = set(BASE_PRICING.keys())
 
 @base_pay_router.post("/process-payment")
 async def process_base_pay_payment(request: Request):
@@ -40,6 +43,10 @@ async def process_base_pay_payment(request: Request):
         if not all([payment_id, status, amount, recipient, payer_address, tier]):
             raise HTTPException(status_code=400, detail="Missing required payment data")
         
+        # Validate tier
+        if tier not in VALID_TIERS:
+            raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}")
+        
         logger.info(f"[Base Pay] Processing payment {payment_id} for {payer_address}")
         
         if status == "completed":
@@ -54,52 +61,44 @@ async def process_base_pay_payment(request: Request):
             
             # Check if payment was already processed
             processed_key = f"base_pay_processed:{payment_id}"
-            if redis_client and redis_client.exists(processed_key):
+            if redis_service.exists(processed_key):
                 logger.info(f"[Base Pay] Payment {payment_id} already processed")
                 return JSONResponse(content={"status": "already_processed"})
             
             # Add credits to user account
             credits_to_add = BASE_PAY_PRICING[tier]["credits"]
-            credits_key = f"credits:{payer_address.lower()}"
             
-            if redis_client:
-                # Get current credits
-                current_credits = redis_client.get(credits_key)
-                current_credits = int(current_credits) if current_credits else 0
-                
-                # Add new credits
-                new_credits = current_credits + credits_to_add
-                redis_client.set(credits_key, new_credits)
-                
-                # Mark payment as processed
-                redis_client.setex(processed_key, 86400, "processed")  # 24 hour expiry
-                
-                # Store transaction history using shared pricing info
-                pricing_info = get_tier_pricing(tier, "base_pay")
-                history_key = f"base_pay_history:{payer_address.lower()}"
-                transaction_data = {
-                    "payment_id": payment_id,
-                    "tier": tier,
-                    "payment_method": "base_pay",
-                    "amount": amount,
-                    "original_amount": pricing_info["base_price"] if pricing_info else amount,
-                    "discount": pricing_info["discount_percentage"] if pricing_info else "0%",
-                    "savings": pricing_info["savings"] if pricing_info else 0,
-                    "credits": credits_to_add,
-                    "timestamp": body.get("timestamp"),
-                    "status": "completed"
-                }
-                redis_client.lpush(history_key, json.dumps(transaction_data))
-                
-                logger.info(f"[Base Pay] Added {credits_to_add} credits to {payer_address}. New balance: {new_credits}")
-                
-                return JSONResponse(content={
-                    "status": "success",
-                    "credits_added": credits_to_add,
-                    "new_balance": new_credits
-                })
-            else:
-                raise HTTPException(status_code=500, detail="Redis connection not available")
+            # Use the modern Redis service to add credits
+            new_credits = redis_service.add_credits(payer_address.lower(), credits_to_add)
+            
+            # Mark payment as processed
+            redis_service.set(processed_key, "processed", ex=86400)  # 24 hour expiry
+            
+            # Store transaction history using shared pricing info
+            pricing_info = get_tier_pricing(tier, "base_pay")
+            transaction_data = {
+                "payment_id": payment_id,
+                "tier": tier,
+                "payment_method": "base_pay",
+                "amount": amount,
+                "original_amount": pricing_info["base_price"] if pricing_info else amount,
+                "discount": pricing_info["discount_percentage"] if pricing_info else "0%",
+                "savings": pricing_info["savings"] if pricing_info else 0,
+                "credits": credits_to_add,
+                "timestamp": body.get("timestamp"),
+                "status": "completed"
+            }
+            
+            # Add to payment history
+            redis_service.add_payment_history(payer_address.lower(), transaction_data, "base_pay")
+            
+            logger.info(f"[Base Pay] Added {credits_to_add} credits to {payer_address}. New balance: {new_credits}")
+            
+            return JSONResponse(content={
+                "status": "success",
+                "credits_added": credits_to_add,
+                "new_balance": new_credits
+            })
         
         elif status == "failed":
             logger.warning(f"[Base Pay] Payment {payment_id} failed")
@@ -117,20 +116,15 @@ async def process_base_pay_payment(request: Request):
 async def check_base_pay_payment(payment_id: str, address: Optional[str] = None):
     """Check the status of a Base Pay payment"""
     try:
-        if not redis_client:
-            raise HTTPException(status_code=500, detail="Redis connection not available")
-        
         # Check if payment was processed
         processed_key = f"base_pay_processed:{payment_id}"
-        is_processed = redis_client.exists(processed_key)
+        is_processed = redis_service.exists(processed_key)
         
         if is_processed:
             # Get user's current credits if address provided
             credits = None
             if address:
-                credits_key = f"credits:{address.lower()}"
-                credits = redis_client.get(credits_key)
-                credits = int(credits) if credits else 0
+                credits = redis_service.get_credits(address.lower())
             
             return JSONResponse(content={
                 "status": "completed",
@@ -154,22 +148,11 @@ async def get_base_pay_pricing():
 async def get_base_pay_history(address: str):
     """Get Base Pay transaction history for an address"""
     try:
-        if not redis_client:
-            raise HTTPException(status_code=500, detail="Redis connection not available")
-        
-        history_key = f"base_pay_history:{address.lower()}"
-        transactions = redis_client.lrange(history_key, 0, -1)
-        
-        # Parse JSON transactions
-        parsed_transactions = []
-        for tx in transactions:
-            try:
-                parsed_transactions.append(json.loads(tx))
-            except json.JSONDecodeError:
-                continue
+        # Get payment history from Redis service
+        transactions = redis_service.get_payment_history(address.lower(), "base_pay")
         
         return JSONResponse(content={
-            "transactions": parsed_transactions
+            "transactions": transactions
         })
         
     except Exception as e:

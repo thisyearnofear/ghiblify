@@ -481,6 +481,8 @@ export default function Home() {
                     isDisabled={isLoading}
                     isLoading={isLoading}
                     loadingText="✨ Ghiblifying..."
+                    borderRadius="xl"
+                    fontWeight="semibold"
                   >
                     ✨ Ghiblify!
                   </Button>

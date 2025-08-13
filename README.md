@@ -109,44 +109,160 @@ ngrok http 8000
 # Update WEBHOOK_BASE_URL in backend .env with ngrok URL
 ```
 
+### Launching the Application Locally
+
+#### Prerequisites Verification
+
+Before launching, ensure Redis is running:
+
+```bash
+# Install Redis (if not already installed)
+brew install redis
+
+# Start Redis service
+brew services start redis
+
+# Verify Redis is running
+redis-cli ping  # Should return "PONG"
+```
+
+#### 1. Launch the Backend (FastAPI)
+
+Open a terminal and run:
+
+```bash
+# Navigate to the backend directory
+cd back
+
+# Activate the virtual environment (it already exists)
+source venv/bin/activate
+
+# Install dependencies (if not already done)
+pip install -r requirements.txt
+
+# Launch the backend server
+python main.py
+```
+
+The backend will start on http://localhost:8000
+
+#### 2. Launch the Frontend (Next.js)
+
+Open a new terminal window/tab and run:
+
+```bash
+# Navigate to the frontend directory
+cd front
+
+# Install dependencies (if not already done)
+npm install
+
+# Launch the frontend development server
+npm run dev
+```
+
+The frontend will start on http://localhost:3000
+
+#### 3. Access the Application
+
+- **Frontend**: Open your browser and go to http://localhost:3000
+- **Backend API**: The backend API will be available at http://localhost:8000
+- **API Documentation**: You can view the FastAPI docs at http://localhost:8000/docs
+
+#### Key Points
+
+- **Backend first**: Always start the backend before the frontend since the frontend needs to connect to the backend API
+- **Two terminals**: You'll need two separate terminal windows/tabs - one for backend, one for frontend
+- **Environment files**: Make sure you have the .env files set up in both directories with the correct local URLs
+- **Redis dependency**: The backend requires Redis to be running for session management and credit tracking
+
+#### Troubleshooting
+
+- If the backend fails to start, check that Redis is running with `redis-cli ping`
+- If the frontend can't connect to the backend, make sure the backend is running on port 8000
+- Check the .env files in both directories to ensure the API URLs are correctly configured
+
+The setup looks like it's already been configured since the virtual environment exists in the backend and the .next build directory exists in the frontend.
+
 ### Environment Variables
+
+For local development, you need to ensure that both frontend and backend are configured to communicate with each other locally.
 
 #### Backend (`.env`)
 
+Make sure your `back/.env` file has the following configuration for local development:
+
 ```env
-# Required API Keys
+# API Keys (Required for full functionality)
+# You can get these from the respective service providers
+REPLICATE_API_TOKEN=your_replicate_key
+GHIBLIFY_API_KEY=your_ghiblify_key
 COMFY_UI_API_KEY=your_comfyui_key
 IMGBB_API_KEY=your_imgbb_key
+
+# Payment Configuration (Required for payments)
 STRIPE_SECRET_KEY=your_stripe_secret
 STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
 
-# Redis Configuration
+# Redis Configuration (Required for credit management)
 REDIS_HOST=localhost
 REDIS_PORT=6379
+REDIS_USERNAME=
 REDIS_PASSWORD=
 REDIS_SSL=false
 
-# Webhook Configuration
+# Webhook Configuration (Required for local ComfyUI webhooks)
 WEBHOOK_BASE_URL=http://localhost:8000
 
-# Optional
-REPLICATE_API_TOKEN=your_replicate_key
-GHIBLIFY_API_KEY=your_ghiblify_key
-BASE_PAY_RECIPIENT_ADDRESS=0xYourWalletAddress
+# Frontend URLs (for local development)
+FRONTEND_URL=http://localhost:3000
+SUCCESS_URL=http://localhost:3000/success
+CANCEL_URL=http://localhost:3000/cancel
+
+# CELO Configuration (Optional - for Web3 payments)
+CELO_RPC_URL=https://celo-alfajores.g.alchemy.com/v2/your_key
+CELO_CONTRACT_ADDRESS=0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578
+CELO_CHAIN_ID=44787
+CELO_CONFIRMATION_BLOCKS=2
+
+# Base Pay Configuration (Optional - for Base Pay payments)
+BASE_PAY_RECIPIENT_ADDRESS=0xYourRecipientAddress
 BASE_PAY_TESTNET=true
 ```
 
-#### Frontend (`.env`)
+#### Frontend (`.env.local`)
+
+For the frontend, make sure your `front/.env.local` file has the following configuration for local development:
 
 ```env
-# Required
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+# Frontend Environment Variables for Local Development
+# API Configuration - Point to your local backend
 NEXT_PUBLIC_API_URL=http://localhost:8000
 
-# Optional
-NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS=0xYourWalletAddress
-NEXT_PUBLIC_BASE_PAY_TESTNET=true
+# WalletConnect Project ID (for RainbowKit)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_walletconnect_project_id
+
+# Celo RPC URL
+NEXT_PUBLIC_CELO_RPC_URL=https://forno.celo.org
+
+# Development overrides (uncomment for local development)
+# NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+If you don't have a `.env.local` file, create one with the content above. The `NEXT_PUBLIC_API_URL` should be set to `http://localhost:8000` to connect to your local backend.
+
+#### Switching Between Local and Production
+
+To switch between local development and production:
+
+1. **For Local Development**:
+
+   - Ensure `NEXT_PUBLIC_API_URL=http://localhost:8000` in `front/.env.local`
+   - Ensure Redis is configured for localhost in `back/.env`
+
+2. **For Production**:
+   - Comment out or remove `NEXT_PUBLIC_API_URL=http://localhost:8000` in `front/.env.local`
+   - The frontend will then use the default production URL (`https://ghiblify.onrender.com`)
 
 ### Getting API Keys
 

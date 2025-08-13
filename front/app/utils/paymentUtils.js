@@ -79,121 +79,60 @@ const handleStripePayment = async (tier, options) => {
   window.location.href = data.url;
 };
 
-// Base Pay payment handler
+// Base Pay payment handler - Updated to use modular service
 const handleBasePayPayment = async (tier, options) => {
-  const { address, toast, apiUrl, onComplete } = options;
+  const { toast, onComplete } = options;
 
-  // Check Base Account authentication
-  const baseAuth = localStorage.getItem("ghiblify_auth");
-  if (!baseAuth) {
-    toast({
-      title: "Base Account Required",
-      description: "Please sign in with Base Account to use Base Pay",
-      status: "warning",
-      duration: 8000,
-      isClosable: true,
-    });
-    return;
-  }
-
-  const { pay, getPaymentStatus } = await import("@base-org/account");
-  const pricing = getTierPrice(tier.name, "basePay");
-
-  console.log(`[Base Pay] Initiating payment for ${tier.name}...`);
-  console.log(`[Base Pay] Pricing:`, pricing);
-
-  // Trigger Base Pay payment with discount
-  const result = await pay({
-    amount: pricing.discounted.toString(),
-    to: process.env.NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS,
-    testnet: process.env.NEXT_PUBLIC_BASE_PAY_TESTNET === "true",
-    payerInfo: {
-      requests: [{ type: "email", optional: true }],
-    },
-  });
-
-  const { id } = result;
-  if (!id) {
-    throw new Error("Payment initiation failed - no payment ID returned");
-  }
-
-  // Poll for payment completion
-  return pollBasePayStatus(id, tier, pricing, options);
-};
-
-// Base Pay status polling
-const pollBasePayStatus = async (paymentId, tier, pricing, options) => {
-  const { address, toast, apiUrl, onComplete } = options;
-  const { getPaymentStatus } = await import("@base-org/account");
-
-  const poll = async () => {
-    try {
-      const statusResult = await getPaymentStatus({
-        id: paymentId,
-        testnet: process.env.NEXT_PUBLIC_BASE_PAY_TESTNET === "true",
-      });
-
-      const { status } = statusResult;
-
-      if (status === "completed") {
-        // Notify backend
-        const response = await fetch(`${apiUrl}/api/base-pay/process-payment`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: paymentId,
-            status: "completed",
-            amount: pricing.discounted.toString(),
-            originalAmount: pricing.original.toString(),
-            discount: "30%",
-            to: process.env.NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS,
-            from: address,
-            tier: tier.name.toLowerCase(),
-            timestamp: new Date().toISOString(),
-          }),
+  try {
+    // Use the modular payment service
+    const { baseAccountPayments } = await import('../lib/services/base-account-payments');
+    
+    const result = await baseAccountPayments.processPayment(tier.name, {
+      onComplete: (result) => {
+        toast({
+          title: "Payment Successful!",
+          description: `${result.creditsAdded} credits have been added to your account.`,
+          status: "success",
+          duration: 5000,
+          isClosable: true,
         });
+        onComplete?.();
+      },
+      onError: (error) => {
+        throw error;
+      }
+    });
 
-        if (response.ok) {
-          const data = await response.json();
-          toast({
-            title: "Payment Successful!",
-            description: `${data.credits_added} credits have been added to your account.`,
-            status: "success",
-            duration: 5000,
-            isClosable: true,
-          });
-          onComplete?.();
-        } else {
-          throw new Error("Failed to process payment on backend");
-        }
-      } else if (status === "failed") {
-        throw new Error("Payment failed");
-      } else if (status === "pending" || status === "processing") {
-        setTimeout(poll, 2000);
-        return;
-      } else {
-        setTimeout(poll, 2000);
-        return;
-      }
-    } catch (error) {
-      if (
-        error.message?.includes("RPC error") ||
-        error.message?.includes("network")
-      ) {
-        setTimeout(poll, 3000);
-        return;
-      }
-      throw error;
+    return result;
+  } catch (error) {
+    if (error.message?.includes('authenticated')) {
+      toast({
+        title: "Base Account Required",
+        description: "Please sign in with Base Account to use Base Pay",
+        status: "warning",
+        duration: 8000,
+        isClosable: true,
+      });
+      return;
     }
-  };
-
-  return poll();
+    throw error;
+  }
 };
 
-// CELO payment handler (placeholder - implement based on existing logic)
+// Base Pay status polling - Deprecated, now handled by modular service
+// This function is kept for backward compatibility but should not be used
+const pollBasePayStatus = async (paymentId, tier, pricing, options) => {
+  console.warn('pollBasePayStatus is deprecated. Use baseAccountPayments service instead.');
+  throw new Error('This function has been deprecated. Please use the modular baseAccountPayments service.');
+};
+
+// CELO payment handler
 const handleCeloPayment = async (tier, options) => {
-  // Implementation would go here - extracted from existing CELO logic
-  throw new Error("CELO payment handler not yet implemented in refactor");
+  const { address, toast, apiUrl, onComplete } = options;
+
+  // This would need to be passed from the component
+  // For now, we'll throw an error indicating it needs to be implemented
+  throw new Error("CELO payment handler needs to be implemented with wallet connection");
 };
 
 // Validation utilities

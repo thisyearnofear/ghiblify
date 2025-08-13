@@ -12,10 +12,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:4122", 
+        "http://localhost:4133",
         "https://ghiblify-it.vercel.app",
         "https://ghiblify.vercel.app",
-        "https://ghiblify.onrender.com",
-        "*"  # Allow all origins for development
+        "https://ghiblify.onrender.com"
     ],
     allow_origin_regex="https://.*\.vercel\.app$",  # Allow all Vercel subdomains
     allow_credentials=True,

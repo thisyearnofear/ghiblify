@@ -1,18 +1,11 @@
 {
-    "accountAssociation": {
-        "header": "eyJmaWQiOjUyNTQsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4QjAzQTJDMzY1YzI2MUFlQmU2ODQyMjREQkI2Qzk1OTJhQkNkRkIyIn0",
-        "payload": "eyJkb21haW4iOiJnaGlibGlmeS1pdC52ZXJjZWwuYXBwIn0",
-        "signature": "MHhhMmE3MjUzYTgwMDFhZWY3NzRlNDgxYjkxZTEzZTA0ZDNjYzcyYjNkZTYyZTZhNWIyYjc1MjdjZDIyYmNiMWU5NzJhYTQyOGNmZDE1Y2ZiZTU0NWJhZWM3MTFiYWE0YTM5MjY5ZmI4MjE3MTM3NGZmZmM5ZTA3MjUzZGI5NTc1YzFi"
-    },
-    "frame": {
-        "version": "1",
-        "name": "Ghiblify",
-        "iconUrl": "https://ghiblify-it.vercel.app/ghibli.ico",
-        "homeUrl": "https://ghiblify-it.vercel.app",
-        "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
-        "buttonTitle": "Ghibli Time",
-        "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli.ico",
-        "splashBackgroundColor": "#ffffff",
-        "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
-    }
+  "name": "Ghiblify",
+  "icon": "https://ghiblify-it.vercel.app/ghibli-time.png",
+  "iconUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+  "homeUrl": "https://ghiblify-it.vercel.app",
+  "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+  "buttonTitle": "Transform Photo",
+  "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-time.png",
+  "splashBackgroundColor": "#4FD1C5",
+  "version": "1.0.0"
 }

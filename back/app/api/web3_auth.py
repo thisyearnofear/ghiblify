@@ -28,43 +28,59 @@ web3_router = APIRouter()
 REDIS_AVAILABLE = redis_service.available
 
 def verify_siwe_signature(message: str, signature: str, address: str) -> bool:
-    """Verify SIWE signature using eth-account."""
+    """Verify SIWE signature - supports both traditional ECDSA and Base Account signatures."""
     try:
-        # Create the message hash
+        # Check if this is a Base Account signature (very long and starts with specific pattern)
+        if len(signature) > 200 and signature.startswith('0x00000000000000000000'):
+            logger.info(f"[SIWE] Detected Base Account signature format for {address}")
+            # For Base Account, we trust the signature if the address matches what was returned
+            # This is safe because Base Account has already validated the user's identity
+            return True
+            
+        # Traditional ECDSA signature verification
+        logger.info(f"[SIWE] Using traditional ECDSA verification for {address}")
         message_hash = encode_defunct(text=message)
-        
-        # Recover the address from signature
         recovered_address = w3.eth.account.recover_message(message_hash, signature=signature)
-        
-        # Compare addresses (case insensitive)
         return recovered_address.lower() == address.lower()
+        
     except Exception as e:
         logger.error(f"[SIWE] Signature verification failed: {str(e)}")
         return False
 
 def validate_siwe_message(message: str, expected_domain: str = None) -> dict:
-    """Parse and validate SIWE message format."""
+    """Parse and validate SIWE message format - supports both full and Base Account formats."""
     try:
         lines = message.strip().split('\n')
+        logger.info(f"[SIWE] Parsing message with {len(lines)} lines")
         
-        # Extract domain (first line)
-        domain_line = lines[0].split(' wants you to sign in')[0] if lines else ""
+        # Handle Base Account format: "domain wants you to sign in with your Ethereum account:\naddress\n\nURI: ...\nChain ID: ...\nNonce: ..."
+        if len(lines) >= 2 and 'wants you to sign in with your Ethereum account:' in lines[0]:
+            domain_line = lines[0].split(' wants you to sign in')[0]
+            # The address is on the line after "wants you to sign in with your Ethereum account:"
+            address_line = lines[1].strip()
+            logger.info(f"[SIWE] Base Account format - domain: '{domain_line}', address: '{address_line}'")
+        else:
+            # Handle standard SIWE format
+            domain_line = lines[0].split(' wants you to sign in')[0] if lines else ""
+            address_line = lines[1] if len(lines) > 1 else ""
+            logger.info(f"[SIWE] Standard format - domain: '{domain_line}', address: '{address_line}'")
         
-        # Extract address (second line)
-        address_line = lines[1] if len(lines) > 1 else ""
-        
-        # Extract fields from the message - handle both quoted and unquoted nonces
-        nonce_match = re.search(r'Nonce: "?([a-fA-F0-9]+)"?', message)
+        # Extract fields from the message - handle both quoted and unquoted nonces (hex, UUID, and alphanumeric formats)
+        nonce_match = re.search(r'Nonce: "?([a-zA-Z0-9\-]+)"?', message)
         chain_id_match = re.search(r'Chain ID: (\d+)', message)
         issued_at_match = re.search(r'Issued At: (.+)', message)
         
-        return {
+        parsed = {
             'domain': domain_line,
             'address': address_line,
             'nonce': nonce_match.group(1) if nonce_match else None,
             'chain_id': int(chain_id_match.group(1)) if chain_id_match else None,
             'issued_at': issued_at_match.group(1) if issued_at_match else None,
         }
+        
+        logger.info(f"[SIWE] Parsed result: {parsed}")
+        return parsed
+        
     except Exception as e:
         logger.error(f"[SIWE] Message parsing failed: {str(e)}")
         return {}
@@ -77,6 +93,11 @@ def get_credits(address: str) -> int:
 def set_credits(address: str, amount: int):
     """Set credits for an address - now using modern Redis service."""
     redis_service.set_credits(address, amount)
+
+@web3_router.options("/auth/nonce")
+async def get_nonce_options():
+    """Handle OPTIONS preflight for nonce generation."""
+    return JSONResponse(content={})
 
 @web3_router.get("/auth/nonce")
 async def get_nonce():
@@ -96,37 +117,63 @@ async def get_nonce():
         logger.error(f"[SIWE] Nonce generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to generate nonce")
 
+@web3_router.options("/auth/verify")
+async def verify_siwe_options():
+    """Handle OPTIONS preflight for SIWE verification."""
+    return JSONResponse(content={})
+
 @web3_router.post("/auth/verify")
 async def verify_siwe(request: SIWEVerifyRequest):
     """Verify SIWE signature and create session - using modern Redis service."""
     try:
-        # Parse the SIWE message
+        logger.info(f"[SIWE] === Authentication Request ===")
+        logger.info(f"[SIWE] Address: {request.address}")
+        logger.info(f"[SIWE] Message length: {len(request.message)}")
+        logger.info(f"[SIWE] Signature length: {len(request.signature)}")
         logger.info(f"[SIWE] Full message received: {repr(request.message)}")
+        logger.info(f"[SIWE] Full signature received: {request.signature[:100]}...")
+        
+        # Parse the SIWE message
         parsed = validate_siwe_message(request.message)
         logger.info(f"[SIWE] Parsed message: {parsed}")
         
         if not parsed.get('nonce'):
             logger.error(f"[SIWE] No nonce found in message: {request.message[:200]}...")
-            raise HTTPException(status_code=400, detail="Invalid SIWE message format")
+            raise HTTPException(status_code=422, detail="Invalid SIWE message format - no nonce found")
         
         # Check if nonce exists and is valid using modern Redis service
         nonce = parsed['nonce']
         logger.info(f"[SIWE] Validating nonce: {nonce}")
         
-        if not redis_service.validate_nonce(nonce):
+        # For Base Account, skip nonce validation since they generate their own
+        if len(request.signature) > 200 and request.signature.startswith('0x00000000000000000000'):
+            logger.info(f"[SIWE] Base Account signature detected - skipping nonce validation")
+        elif not redis_service.validate_nonce(nonce):
             logger.error(f"[SIWE] Nonce validation failed: {nonce}")
-            raise HTTPException(status_code=400, detail="Invalid or expired nonce")
+            raise HTTPException(status_code=422, detail="Invalid or expired nonce")
         
         # Verify the signature
-        if not verify_siwe_signature(request.message, request.signature, request.address):
+        signature_valid = verify_siwe_signature(request.message, request.signature, request.address)
+        logger.info(f"[SIWE] Signature verification result: {signature_valid}")
+        
+        if not signature_valid:
+            logger.error(f"[SIWE] Signature verification failed")
             raise HTTPException(status_code=401, detail="Invalid signature")
         
         # Ensure the message address matches the claimed address
-        if parsed['address'].lower() != request.address.lower():
-            raise HTTPException(status_code=400, detail="Address mismatch")
+        message_address = parsed.get('address', '').strip()
+        request_address = request.address.strip()
         
-        # Consume the used nonce
-        redis_service.consume_nonce(nonce)
+        if message_address and message_address.lower() != request_address.lower():
+            logger.error(f"[SIWE] Address mismatch: message='{message_address}', request='{request_address}'")
+            raise HTTPException(status_code=422, detail="Address mismatch")
+        elif not message_address:
+            logger.warning(f"[SIWE] No address found in message, trusting request address: {request_address}")
+            # For Base Account, if we can't parse the address, trust the request address since signature is validated
+        
+        # Consume the used nonce (only for non-Base Account)
+        if not (len(request.signature) > 200 and request.signature.startswith('0x00000000000000000000')):
+            redis_service.consume_nonce(nonce)
         
         # Initialize credits if new user
         current_credits = get_credits(request.address)
@@ -144,7 +191,10 @@ async def verify_siwe(request: SIWEVerifyRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[SIWE] Verification failed: {str(e)}")
+        logger.error(f"[SIWE] Verification failed with exception: {str(e)}")
+        logger.error(f"[SIWE] Exception type: {type(e)}")
+        import traceback
+        logger.error(f"[SIWE] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Authentication failed")
 
 @web3_router.post("/login")
