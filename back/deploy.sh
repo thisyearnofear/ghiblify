@@ -12,13 +12,16 @@ PIP_PATH="$APP_DIR/venv/bin/pip"
 # Navigate to app directory
 cd $APP_DIR
 
-# Pull latest code or clone if first time
+# Initialize git repository and pull code
 if [ -d ".git" ]; then
     echo "📥 Pulling latest code from GitHub..."
     git pull origin main
 else
-    echo "📥 Cloning repository..."
-    git clone $REPO_URL .
+    echo "📥 Initializing repository..."
+    git init
+    git remote add origin $REPO_URL
+    git fetch origin main
+    git checkout -b main origin/main
 fi
 
 # Activate virtual environment
