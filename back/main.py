@@ -3,6 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from os import getenv
 from app.api.router import router
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Create FastAPI app
 app = FastAPI()
@@ -12,11 +19,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://localhost:4122", 
+        "http://localhost:4122",
         "http://localhost:4133",
         "https://ghiblify-it.vercel.app",
         "https://ghiblify.vercel.app",
-        "https://ghiblify.onrender.com"
+        "https://ghiblify.onrender.com",
+        "https://ghiblify.yourdomain.com",  # Add your Hetzner domain
+        getenv("FRONTEND_URL", "")  # Environment-based frontend URL
     ],
     allow_origin_regex="https://.*\.vercel\.app$",  # Allow all Vercel subdomains
     allow_credentials=True,
@@ -29,6 +38,13 @@ app.add_middleware(
 # Include our routers
 app.include_router(router, prefix="/api")
 
+# Health check endpoint for monitoring
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "ghiblify-backend"}
+
 if __name__ == "__main__":
     port = int(getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    # Use reload=False in production
+    reload = getenv("ENVIRONMENT", "development") == "development"
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload)

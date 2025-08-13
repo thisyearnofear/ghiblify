@@ -1,0 +1,50 @@
+name: Deploy Ghiblify Backend
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'back/**' ]  # Only deploy when backend changes
+  workflow_dispatch:  # Allow manual deployment
+
+jobs:
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /opt/ghiblify
+          chmod +x back/deploy.sh
+          ./back/deploy.sh
+          
+    - name: Verify deployment
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          # Wait a moment for the service to start
+          sleep 5
+          
+          # Check if the service is running
+          if pm2 show ghiblify | grep -q "online"; then
+            echo "✅ Deployment successful - Service is online"
+            
+            # Test health endpoint
+            if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+              echo "✅ Health check passed"
+            else
+              echo "⚠️ Health check failed but service is running"
+            fi
+          else
+            echo "❌ Deployment failed - Service is not running"
+            pm2 logs ghiblify --lines 20
+            exit 1
+          fi
