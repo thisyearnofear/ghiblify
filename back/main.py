@@ -27,7 +27,7 @@ app.add_middleware(
         "https://ghiblify.yourdomain.com",  # Add your Hetzner domain
         getenv("FRONTEND_URL", "")  # Environment-based frontend URL
     ],
-    allow_origin_regex="https://.*\.vercel\.app$",  # Allow all Vercel subdomains
+    allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel subdomains
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],

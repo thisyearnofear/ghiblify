@@ -1,7 +1,7 @@
 fastapi>=0.109.0
 uvicorn>=0.27.0
 python-multipart==0.0.9
-pillow>=9.3.0,<10.0.0
+pillow>=10.0.0
 torch>=2.2.0
 diffusers>=0.23.1
 transformers>=4.35.2
@@ -17,3 +17,4 @@ eth-account>=0.8.0
 numpy>=1.24.0
 psycopg2-binary>=2.9.0
 python-jose[cryptography]>=3.3.0
+replicate>=0.15.0
