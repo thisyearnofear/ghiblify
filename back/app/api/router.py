@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
 from .replicate_handler import replicate_router
-# Temporarily comment out ComfyUI to fix import issues
-# from .comfyui_handler import comfyui_router
+from .comfyui_handler import comfyui_router
 from .payments import payments_router
 from .stripe_handler import stripe_router
 from .credits import credits_router
@@ -16,8 +15,7 @@ router = APIRouter()
 # Include the routers
 router.include_router(health_router)
 router.include_router(replicate_router, prefix="/replicate")
-# Temporarily comment out ComfyUI to fix import issues
-# router.include_router(comfyui_router, prefix="/comfyui")
+router.include_router(comfyui_router, prefix="/comfyui")
 router.include_router(payments_router, prefix="/payments", tags=["payments"])
 router.include_router(stripe_router, prefix="/stripe", tags=["payments"])
 router.include_router(credits_router, prefix="/credits", tags=["credits"])

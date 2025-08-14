@@ -34,16 +34,16 @@ if not WEBHOOK_BASE_URL:
 WEBHOOK_URL = f"{WEBHOOK_BASE_URL}/api/comfyui/webhook"
 logger.info(f"Configured webhook URL: {WEBHOOK_URL}")
 
-# Validate required environment variables
-REQUIRED_ENV_VARS = {
-    'COMFY_UI_API_KEY': 'ComfyUI API key is required',
-    'IMGBB_API_KEY': 'ImgBB API key is required for image hosting'
-}
+# Environment variable validation - make optional for graceful degradation
+COMFY_UI_API_KEY = os.getenv('COMFY_UI_API_KEY')
+IMGBB_API_KEY = os.getenv('IMGBB_API_KEY')
 
-missing_vars = [var for var, msg in REQUIRED_ENV_VARS.items() if not os.getenv(var)]
-if missing_vars:
-    error_messages = [REQUIRED_ENV_VARS[var] for var in missing_vars]
-    raise ValueError(f"Missing required environment variables: {', '.join(error_messages)}")
+# Check if ComfyUI is properly configured
+COMFYUI_ENABLED = bool(COMFY_UI_API_KEY and IMGBB_API_KEY)
+
+if not COMFYUI_ENABLED:
+    logger.warning("ComfyUI not fully configured - missing API keys. ComfyUI endpoints will return errors.")
+    logger.warning(f"Missing: COMFY_UI_API_KEY={'✓' if COMFY_UI_API_KEY else '✗'}, IMGBB_API_KEY={'✓' if IMGBB_API_KEY else '✗'}")
 
 comfyui_router = APIRouter()
 
@@ -62,9 +62,8 @@ async def update_task_status(task_id: str, status: str, **kwargs):
 async def upload_to_imgbb(image_bytes: bytes) -> str:
     """Upload image to ImgBB and return the URL"""
     logger.info("Uploading image to ImgBB...")
-    
-    imgbb_api_key = os.getenv('IMGBB_API_KEY')
-    if not imgbb_api_key:
+
+    if not IMGBB_API_KEY:
         raise HTTPException(status_code=500, detail="ImgBB API key not configured")
     
     # Convert bytes to PIL Image and save as PNG
@@ -76,7 +75,7 @@ async def upload_to_imgbb(image_bytes: bytes) -> str:
     # Prepare the request
     url = "https://api.imgbb.com/1/upload"
     payload = {
-        'key': imgbb_api_key,
+        'key': IMGBB_API_KEY,
         'image': image_base64,
     }
     
@@ -116,7 +115,7 @@ async def handle_comfyui(image_bytes: bytes):
     create_task_endpoint = "https://api.comfyonline.app/api/run_workflow"
     
     headers = {
-        "Authorization": f"Bearer {os.getenv('COMFY_UI_API_KEY')}",
+        "Authorization": f"Bearer {COMFY_UI_API_KEY}",
         "Content-Type": "application/json"
     }
     
@@ -295,7 +294,7 @@ async def check_comfyui_status(task_id: str):
     """Check task status directly from ComfyUI API"""
     status_endpoint = "https://api.comfyonline.app/api/query_run_workflow_status"
     headers = {
-        "Authorization": f"Bearer {os.getenv('COMFY_UI_API_KEY')}",
+        "Authorization": f"Bearer {COMFY_UI_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {"task_id": task_id}
@@ -392,6 +391,13 @@ async def get_task_status(task_id: str):
 
 @comfyui_router.post("/")
 async def process_with_comfyui(file: UploadFile = File("test"), address: str = None):
+    # Check if ComfyUI is properly configured
+    if not COMFYUI_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="ComfyUI service is not configured. Missing required API keys (COMFY_UI_API_KEY, IMGBB_API_KEY)."
+        )
+
     if not address:
         raise HTTPException(status_code=400, detail="Wallet address is required")
     try:
