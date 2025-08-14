@@ -14,26 +14,27 @@ logging.basicConfig(
 # Create FastAPI app
 app = FastAPI()
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:4122",
-        "http://localhost:4133",
-        "https://ghiblify-it.vercel.app",
-        "https://ghiblify.vercel.app",
-        "https://ghiblify.onrender.com",
-        "https://ghiblify.yourdomain.com",  # Add your Hetzner domain
-        getenv("FRONTEND_URL", "")  # Environment-based frontend URL
-    ],
-    allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel subdomains
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=86400  # Cache preflight requests for 24 hours
-)
+# CORS is handled by Nginx reverse proxy in production
+# Uncomment below for local development without Nginx
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://localhost:3000",
+#         "http://localhost:4122",
+#         "http://localhost:4133",
+#         "https://ghiblify-it.vercel.app",
+#         "https://ghiblify.vercel.app",
+#         "https://ghiblify.onrender.com",
+#         "https://ghiblify.yourdomain.com",  # Add your Hetzner domain
+#         getenv("FRONTEND_URL", "")  # Environment-based frontend URL
+#     ],
+#     allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel subdomains
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+#     allow_headers=["*"],
+#     expose_headers=["*"],
+#     max_age=86400  # Cache preflight requests for 24 hours
+# )
 
 # Include our routers
 app.include_router(router, prefix="/api")
