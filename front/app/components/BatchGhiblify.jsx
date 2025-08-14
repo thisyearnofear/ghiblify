@@ -44,7 +44,7 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
     isConnected,
     address,
     credits,
-    useCredits: useCreditsFunction
+    spendCredits
   } = useUnifiedWallet();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
@@ -106,7 +106,7 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
 
     // Deduct credits for all files up front using unified system
     try {
-      await useCreditsFunction(selectedFiles.length);
+      await spendCredits(selectedFiles.length);
       if (onCreditsUsed) onCreditsUsed();
     } catch (creditError) {
       if (creditError.message.includes("Insufficient credits")) {

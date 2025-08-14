@@ -37,7 +37,7 @@ export interface UseUnifiedWalletReturn {
   
   // Credits
   refreshCredits: () => Promise<void>;
-  useCredits: (amount?: number) => Promise<number>;
+  spendCredits: (amount?: number) => Promise<number>;
   addCredits: (amount: number) => Promise<number>;
   
   // Utilities
@@ -135,7 +135,7 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     await unifiedWalletService.refreshCredits();
   }, []);
 
-  const useCredits = useCallback(async (amount: number = 1) => {
+  const spendCredits = useCallback(async (amount: number = 1) => {
     return await unifiedWalletService.useCredits(amount);
   }, []);
 
@@ -176,7 +176,7 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     
     // Credits
     refreshCredits,
-    useCredits,
+    spendCredits,
     addCredits,
     
     // Utilities

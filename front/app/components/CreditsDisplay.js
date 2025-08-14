@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 /**
@@ -63,7 +63,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
     }
   }, [error, toast]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     if (!isConnected) {
       toast({
         title: "Wallet Not Connected",
@@ -93,7 +93,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
         isClosable: true,
       });
     }
-  };
+  }, [isConnected, refreshCredits, credits, toast]);
 
   const scrollToPricing = () => {
     const pricingElement = document.getElementById("pricing");

@@ -149,7 +149,7 @@ export default function Account() {
     } finally {
       setLoading(false);
     }
-  }, [address, toast]);
+  }, [userAddress, toast]);
 
   useEffect(() => {
     if (!userConnected || !userAddress) {
