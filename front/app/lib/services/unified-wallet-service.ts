@@ -133,7 +133,7 @@ class UnifiedWalletService {
     }
 
     try {
-      const response = await api.post(`/api/wallet/credits/use?address=${this.currentConnection.user.address}&amount=${amount}`);
+      const response = await api.post(`/api/wallet/credits/use`, `address=${this.currentConnection.user.address}&amount=${amount}`);
       const newCredits = response.credits;
 
       // Update local state
@@ -163,7 +163,7 @@ class UnifiedWalletService {
     }
 
     try {
-      const response = await api.post(`/api/wallet/credits/add?address=${this.currentConnection.user.address}&amount=${amount}`);
+      const response = await api.post(`/api/wallet/credits/add`, `address=${this.currentConnection.user.address}&amount=${amount}`);
       const newCredits = response.credits;
 
       // Update local state
@@ -235,7 +235,7 @@ class UnifiedWalletService {
 
   private async initializeUser(address: string): Promise<void> {
     try {
-      await api.post(`/api/wallet/connect?address=${address}&provider=unified`);
+      await api.post(`/api/wallet/connect`, `address=${address}&provider=unified`);
     } catch (error) {
       console.warn('Failed to initialize user, continuing...', error);
     }

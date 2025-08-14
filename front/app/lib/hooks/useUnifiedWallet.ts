@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { useBaseAccountAuth } from './useBaseAccountAuth';
-import { useFarcaster } from '../hooks/useFarcaster';
+import { useFarcaster } from '../../components/FarcasterFrameProvider';
 import { 
   unifiedWalletService, 
   WalletConnection, 

@@ -236,7 +236,7 @@ Issued At: ${issuedAt}`;
   // Fetch user credits
   private async fetchCredits(address: string): Promise<number> {
     try {
-      const response = await api.get(`/api/web3/credits/check?address=${address}`);
+      const response = await api.get(`/api/wallet/credits/${address}`);
       return response.credits || 0;
     } catch (error) {
       console.warn('Could not fetch credits from backend, using localStorage fallback:', error);
