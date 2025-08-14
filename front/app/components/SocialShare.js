@@ -1,66 +1,82 @@
 "use client";
 
-import { 
-  HStack, 
-  IconButton, 
-  Tooltip, 
+import {
+  HStack,
+  IconButton,
+  Tooltip,
   useToast,
   useClipboard,
   Spinner,
   Text,
-  Box
+  Box,
 } from "@chakra-ui/react";
-import { 
-  FaTwitter, 
-  FaFacebook, 
+import {
+  FaTwitter,
+  FaFacebook,
   FaLink,
   FaDownload,
-  FaCheck
+  FaCheck,
 } from "react-icons/fa";
 import { SiLens, SiFarcaster } from "react-icons/si";
 import { useState, useEffect } from "react";
-import { uploadImageToGrove, needsExternalStorage } from "../utils/groveStorage";
+import {
+  uploadImageToGrove,
+  needsExternalStorage,
+} from "../utils/groveStorage";
 
-export default function SocialShare({ imageUrl, title = "Ghiblified via https://ghiblify-it.vercel.app 🌱" }) {
+export default function SocialShare({
+  imageUrl,
+  title = "Ghiblified via https://ghiblify-it.vercel.app 🌱",
+}) {
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(imageUrl);
   const [isUploading, setIsUploading] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
   const { onCopy, hasCopied } = useClipboard(sharingUrl);
-  
+
   // Prepare for sharing when component mounts or imageUrl changes
   useEffect(() => {
     const prepareForSharing = async () => {
       // Reset states when image URL changes
       setIsOptimized(false);
       setSharingUrl(imageUrl);
-      
+
       // Always try to upload to Grove for social sharing
       // Data URLs won't work on social platforms, and Google Storage URLs may expire
       if (imageUrl) {
         setIsUploading(true);
         try {
-          console.log("Preparing image for sharing:", imageUrl.substring(0, 100) + "...");
+          console.log(
+            "Preparing image for sharing:",
+            imageUrl.substring(0, 100) + "..."
+          );
           const result = await uploadImageToGrove(imageUrl);
-          if (result.success) {
+          console.log("Grove upload result:", result);
+
+          if (result && result.success && result.gatewayUrl) {
             console.log("Grove upload successful:", result.gatewayUrl);
             setSharingUrl(result.gatewayUrl);
             setIsOptimized(true);
             toast({
               title: "Image optimized for sharing",
-              description: "Using Grove storage for better social media compatibility",
+              description:
+                "Using Grove storage for better social media compatibility",
               status: "success",
               duration: 3000,
               isClosable: true,
             });
           } else {
             // If Grove upload fails, fallback to original URL
-            console.warn("Grove upload failed, using original URL", result.error);
+            console.warn(
+              "Grove upload failed, using original URL",
+              result?.error || "Unknown error"
+            );
             // For data URLs, we can't share them directly, so we'll need to warn the user
-            if (imageUrl.startsWith('data:')) {
+            if (imageUrl.startsWith("data:")) {
               toast({
                 title: "Sharing may not work properly",
-                description: "Unable to optimize image for sharing. Some platforms may not display the image.",
+                description:
+                  "Unable to optimize image for sharing. Some platforms may not display the image.",
                 status: "warning",
                 duration: 5000,
                 isClosable: true,
@@ -69,7 +85,8 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
               setSharingUrl(imageUrl);
               toast({
                 title: "Using original image URL",
-                description: "Grove optimization failed, but sharing should still work",
+                description:
+                  "Grove optimization failed, but sharing should still work",
                 status: "info",
                 duration: 3000,
                 isClosable: true,
@@ -84,13 +101,13 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
         }
       }
     };
-    
+
     prepareForSharing();
   }, [imageUrl, toast]);
-  
+
   const encodedTitle = encodeURIComponent(title);
   const encodedUrl = encodeURIComponent(sharingUrl);
-  
+
   // Social media share URLs
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedTitle}`;
@@ -101,8 +118,8 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
     onCopy();
     toast({
       title: "Link copied!",
-      description: isOptimized 
-        ? "Optimized image URL has been copied to clipboard" 
+      description: isOptimized
+        ? "Optimized image URL has been copied to clipboard"
         : "Image URL has been copied to clipboard",
       status: "success",
       duration: 3000,
@@ -111,13 +128,13 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
   };
 
   const handleDownload = () => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = imageUrl; // Always download the original image
-    link.download = 'ghiblified-image.png';
+    link.download = "ghiblified-image.png";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast({
       title: "Download started",
       description: "Your Ghiblified image is being downloaded",
@@ -132,7 +149,9 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
     return (
       <HStack spacing={1} justify="center" mt={1}>
         <Spinner size="sm" color="blue.500" mr={2} />
-        <Text fontSize="sm" color="gray.500">Optimizing for sharing...</Text>
+        <Text fontSize="sm" color="gray.500">
+          Optimizing for sharing...
+        </Text>
         <Tooltip label="Download image" hasArrow size="sm">
           <IconButton
             aria-label="Download image"
@@ -151,7 +170,7 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
     <Box>
       {isOptimized && (
         <Text fontSize="xs" color="green.500" textAlign="center" mb={1}>
-          <FaCheck style={{ display: 'inline', marginRight: '4px' }} />
+          <FaCheck style={{ display: "inline", marginRight: "4px" }} />
           Optimized for social sharing
         </Text>
       )}
@@ -161,45 +180,45 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
             aria-label="Share on Twitter"
             icon={<FaTwitter />}
             colorScheme="twitter"
-            onClick={() => window.open(twitterUrl, '_blank')}
+            onClick={() => window.open(twitterUrl, "_blank")}
             size="sm"
             variant="ghost"
           />
         </Tooltip>
-        
+
         <Tooltip label="Share on Facebook" hasArrow size="sm">
           <IconButton
             aria-label="Share on Facebook"
             icon={<FaFacebook />}
             colorScheme="facebook"
-            onClick={() => window.open(facebookUrl, '_blank')}
+            onClick={() => window.open(facebookUrl, "_blank")}
             size="sm"
             variant="ghost"
           />
         </Tooltip>
-        
+
         <Tooltip label="Share on Farcaster" hasArrow size="sm">
           <IconButton
             aria-label="Share on Farcaster"
             icon={<SiFarcaster />}
             colorScheme="purple"
-            onClick={() => window.open(farcasterUrl, '_blank')}
+            onClick={() => window.open(farcasterUrl, "_blank")}
             size="sm"
             variant="ghost"
           />
         </Tooltip>
-        
+
         <Tooltip label="Share on Lens" hasArrow size="sm">
           <IconButton
             aria-label="Share on Lens"
             icon={<SiLens />}
             colorScheme="green"
-            onClick={() => window.open(lensUrl, '_blank')}
+            onClick={() => window.open(lensUrl, "_blank")}
             size="sm"
             variant="ghost"
           />
         </Tooltip>
-        
+
         <Tooltip label="Copy link" hasArrow size="sm">
           <IconButton
             aria-label="Copy link"
@@ -210,7 +229,7 @@ export default function SocialShare({ imageUrl, title = "Ghiblified via https://
             variant="ghost"
           />
         </Tooltip>
-        
+
         <Tooltip label="Download image" hasArrow size="sm">
           <IconButton
             aria-label="Download image"
