@@ -6,10 +6,10 @@ import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 /**
  * Unified Credits Display Component
- * 
+ *
  * Uses the unified wallet system to display credits consistently
  * across all wallet types (RainbowKit, Base Account, etc.)
- * 
+ *
  * Benefits:
  * - Single source of truth for credits
  * - Automatic wallet detection
@@ -21,14 +21,14 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const toast = useToast();
 
   // Use unified wallet system - single source of truth
-  const { 
-    isConnected, 
-    credits, 
-    isLoading, 
-    refreshCredits, 
+  const {
+    isConnected,
+    credits,
+    isLoading,
+    refreshCredits,
     error,
     address,
-    provider 
+    provider,
   } = useUnifiedWallet();
 
   // Handle component mounting
@@ -38,7 +38,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
   // Handle credits updates
   useEffect(() => {
-    if (onCreditsUpdate && typeof onCreditsUpdate === 'function') {
+    if (onCreditsUpdate && typeof onCreditsUpdate === "function") {
       onCreditsUpdate(credits);
     }
   }, [credits, onCreditsUpdate]);
@@ -48,7 +48,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
     if (forceRefresh && isConnected) {
       handleRefresh();
     }
-  }, [forceRefresh, isConnected]);
+  }, [forceRefresh, isConnected, handleRefresh]);
 
   // Handle errors
   useEffect(() => {
@@ -169,11 +169,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
           </Tooltip>
 
           {credits === 0 && (
-            <Button
-              size="sm"
-              colorScheme="orange"
-              onClick={scrollToPricing}
-            >
+            <Button size="sm" colorScheme="orange" onClick={scrollToPricing}>
               Buy Credits
             </Button>
           )}
@@ -182,7 +178,8 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
 
       {credits > 0 && (
         <Text fontSize="xs" color="green.600" mt={2}>
-          ✅ Ready to Ghiblify! You have {credits} credit{credits !== 1 ? 's' : ''} available.
+          ✅ Ready to Ghiblify! You have {credits} credit
+          {credits !== 1 ? "s" : ""} available.
         </Text>
       )}
 

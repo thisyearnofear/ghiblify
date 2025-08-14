@@ -110,7 +110,7 @@ export default function Home() {
     address,
     isConnected,
     credits,
-    useCredits,
+    useCredits: useCreditsFunction,
     refreshCredits,
     isLoading: walletLoading,
   } = useUnifiedWallet();
@@ -263,7 +263,7 @@ export default function Home() {
 
       // Use unified credit system
       try {
-        await useCredits(1);
+        await useCreditsFunction(1);
       } catch (creditError) {
         if (creditError.message.includes("Insufficient credits")) {
           setError(

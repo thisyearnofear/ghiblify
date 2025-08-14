@@ -53,10 +53,10 @@ export default function Account() {
   const router = useRouter();
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  
+
   // Check for Base authentication
   const [baseAuth, setBaseAuth] = useState(null);
-  
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedAuth = localStorage.getItem("ghiblify_auth");
@@ -72,7 +72,7 @@ export default function Account() {
       }
     }
   }, []);
-  
+
   // Determine if user is connected (either via Wagmi or Base auth)
   const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
   const userAddress = address || (baseAuth && baseAuth.address);
@@ -149,7 +149,7 @@ export default function Account() {
     } finally {
       setLoading(false);
     }
-  }, [userAddress, toast]);
+  }, [address, toast]);
 
   useEffect(() => {
     if (!userConnected || !userAddress) {
