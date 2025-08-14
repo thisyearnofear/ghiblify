@@ -235,7 +235,7 @@ class UnifiedWalletService {
 
   private async initializeUser(address: string): Promise<void> {
     try {
-      await api.post(`/api/wallet/connect?address=${address}`);
+      await api.post(`/api/wallet/connect?address=${address}&provider=unified`);
     } catch (error) {
       console.warn('Failed to initialize user, continuing...', error);
     }

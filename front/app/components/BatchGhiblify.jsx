@@ -15,6 +15,7 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 import { useState, useRef } from "react";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 import CompareSlider from "./CompareSlider";
 import SocialShare from "./SocialShare";
 import dynamic from "next/dynamic";
@@ -26,7 +27,7 @@ const html2canvas = typeof window !== "undefined"
 const MAX_FILES = 6;
 const MAX_FILE_SIZE_MB = 8;
 
-export default function BatchGhiblify({ apiChoice, promptStrength, address, onCreditsUsed }) {
+export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [progress, setProgress] = useState([]);
@@ -37,6 +38,14 @@ export default function BatchGhiblify({ apiChoice, promptStrength, address, onCr
   const [showGrid, setShowGrid] = useState(false);
   const toast = useToast();
   const gridRef = useRef();
+
+  // Use unified wallet system
+  const {
+    isConnected,
+    address,
+    credits,
+    useCredits
+  } = useUnifiedWallet();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
@@ -88,22 +97,26 @@ export default function BatchGhiblify({ apiChoice, promptStrength, address, onCr
     setProgress(Array(selectedFiles.length).fill(0));
     setGeneratedURLs(Array(selectedFiles.length).fill(null));
 
-    // Deduct credits for all files up front
-    const creditRes = await fetch(
-      `${API_URL}/api/web3/credits/use?address=${address}&amount=${selectedFiles.length}`,
-      { ...fetchOptions, method: "POST" }
-    );
-    if (!creditRes.ok) {
-      if (creditRes.status === 400) {
-        setError("Not enough credits for this batch. Please purchase more.");
-        setIsLoading(false);
-        return;
-      }
-      setError("Failed to use credits.");
+    // Check wallet connection
+    if (!isConnected || !address) {
+      setError("Please connect your wallet to continue.");
       setIsLoading(false);
       return;
     }
-    if (onCreditsUsed) onCreditsUsed();
+
+    // Deduct credits for all files up front using unified system
+    try {
+      await useCredits(selectedFiles.length);
+      if (onCreditsUsed) onCreditsUsed();
+    } catch (creditError) {
+      if (creditError.message.includes("Insufficient credits")) {
+        setError(`Not enough credits for this batch. You need ${selectedFiles.length} credits but only have ${credits}.`);
+      } else {
+        setError("Failed to use credits. Please try again.");
+      }
+      setIsLoading(false);
+      return;
+    }
 
     // Process all files in parallel
     const processFile = async (file, idx) => {

@@ -1,167 +1,196 @@
 "use client";
 
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
-import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useState, useEffect } from "react";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
-if (!API_URL) {
-  console.error(
-    "[Credits] NEXT_PUBLIC_API_URL environment variable is not set"
-  );
-}
-
-// Separate API function for better organization
-const fetchCredits = async (address) => {
-  const response = await fetch(
-    `${API_URL}/api/web3/credits/check?address=${address}`,
-    {
-      method: "GET",
-      credentials: "include", // Include cookies for cross-origin requests
-      mode: "cors", // Explicitly set CORS mode
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
-        Origin:
-          typeof window !== "undefined"
-            ? window.location.origin
-            : "https://ghiblify-it.vercel.app",
-      },
-    }
-  );
-
-  if (!response.ok) {
-    // Handle specific backend unavailability cases
-    if (response.status === 503 || response.status === 504) {
-      throw new Error(
-        "Backend service is starting up. Please wait a moment and try again."
-      );
-    }
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.credits || 0;
-};
-
+/**
+ * Unified Credits Display Component
+ * 
+ * Uses the unified wallet system to display credits consistently
+ * across all wallet types (RainbowKit, Base Account, etc.)
+ * 
+ * Benefits:
+ * - Single source of truth for credits
+ * - Automatic wallet detection
+ * - Consistent behavior across all connection types
+ * - DRY, clean, and maintainable
+ */
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
-  const [credits, setCredits] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [shouldShowBuyButton, setShouldShowBuyButton] = useState(false);
   const toast = useToast();
-  const { address, isConnected } = useAccount();
 
-  // Check for Base authentication
-  const [baseAuth, setBaseAuth] = useState(null);
+  // Use unified wallet system - single source of truth
+  const { 
+    isConnected, 
+    credits, 
+    isLoading, 
+    refreshCredits, 
+    error,
+    address,
+    provider 
+  } = useUnifiedWallet();
 
+  // Handle component mounting
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedAuth = localStorage.getItem("ghiblify_auth");
-      if (storedAuth) {
-        try {
-          const authData = JSON.parse(storedAuth);
-          if (authData.authenticated) {
-            setBaseAuth(authData);
-          }
-        } catch (error) {
-          console.error("Error parsing stored auth:", error);
-          setBaseAuth(null);
-        }
-      }
-    }
+    setIsMounted(true);
   }, []);
 
-  // Determine if user is connected (either via Wagmi or Base auth)
-  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
-  const userAddress = address || (baseAuth && baseAuth.address);
-
-  const checkCredits = useCallback(async () => {
-    if (!userConnected || !userAddress) {
-      setCredits(0);
-      return;
+  // Handle credits updates
+  useEffect(() => {
+    if (onCreditsUpdate && typeof onCreditsUpdate === 'function') {
+      onCreditsUpdate(credits);
     }
+  }, [credits, onCreditsUpdate]);
 
-    setIsLoading(true);
-    try {
-      const newCredits = await fetchCredits(userAddress);
-      setCredits(newCredits);
-      setShouldShowBuyButton(newCredits === 0);
-      if (onCreditsUpdate) onCreditsUpdate(newCredits);
-    } catch (error) {
-      console.error("Error checking credits:", error);
-      if (error.message.includes("401")) {
-        localStorage.removeItem("ghiblify_token");
-        setCredits(0);
-        setShouldShowBuyButton(true);
-        if (onCreditsUpdate) onCreditsUpdate(0);
-      }
+  // Handle force refresh
+  useEffect(() => {
+    if (forceRefresh && isConnected) {
+      handleRefresh();
+    }
+  }, [forceRefresh, isConnected]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
       toast({
-        title: "Error checking credits",
-        description: "Please try again later",
+        title: "Credits Error",
+        description: error,
         status: "error",
         duration: 5000,
         isClosable: true,
       });
-    } finally {
-      setIsLoading(false);
     }
-  }, [userAddress, userConnected, onCreditsUpdate, toast]);
+  }, [error, toast]);
 
-  // Handle hydration and initial load
-  useEffect(() => {
-    setIsMounted(true);
-    if (userAddress && userConnected) {
-      checkCredits();
+  const handleRefresh = async () => {
+    if (!isConnected) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet to check credits.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
     }
-  }, [userAddress, userConnected, checkCredits]);
 
-  // Handle force refresh
-  useEffect(() => {
-    if (isMounted && forceRefresh) {
-      checkCredits();
+    try {
+      await refreshCredits();
+      toast({
+        title: "Credits Refreshed",
+        description: `Current balance: ${credits} credits`,
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh credits. Please try again.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
-  }, [isMounted, forceRefresh, checkCredits]);
+  };
 
-  // Don't render anything during SSR or before hydration
-  if (typeof window === "undefined" || !isMounted) {
+  const scrollToPricing = () => {
+    const pricingElement = document.getElementById("pricing");
+    if (pricingElement) {
+      pricingElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  // Don't render until mounted (prevents hydration issues)
+  if (!isMounted) {
+    return null;
+  }
+
+  // Not connected state
+  if (!isConnected) {
     return (
-      <Box>
-        <HStack spacing={4} align="center">
-          <Text fontSize="sm" color="gray.600">
-            Credits: ...
-          </Text>
-        </HStack>
+      <Box
+        p={4}
+        borderWidth={1}
+        borderRadius="md"
+        borderColor="gray.200"
+        bg="gray.50"
+        textAlign="center"
+      >
+        <Text fontSize="sm" color="gray.600">
+          Connect your wallet to view credits
+        </Text>
       </Box>
     );
   }
 
+  // Connected state
   return (
-    <Box>
-      <HStack spacing={4} align="center">
-        <Tooltip label="Credits remaining for Ghibli transformations">
-          <Text fontSize="sm" color="gray.600">
-            Credits: {isLoading ? "..." : credits}
-          </Text>
-        </Tooltip>
-        {shouldShowBuyButton && (
-          <Button
-            size="sm"
-            colorScheme="blue"
-            variant="outline"
-            onClick={() =>
-              document
-                .getElementById("pricing")
-                ?.scrollIntoView({ behavior: "smooth" })
-            }
-          >
-            Buy Credits
-          </Button>
-        )}
+    <Box
+      p={4}
+      borderWidth={1}
+      borderRadius="md"
+      borderColor={credits > 0 ? "green.200" : "orange.200"}
+      bg={credits > 0 ? "green.50" : "orange.50"}
+    >
+      <HStack justify="space-between" align="center">
+        <Box>
+          <HStack spacing={2}>
+            <Text fontSize="lg" fontWeight="bold" color="gray.800">
+              Credits: {isLoading ? "..." : credits}
+            </Text>
+            {provider && (
+              <Tooltip label={`Connected via ${provider}`}>
+                <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                  {provider}
+                </Text>
+              </Tooltip>
+            )}
+          </HStack>
+          {address && (
+            <Text fontSize="xs" color="gray.500" fontFamily="mono">
+              {address.slice(0, 6)}...{address.slice(-4)}
+            </Text>
+          )}
+        </Box>
+
+        <HStack spacing={2}>
+          <Tooltip label="Refresh credits balance">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefresh}
+              isLoading={isLoading}
+              loadingText="Refreshing"
+            >
+              🔄
+            </Button>
+          </Tooltip>
+
+          {credits === 0 && (
+            <Button
+              size="sm"
+              colorScheme="orange"
+              onClick={scrollToPricing}
+            >
+              Buy Credits
+            </Button>
+          )}
+        </HStack>
       </HStack>
+
+      {credits > 0 && (
+        <Text fontSize="xs" color="green.600" mt={2}>
+          ✅ Ready to Ghiblify! You have {credits} credit{credits !== 1 ? 's' : ''} available.
+        </Text>
+      )}
+
+      {credits === 0 && (
+        <Text fontSize="xs" color="orange.600" mt={2}>
+          ⚠️ No credits available. Purchase credits below to start creating!
+        </Text>
+      )}
     </Box>
   );
 }

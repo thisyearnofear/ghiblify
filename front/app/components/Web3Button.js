@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
 import { Box, Button, VStack, HStack, Text, Badge } from "@chakra-ui/react";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 import Web3Avatar from "./Web3Avatar";
 import SignInWithBase from "./SignInWithBase.jsx";
 import {
@@ -24,6 +25,16 @@ export default function Web3Button() {
     isAuthenticated: isBaseAuthenticated,
     signOut: baseSignOut,
   } = useBaseAccountAuth();
+
+  // Use unified wallet for consistent display
+  const {
+    isConnected: unifiedConnected,
+    address: unifiedAddress,
+    credits: unifiedCredits,
+    provider: unifiedProvider,
+    disconnect: unifiedDisconnect,
+  } = useUnifiedWallet();
+
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const [isBaseAuthOpen, setIsBaseAuthOpen] = useState(false);
 
