@@ -38,10 +38,7 @@ export default function BatchGhiblify({ apiChoice, promptStrength, address, onCr
   const toast = useToast();
   const gridRef = useRef();
 
-  const API_URL =
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:8000"
-      : "https://ghiblify.onrender.com";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
   const fetchOptions = {
     credentials: "include",

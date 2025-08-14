@@ -4,7 +4,8 @@ import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 if (!API_URL) {
   console.error(
     "[Credits] NEXT_PUBLIC_API_URL environment variable is not set"
@@ -17,14 +18,17 @@ const fetchCredits = async (address) => {
     `${API_URL}/api/web3/credits/check?address=${address}`,
     {
       method: "GET",
-      credentials: "include",  // Include cookies for cross-origin requests
-      mode: "cors",          // Explicitly set CORS mode
+      credentials: "include", // Include cookies for cross-origin requests
+      mode: "cors", // Explicitly set CORS mode
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Origin": typeof window !== "undefined" ? window.location.origin : "https://ghiblify-it.vercel.app",
+        Pragma: "no-cache",
+        Origin:
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://ghiblify-it.vercel.app",
       },
     }
   );
@@ -32,7 +36,9 @@ const fetchCredits = async (address) => {
   if (!response.ok) {
     // Handle specific backend unavailability cases
     if (response.status === 503 || response.status === 504) {
-      throw new Error('Backend service is starting up. Please wait a moment and try again.');
+      throw new Error(
+        "Backend service is starting up. Please wait a moment and try again."
+      );
     }
     throw new Error(`HTTP error! status: ${response.status}`);
   }
@@ -48,10 +54,10 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [shouldShowBuyButton, setShouldShowBuyButton] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
-  
+
   // Check for Base authentication
   const [baseAuth, setBaseAuth] = useState(null);
-  
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedAuth = localStorage.getItem("ghiblify_auth");
@@ -68,7 +74,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       }
     }
   }, []);
-  
+
   // Determine if user is connected (either via Wagmi or Base auth)
   const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
   const userAddress = address || (baseAuth && baseAuth.address);

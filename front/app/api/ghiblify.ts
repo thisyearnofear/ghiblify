@@ -20,8 +20,8 @@ export async function ghiblifyImage(
   apiChoice: "replicate" | "comfy" = "replicate"
 ): Promise<string> {
   try {
-    // Use API_URL from environment or fallback to the render URL
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+    // Use API_URL from environment or fallback to production domain
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
     
     const response = await fetch(`${API_URL}/api/${apiChoice === "replicate" ? "replicate" : "comfyui"}/ghiblify`, {
       method: "POST",

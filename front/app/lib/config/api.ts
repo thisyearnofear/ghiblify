@@ -22,21 +22,8 @@ class ApiConfigManager {
   }
 
   private getApiUrl(): string {
-    // Environment-based API URL resolution
-    if (typeof window === 'undefined') {
-      // Server-side
-      return process.env.NEXT_PUBLIC_API_URL || 'https://ghiblify.onrender.com';
-    }
-
-    // Client-side
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const isLocalhost = window.location.hostname === 'localhost';
-    
-    if (isDevelopment || isLocalhost) {
-      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    }
-
-    return process.env.NEXT_PUBLIC_API_URL || 'https://ghiblify.onrender.com';
+    // Always use environment variable first, fallback to production domain
+    return process.env.NEXT_PUBLIC_API_URL || 'https://api.thisyearnofear.com';
   }
 
   private getRequestConfig(options?: RequestInit): RequestInit {

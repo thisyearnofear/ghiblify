@@ -3,32 +3,35 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
-import { 
-  Box, 
-  Button, 
-  VStack, 
-  HStack, 
-  Text, 
-  Badge
-} from "@chakra-ui/react";
+import { Box, Button, VStack, HStack, Text, Badge } from "@chakra-ui/react";
 import Web3Avatar from "./Web3Avatar";
 import SignInWithBase from "./SignInWithBase.jsx";
-import { COLORS, GRADIENTS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../theme";
+import {
+  COLORS,
+  GRADIENTS,
+  PATTERNS,
+  INTERACTIONS,
+  ANIMATION_PRESETS,
+} from "../theme";
 import MagicalButton from "./ui/MagicalButton";
 import MagicalModal from "./ui/MagicalModal";
 import { useBaseAccountAuth } from "../lib/hooks/useBaseAccountAuth";
 
-
 export default function Web3Button() {
   const { address, isConnected } = useAccount();
-  const { user: baseUser, isAuthenticated: isBaseAuthenticated, signOut: baseSignOut } = useBaseAccountAuth();
+  const {
+    user: baseUser,
+    isAuthenticated: isBaseAuthenticated,
+    signOut: baseSignOut,
+  } = useBaseAccountAuth();
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const [isBaseAuthOpen, setIsBaseAuthOpen] = useState(false);
 
   useEffect(() => {
     if (isConnected && address) {
       // Use consistent API URL configuration
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+      const API_URL =
+        process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
       // Send the address to your backend to get/create a session
       fetch(`${API_URL}/api/web3/login?address=${address}`, {
@@ -109,85 +112,87 @@ export default function Web3Button() {
                 title="Choose Your Magic Portal ✨"
                 borderColor={COLORS.ghibli.green}
               >
-                    <VStack spacing={4}>
-                      {/* RainbowKit Option */}
-                      <Button
-                        onClick={() => {
-                          openConnectModal();
-                          setIsConnectionOpen(false);
-                        }}
-                        w="full"
-                        h="60px"
-                        borderRadius="xl"
-                        bg="gray.50"
-                        border="2px solid"
-                        borderColor="gray.200"
-                        _hover={{
-                          borderColor: COLORS.ghibli.green,
-                          bg: "gray.100",
-                          transform: "translateY(-2px)",
-                          boxShadow: "0 8px 25px rgba(79, 209, 197, 0.2)"
-                        }}
-                        transition="all 0.3s ease"
+                <VStack spacing={4}>
+                  {/* RainbowKit Option */}
+                  <Button
+                    onClick={() => {
+                      openConnectModal();
+                      setIsConnectionOpen(false);
+                    }}
+                    w="full"
+                    h="60px"
+                    borderRadius="xl"
+                    bg="gray.50"
+                    border="2px solid"
+                    borderColor="gray.200"
+                    _hover={{
+                      borderColor: COLORS.ghibli.green,
+                      bg: "gray.100",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(79, 209, 197, 0.2)",
+                    }}
+                    transition="all 0.3s ease"
+                  >
+                    <HStack spacing={4} w="full" justify="flex-start">
+                      <Box
+                        w="40px"
+                        h="40px"
+                        borderRadius="full"
+                        bgGradient="linear(to-r, purple.500, pink.500)"
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
                       >
-                        <HStack spacing={4} w="full" justify="flex-start">
-                          <Box
-                            w="40px"
-                            h="40px"
-                            borderRadius="full"
-                            bgGradient="linear(to-r, purple.500, pink.500)"
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                          >
-                            <Text color="white" fontSize="lg">🌈</Text>
-                          </Box>
-                          <Text fontWeight="bold" color={COLORS.primary}>
-                            RainbowKit Wallet
-                          </Text>
-                        </HStack>
-                      </Button>
+                        <Text color="white" fontSize="lg">
+                          🌈
+                        </Text>
+                      </Box>
+                      <Text fontWeight="bold" color={COLORS.primary}>
+                        RainbowKit Wallet
+                      </Text>
+                    </HStack>
+                  </Button>
 
-                      {/* Base Option */}
-                      <Button
-                        onClick={() => {
-                          setIsBaseAuthOpen(true);
-                          setIsConnectionOpen(false);
-                        }}
-                        w="full"
-                        h="60px"
-                        borderRadius="xl"
-                        bg="gray.50"
-                        border="2px solid"
-                        borderColor="gray.200"
-                        _hover={{
-                          borderColor: COLORS.ghibli.blue,
-                          bg: "gray.100",
-                          transform: "translateY(-2px)",
-                          boxShadow: "0 8px 25px rgba(70, 130, 169, 0.2)"
-                        }}
-                        transition="all 0.3s ease"
+                  {/* Base Option */}
+                  <Button
+                    onClick={() => {
+                      setIsBaseAuthOpen(true);
+                      setIsConnectionOpen(false);
+                    }}
+                    w="full"
+                    h="60px"
+                    borderRadius="xl"
+                    bg="gray.50"
+                    border="2px solid"
+                    borderColor="gray.200"
+                    _hover={{
+                      borderColor: COLORS.ghibli.blue,
+                      bg: "gray.100",
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 8px 25px rgba(70, 130, 169, 0.2)",
+                    }}
+                    transition="all 0.3s ease"
+                  >
+                    <HStack spacing={4} w="full" justify="flex-start">
+                      <Box
+                        w="40px"
+                        h="40px"
+                        borderRadius="full"
+                        bg={COLORS.ghibli.blue}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
                       >
-                        <HStack spacing={4} w="full" justify="flex-start">
-                          <Box
-                            w="40px"
-                            h="40px"
-                            borderRadius="full"
-                            bg={COLORS.ghibli.blue}
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="center"
-                          >
-                            <Text color="white" fontWeight="bold" fontSize="lg">
-                              🔵
-                            </Text>
-                          </Box>
-                          <Text fontWeight="bold" color={COLORS.primary}>
-                            Sign in with Base
-                          </Text>
-                        </HStack>
-                      </Button>
-                    </VStack>
+                        <Text color="white" fontWeight="bold" fontSize="lg">
+                          🔵
+                        </Text>
+                      </Box>
+                      <Text fontWeight="bold" color={COLORS.primary}>
+                        Sign in with Base
+                      </Text>
+                    </HStack>
+                  </Button>
+                </VStack>
               </MagicalModal>
 
               {/* Base Auth Modal */}
@@ -227,7 +232,9 @@ export default function Web3Button() {
               <MagicalButton
                 onClick={() => {
                   // Handle Base account menu (logout, etc.)
-                  const shouldLogout = window.confirm("Do you want to disconnect your Base account?");
+                  const shouldLogout = window.confirm(
+                    "Do you want to disconnect your Base account?"
+                  );
                   if (shouldLogout) {
                     baseSignOut();
                   }
@@ -238,7 +245,8 @@ export default function Web3Button() {
               >
                 <VStack spacing={0} align="flex-start">
                   <Text fontSize="sm" fontWeight="bold">
-                    {baseUser.address.slice(0, 6)}...{baseUser.address.slice(-4)}
+                    {baseUser.address.slice(0, 6)}...
+                    {baseUser.address.slice(-4)}
                   </Text>
                   <Text fontSize="xs" color="whiteAlpha.800">
                     Credits: {baseUser.credits || 0}

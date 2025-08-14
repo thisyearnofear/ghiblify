@@ -30,10 +30,10 @@ import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://ghiblify.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 const STRIPE_WEBHOOK_URL =
   process.env.NEXT_PUBLIC_STRIPE_WEBHOOK_URL ||
-  "https://ghiblify.onrender.com/api/stripe/webhook";
+  "https://api.thisyearnofear.com/api/stripe/webhook";
 
 // Base Pay Configuration
 const BASE_PAY_RECIPIENT = process.env.NEXT_PUBLIC_BASE_PAY_RECIPIENT_ADDRESS;
@@ -67,10 +67,10 @@ export default function Pricing({ onPurchaseComplete }) {
   const { writeContractAsync: approveAsync } = useWriteContract();
   const { writeContractAsync: purchaseAsync } = useWriteContract();
   const publicClient = usePublicClient();
-  
+
   // Check for Base authentication
   const [baseAuth, setBaseAuth] = useState(null);
-  
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedAuth = localStorage.getItem("ghiblify_auth");
@@ -86,7 +86,7 @@ export default function Pricing({ onPurchaseComplete }) {
       }
     }
   }, []);
-  
+
   // Determine if user is connected (either via Wagmi or Base auth)
   const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
   const userAddress = address || (baseAuth && baseAuth.address);

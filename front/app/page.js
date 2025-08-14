@@ -144,11 +144,9 @@ export default function Home() {
     bridge0: "/examples/0bridge.png",
   };
 
-  // Determine API URL based on environment
+  // Use environment variable for API URL
   const API_URL =
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:8000"
-      : "https://ghiblify.onrender.com";
+    process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
   // Standard fetch options for all API calls to handle CORS properly
   const fetchOptions = {
