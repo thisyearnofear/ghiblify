@@ -22,8 +22,8 @@ from ..services.redis_service import redis_service
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Initialize router
-unified_wallet_router = APIRouter(prefix="/api/wallet", tags=["wallet"])
+# Initialize router (prefix will be added by main app)
+unified_wallet_router = APIRouter(prefix="/wallet", tags=["wallet"])
 
 # ===== MODELS =====
 
