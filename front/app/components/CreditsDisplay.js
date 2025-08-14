@@ -2,66 +2,54 @@
 
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
-import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import { useAccount } from "wagmi";
 
 /**
- * Unified Credits Display Component
- *
- * Uses the unified wallet system to display credits consistently
- * across all wallet types (RainbowKit, Base Account, etc.)
- *
- * Benefits:
- * - Single source of truth for credits
- * - Automatic wallet detection
- * - Consistent behavior across all connection types
- * - DRY, clean, and maintainable
+ * Simplified Credits Display Component
+ * Temporarily using old approach to fix build issues
  */
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [isMounted, setIsMounted] = useState(false);
+  const [credits, setCredits] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
+  const { address, isConnected } = useAccount();
 
-  // Use unified wallet system - single source of truth
-  const {
-    isConnected,
-    credits,
-    isLoading,
-    refreshCredits,
-    error,
-    address,
-    provider,
-  } = useUnifiedWallet();
+  // Simple credit fetching (fallback approach)
+  const fetchCredits = useCallback(async () => {
+    if (!address) return;
 
-  // Handle component mounting
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `https://api.thisyearnofear.com/api/wallet/credits/${address}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setCredits(data.credits || 0);
+        if (onCreditsUpdate) onCreditsUpdate(data.credits || 0);
+      }
+    } catch (error) {
+      console.warn("Failed to fetch credits:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [address, onCreditsUpdate]);
+
+  // Handle component mounting and initial fetch
   useEffect(() => {
     setIsMounted(true);
-  }, []);
-
-  // Handle credits updates
-  useEffect(() => {
-    if (onCreditsUpdate && typeof onCreditsUpdate === "function") {
-      onCreditsUpdate(credits);
+    if (isConnected && address) {
+      fetchCredits();
     }
-  }, [credits, onCreditsUpdate]);
+  }, [isConnected, address, fetchCredits]);
 
   // Handle force refresh
   useEffect(() => {
     if (forceRefresh && isConnected) {
-      handleRefresh();
+      fetchCredits();
     }
-  }, [forceRefresh, isConnected, handleRefresh]);
-
-  // Handle errors
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Credits Error",
-        description: error,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  }, [error, toast]);
+  }, [forceRefresh, isConnected, fetchCredits]);
 
   const handleRefresh = useCallback(async () => {
     if (!isConnected) {
@@ -75,25 +63,15 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       return;
     }
 
-    try {
-      await refreshCredits();
-      toast({
-        title: "Credits Refreshed",
-        description: `Current balance: ${credits} credits`,
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: "Refresh Failed",
-        description: "Failed to refresh credits. Please try again.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  }, [isConnected, refreshCredits, credits, toast]);
+    await fetchCredits();
+    toast({
+      title: "Credits Refreshed",
+      description: `Current balance: ${credits} credits`,
+      status: "success",
+      duration: 2000,
+      isClosable: true,
+    });
+  }, [isConnected, fetchCredits, credits, toast]);
 
   const scrollToPricing = () => {
     const pricingElement = document.getElementById("pricing");
@@ -140,13 +118,11 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
             <Text fontSize="lg" fontWeight="bold" color="gray.800">
               Credits: {isLoading ? "..." : credits}
             </Text>
-            {provider && (
-              <Tooltip label={`Connected via ${provider}`}>
-                <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                  {provider}
-                </Text>
-              </Tooltip>
-            )}
+            <Tooltip label="Connected via RainbowKit">
+              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                RainbowKit
+              </Text>
+            </Tooltip>
           </HStack>
           {address && (
             <Text fontSize="xs" color="gray.500" fontFamily="mono">
