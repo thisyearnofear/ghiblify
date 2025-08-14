@@ -213,7 +213,7 @@ export default function Home() {
         return true;
       } else if (data.status === "PROCESSING") {
         // Only update progress for significant changes
-        if (data.milestone) {
+        if (data.milestone && typeof data.milestone === "number") {
           setTaskProgress(data.milestone);
         }
         return false;
@@ -531,6 +531,7 @@ export default function Home() {
                   <Text fontSize="sm" mb={2}>
                     Transforming your image into Ghibli style...
                     {apiChoice === "comfy" &&
+                      typeof taskProgress === "number" &&
                       taskProgress > 0 &&
                       ` (${taskProgress}%)`}
                   </Text>
@@ -540,7 +541,9 @@ export default function Home() {
                       : "Estimated time: 30-60 seconds"}
                   </Text>
                   <Text fontSize="sm" color="gray.700" maxW="400px" mx="auto">
-                    Did you know? {ghibliFacts[currentFact]}
+                    Did you know?{" "}
+                    {ghibliFacts[currentFact] ||
+                      "Studio Ghibli creates magical animated films!"}
                   </Text>
                 </Box>
               </Flex>
