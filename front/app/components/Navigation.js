@@ -2,12 +2,19 @@
 
 import { Box, Flex, Button, HStack, Text } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "wagmi";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 import Web3Button from "./Web3Button";
-import { COLORS, GRADIENTS, LAYOUTS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../theme";
+import {
+  COLORS,
+  GRADIENTS,
+  LAYOUTS,
+  PATTERNS,
+  INTERACTIONS,
+  ANIMATION_PRESETS,
+} from "../theme";
 import SparkleEffect from "./ui/SparkleEffect";
 
 const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
@@ -16,7 +23,7 @@ const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
 
 export default function Navigation() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { isConnected } = useUnifiedWallet();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -26,10 +33,7 @@ export default function Navigation() {
   // During SSR and before mounting, render a placeholder layout
   if (!mounted) {
     return (
-      <Box
-        {...LAYOUTS.headerContainer}
-        bgGradient={GRADIENTS.ghibliPrimary}
-      >
+      <Box {...LAYOUTS.headerContainer} bgGradient={GRADIENTS.ghibliPrimary}>
         <Flex {...LAYOUTS.centeredFlex}>
           <HStack spacing={4} />
           <Web3Button />

@@ -255,7 +255,11 @@ async def test_redis():
 
 @web3_router.get("/credits/check")
 async def check_credits(address: str):
-    """Check credits balance for an address."""
+    """
+    DEPRECATED: Check credits balance for an address.
+    Use /api/wallet/credits/{address} instead.
+    """
+    logger.warning(f"[DEPRECATED] /api/web3/credits/check called for {address}. Use /api/wallet/credits/{address} instead.")
     try:
         credits = get_credits(address)
         logger.info(f"[Credits] Checked balance for {address}: {credits}")
@@ -266,7 +270,11 @@ async def check_credits(address: str):
 
 @web3_router.post("/credits/add")
 async def add_credits(address: str, amount: int):
-    """Add credits to an address."""
+    """
+    DEPRECATED: Add credits to an address.
+    Use /api/wallet/credits/add instead.
+    """
+    logger.warning(f"[DEPRECATED] /api/web3/credits/add called for {address}. Use /api/wallet/credits/add instead.")
     try:
         current_credits = get_credits(address)
         set_credits(address, current_credits + amount)
@@ -276,12 +284,16 @@ async def add_credits(address: str, amount: int):
 
 @web3_router.post("/credits/use")
 async def use_credits(address: str, amount: int = 1):
-    """Use credits from an address."""
+    """
+    DEPRECATED: Use credits from an address.
+    Use /api/wallet/credits/use instead.
+    """
+    logger.warning(f"[DEPRECATED] /api/web3/credits/use called for {address}. Use /api/wallet/credits/use instead.")
     try:
         current_credits = get_credits(address)
         if current_credits < amount:
             raise HTTPException(status_code=400, detail="Insufficient credits")
-            
+
         set_credits(address, current_credits - amount)
         return JSONResponse(content={"credits": current_credits - amount})
     except Exception as e:

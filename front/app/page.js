@@ -35,7 +35,6 @@ import {
   RadioGroup,
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
 import { useUnifiedWallet } from "./lib/hooks/useUnifiedWallet";
 import dynamic from "next/dynamic";
 import CreditsDisplay from "./components/CreditsDisplay";

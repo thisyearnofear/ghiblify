@@ -3,11 +3,11 @@
 import { Box, Container, Heading, Text, Button } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount } from "wagmi";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 export default function Success() {
   const router = useRouter();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useUnifiedWallet();
 
   useEffect(() => {
     const fetchSessionToken = async () => {
