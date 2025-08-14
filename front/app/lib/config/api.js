@@ -62,8 +62,63 @@ class ApiClient {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      return data;
+      // Handle both JSON and text responses
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        return data;
+      } else {
+        // Handle plain text responses (like nonce endpoint)
+        const text = await response.text();
+        return text;
+      }
+    } catch (error) {
+      console.error(`[API] Request failed: ${endpoint}`, error);
+      throw error;
+    }
+  }
+
+  async get(endpoint, params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+    return this.request(url, { method: "GET" });
+  }
+
+  async post(endpoint, data = {}) {
+    // Handle both query params and body data
+    if (typeof data === 'string' && data.includes('=')) {
+      // Query string format (for backwards compatibility)
+      const url = `${endpoint}?${data}`;
+      return this.request(url, { method: "POST" });
+    } else {
+      // JSON body format
+      return this.request(endpoint, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    }
+  }
+
+  async put(endpoint, data = {}) {
+    return this.request(endpoint, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, { method: "DELETE" });
+  }
+}
+
+// Export singleton instance
+export const api = new ApiClient(API_URL);
+
+// Export API_URL for backwards compatibility
+export { API_URL };
+
+// Default export for convenience
+export default api;
     } catch (error) {
       console.error(`[API] Request failed: ${endpoint}`, error);
       throw error;
