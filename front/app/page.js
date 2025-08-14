@@ -36,6 +36,7 @@ import {
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
+import { useUnifiedWallet } from "./lib/hooks/useUnifiedWallet";
 import dynamic from "next/dynamic";
 import CreditsDisplay from "./components/CreditsDisplay";
 
@@ -103,7 +104,17 @@ import {
 
 export default function Home() {
   const DEFAULT_PROMPT_STRENGTH = 0.8;
-  const { address } = useAccount();
+
+  // Use unified wallet system instead of fragmented approaches
+  const {
+    address,
+    isConnected,
+    credits,
+    useCredits,
+    refreshCredits,
+    isLoading: walletLoading,
+  } = useUnifiedWallet();
+
   const { isInFrame, isLoading: frameLoading, isReady } = useFarcaster();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImageURL, setSelectedImageURL] = useState("");
@@ -243,27 +254,29 @@ export default function Home() {
     cleanupIntervals();
 
     try {
-      // Deduct a credit FIRST using the new /credits/use endpoint
-      const creditUseRes = await fetch(
-        `${API_URL}/api/web3/credits/use?address=${address}&amount=1`,
-        {
-          ...fetchOptions,
-          method: "POST",
-        }
-      );
+      // Check if wallet is connected
+      if (!isConnected || !address) {
+        setError("Please connect your wallet to continue.");
+        setIsLoading(false);
+        return;
+      }
 
-      if (!creditUseRes.ok) {
-        if (creditUseRes.status === 400) {
+      // Use unified credit system
+      try {
+        await useCredits(1);
+      } catch (creditError) {
+        if (creditError.message.includes("Insufficient credits")) {
           setError(
             "No credits available. Please purchase credits to continue."
           );
           document
             .getElementById("pricing")
             ?.scrollIntoView({ behavior: "smooth" });
-          setIsLoading(false);
-          return;
+        } else {
+          setError("Failed to use credit. Please try again.");
         }
-        throw new Error("Failed to use credit");
+        setIsLoading(false);
+        return;
       }
       setCreditsRefreshKey((prev) => prev + 1);
 
