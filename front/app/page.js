@@ -200,8 +200,9 @@ export default function Home() {
       console.log("Poll response:", data); // Debug log
 
       if (data.status === "COMPLETED") {
-        if (data.result || data.url) {
-          setGeneratedImageURL(data.result || data.url);
+        const imageUrl = data.result || data.url;
+        if (imageUrl && typeof imageUrl === "string") {
+          setGeneratedImageURL(imageUrl);
           setIsLoading(false);
           cleanupIntervals(); // Ensure we clean up all intervals
           return true;
