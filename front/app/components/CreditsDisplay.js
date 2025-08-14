@@ -2,54 +2,38 @@
 
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 /**
- * Simplified Credits Display Component
- * Temporarily using old approach to fix build issues
+ * Unified Credits Display Component
+ * Uses the unified wallet system for consistent display
  */
 export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   const [isMounted, setIsMounted] = useState(false);
-  const [credits, setCredits] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
-  const { address, isConnected } = useAccount();
 
-  // Simple credit fetching (fallback approach)
-  const fetchCredits = useCallback(async () => {
-    if (!address) return;
+  // Use unified wallet system
+  const { isConnected, credits, isLoading, refreshCredits, address, provider } =
+    useUnifiedWallet();
 
-    try {
-      setIsLoading(true);
-      const response = await fetch(
-        `https://api.thisyearnofear.com/api/wallet/credits/${address}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setCredits(data.credits || 0);
-        if (onCreditsUpdate) onCreditsUpdate(data.credits || 0);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch credits:", error);
-    } finally {
-      setIsLoading(false);
+  // Handle credits updates
+  useEffect(() => {
+    if (onCreditsUpdate && typeof onCreditsUpdate === "function") {
+      onCreditsUpdate(credits);
     }
-  }, [address, onCreditsUpdate]);
+  }, [credits, onCreditsUpdate]);
 
-  // Handle component mounting and initial fetch
+  // Handle component mounting
   useEffect(() => {
     setIsMounted(true);
-    if (isConnected && address) {
-      fetchCredits();
-    }
-  }, [isConnected, address, fetchCredits]);
+  }, []);
 
   // Handle force refresh
   useEffect(() => {
     if (forceRefresh && isConnected) {
-      fetchCredits();
+      refreshCredits();
     }
-  }, [forceRefresh, isConnected, fetchCredits]);
+  }, [forceRefresh, isConnected, refreshCredits]);
 
   const handleRefresh = useCallback(async () => {
     if (!isConnected) {
@@ -63,7 +47,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       return;
     }
 
-    await fetchCredits();
+    await refreshCredits();
     toast({
       title: "Credits Refreshed",
       description: `Current balance: ${credits} credits`,
@@ -71,7 +55,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       duration: 2000,
       isClosable: true,
     });
-  }, [isConnected, fetchCredits, credits, toast]);
+  }, [isConnected, refreshCredits, credits, toast]);
 
   const scrollToPricing = () => {
     const pricingElement = document.getElementById("pricing");
@@ -118,11 +102,13 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
             <Text fontSize="lg" fontWeight="bold" color="gray.800">
               Credits: {isLoading ? "..." : credits}
             </Text>
-            <Tooltip label="Connected via RainbowKit">
-              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                RainbowKit
-              </Text>
-            </Tooltip>
+            {provider && (
+              <Tooltip label={`Connected via ${provider}`}>
+                <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                  {provider}
+                </Text>
+              </Tooltip>
+            )}
           </HStack>
           {address && (
             <Text fontSize="xs" color="gray.500" fontFamily="mono">
