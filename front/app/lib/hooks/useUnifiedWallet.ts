@@ -39,6 +39,7 @@ export interface UseUnifiedWalletReturn {
   refreshCredits: () => Promise<void>;
   spendCredits: (amount?: number) => Promise<number>;
   addCredits: (amount: number) => Promise<number>;
+  refundCredits: (amount: number) => Promise<number>;
   
   // Utilities
   clearError: () => void;
