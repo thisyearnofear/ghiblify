@@ -28,6 +28,7 @@ import {
 } from "../contracts/ghiblifyPayments";
 import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
@@ -68,6 +69,13 @@ export default function Pricing({ onPurchaseComplete }) {
   const { writeContractAsync: purchaseAsync } = useWriteContract();
   const publicClient = usePublicClient();
 
+  // Use unified wallet system for credit management
+  const {
+    address: unifiedAddress,
+    isConnected: unifiedConnected,
+    refreshCredits,
+  } = useUnifiedWallet();
+
   // Check for Base authentication
   const [baseAuth, setBaseAuth] = useState(null);
 
@@ -87,9 +95,11 @@ export default function Pricing({ onPurchaseComplete }) {
     }
   }, []);
 
-  // Determine if user is connected (either via Wagmi or Base auth)
-  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
-  const userAddress = address || (baseAuth && baseAuth.address);
+  // Determine if user is connected (prioritize unified wallet, fallback to legacy)
+  const userConnected =
+    unifiedConnected || isConnected || (baseAuth && baseAuth.authenticated);
+  const userAddress =
+    unifiedAddress || address || (baseAuth && baseAuth.address);
 
   // Watch for contract events
   useWatchContractEvent({
@@ -138,6 +148,13 @@ export default function Pricing({ onPurchaseComplete }) {
       const data = await response.json();
 
       if (data.status === "processed") {
+        // Refresh credits in unified wallet system
+        try {
+          await refreshCredits();
+        } catch (error) {
+          console.error("Error refreshing credits:", error);
+        }
+
         toast({
           title: "Payment Successful",
           description: "Your credits have been added to your account!",
@@ -167,8 +184,17 @@ export default function Pricing({ onPurchaseComplete }) {
     }
   };
 
-  const handleSuccess = (txHash) => {
+  const handleSuccess = async (txHash) => {
     setIsCeloProcessing(false);
+
+    // Immediately try to refresh credits
+    try {
+      await refreshCredits();
+    } catch (error) {
+      console.error("Error refreshing credits immediately:", error);
+    }
+
+    // Also check payment status for confirmation
     checkCeloPaymentStatus(txHash);
   };
 

@@ -7,6 +7,7 @@ import {
   Text,
   Button,
   VStack,
+  HStack,
   Table,
   Thead,
   Tbody,
@@ -20,6 +21,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
+import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
@@ -54,6 +56,14 @@ export default function Account() {
   const toast = useToast();
   const { address, isConnected } = useAccount();
 
+  // Use unified wallet system for consistent state
+  const {
+    address: unifiedAddress,
+    isConnected: unifiedConnected,
+    credits: unifiedCredits,
+    provider: unifiedProvider,
+  } = useUnifiedWallet();
+
   // Check for Base authentication
   const [baseAuth, setBaseAuth] = useState(null);
 
@@ -73,9 +83,11 @@ export default function Account() {
     }
   }, []);
 
-  // Determine if user is connected (either via Wagmi or Base auth)
-  const userConnected = isConnected || (baseAuth && baseAuth.authenticated);
-  const userAddress = address || (baseAuth && baseAuth.address);
+  // Determine if user is connected (prioritize unified wallet, fallback to legacy)
+  const userConnected =
+    unifiedConnected || isConnected || (baseAuth && baseAuth.authenticated);
+  const userAddress =
+    unifiedAddress || address || (baseAuth && baseAuth.address);
 
   const fetchAllPurchaseHistory = useCallback(async () => {
     setLoading(true);
@@ -222,6 +234,42 @@ export default function Account() {
             Manage your credits and view purchase history
           </Text>
         </Box>
+
+        {/* Current Credits Display */}
+        {userConnected && (
+          <Box
+            p={6}
+            borderWidth={1}
+            borderRadius="lg"
+            borderColor={unifiedCredits > 0 ? "green.200" : "orange.200"}
+            bg={unifiedCredits > 0 ? "green.50" : "orange.50"}
+          >
+            <Heading size="md" mb={4}>
+              Current Balance
+            </Heading>
+            <HStack justify="space-between" align="center">
+              <Box>
+                <Text fontSize="2xl" fontWeight="bold" color="gray.800">
+                  {unifiedCredits || 0} Credits
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  Connected via {unifiedProvider || "wallet"}
+                </Text>
+                <Text fontSize="xs" color="gray.500" fontFamily="mono">
+                  {userAddress?.slice(0, 6)}...{userAddress?.slice(-4)}
+                </Text>
+              </Box>
+              <Button
+                size="sm"
+                colorScheme="blue"
+                variant="outline"
+                onClick={() => router.push("/#pricing")}
+              >
+                Buy More Credits
+              </Button>
+            </HStack>
+          </Box>
+        )}
 
         <Box>
           <Button colorScheme="blue" onClick={openCustomerPortal} mb={8}>
