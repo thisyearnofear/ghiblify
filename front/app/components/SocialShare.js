@@ -20,23 +20,16 @@ import {
 } from "react-icons/fa";
 import { SiLens, SiFarcaster } from "react-icons/si";
 import { useState, useEffect } from "react";
-import {
-  uploadImageToGrove,
-  needsExternalStorage,
-} from "../utils/groveStorage";
+import { uploadImageToGrove } from "../utils/groveStorage";
 
 export default function SocialShare({
   imageUrl,
   title = "Ghiblified via https://ghiblify-it.vercel.app 🌱",
 }) {
-  // Safety check: ensure imageUrl is a string
+  // Normalize imageUrl to a string to avoid conditional hooks
   const safeImageUrl = typeof imageUrl === "string" ? imageUrl : "";
 
-  // Early return if no valid image URL
-  if (!safeImageUrl) {
-    return null;
-  }
-
+  // Hooks must be declared unconditionally and in the same order
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(safeImageUrl);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,66 +45,63 @@ export default function SocialShare({
       setIsOptimized(false);
       setSharingUrl(safeImageUrl);
 
-      // Always try to upload to Grove for social sharing
-      // Data URLs won't work on social platforms, and Google Storage URLs may expire
-      if (safeImageUrl) {
-        setIsUploading(true);
-        try {
-          const result = await uploadImageToGrove(safeImageUrl);
-          
-          // Check if component is still mounted before updating state
-          if (!mounted) return;
+      // If no URL, nothing to do
+      if (!safeImageUrl) return;
 
-          if (result && result.success && result.gatewayUrl) {
-            setSharingUrl(result.gatewayUrl);
-            setIsOptimized(true);
+      // Always try to upload to Grove for social sharing
+      setIsUploading(true);
+      try {
+        const result = await uploadImageToGrove(safeImageUrl);
+
+        if (!mounted) return;
+
+        if (result && result.success && result.gatewayUrl) {
+          setSharingUrl(result.gatewayUrl);
+          setIsOptimized(true);
+          toast({
+            title: "Image optimized for sharing",
+            description:
+              "Using Grove storage for better social media compatibility",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+        } else {
+          // If Grove upload fails, fallback to original URL
+          if (safeImageUrl.startsWith("data:")) {
             toast({
-              title: "Image optimized for sharing",
+              title: "Sharing may not work properly",
               description:
-                "Using Grove storage for better social media compatibility",
-              status: "success",
-              duration: 3000,
+                "Unable to optimize image for sharing. Some platforms may not display the image.",
+              status: "warning",
+              duration: 5000,
               isClosable: true,
             });
           } else {
-            // If Grove upload fails, fallback to original URL
-            // For data URLs, we can't share them directly, so we'll need to warn the user
-            if (safeImageUrl.startsWith("data:")) {
-              toast({
-                title: "Sharing may not work properly",
-                description:
-                  "Unable to optimize image for sharing. Some platforms may not display the image.",
-                status: "warning",
-                duration: 5000,
-                isClosable: true,
-              });
-            } else {
-              setSharingUrl(safeImageUrl);
-              toast({
-                title: "Using original image URL",
-                description:
-                  "Grove optimization failed, but sharing should still work",
-                status: "info",
-                duration: 3000,
-                isClosable: true,
-              });
-            }
-          }
-        } catch (error) {
-          if (mounted) {
             setSharingUrl(safeImageUrl);
+            toast({
+              title: "Using original image URL",
+              description:
+                "Grove optimization failed, but sharing should still work",
+              status: "info",
+              duration: 3000,
+              isClosable: true,
+            });
           }
-        } finally {
-          if (mounted) {
-            setIsUploading(false);
-          }
+        }
+      } catch (error) {
+        if (mounted) {
+          setSharingUrl(safeImageUrl);
+        }
+      } finally {
+        if (mounted) {
+          setIsUploading(false);
         }
       }
     };
 
     prepareForSharing();
 
-    // Cleanup function to prevent state updates on unmounted component
     return () => {
       mounted = false;
     };
@@ -120,7 +110,6 @@ export default function SocialShare({
   const encodedTitle = encodeURIComponent(title);
   const encodedUrl = encodeURIComponent(sharingUrl);
 
-  // Social media share URLs
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedTitle}`;
   const farcasterUrl = `https://warpcast.com/~/compose?text=${encodedTitle}&embeds[]=${encodedUrl}`;
@@ -140,8 +129,9 @@ export default function SocialShare({
   };
 
   const handleDownload = () => {
+    if (!safeImageUrl) return;
     const link = document.createElement("a");
-    link.href = imageUrl; // Always download the original image
+    link.href = safeImageUrl; // Always download the original image
     link.download = "ghiblified-image.png";
     document.body.appendChild(link);
     link.click();
@@ -156,31 +146,12 @@ export default function SocialShare({
     });
   };
 
-  // If still uploading to Grove, show a loading spinner
-  if (isUploading) {
-    return (
-      <HStack spacing={1} justify="center" mt={1}>
-        <Spinner size="sm" color="blue.500" mr={2} />
-        <Text fontSize="sm" color="gray.500">
-          Optimizing for sharing...
-        </Text>
-        <Tooltip label="Download image" hasArrow size="sm">
-          <IconButton
-            aria-label="Download image"
-            icon={<FaDownload />}
-            colorScheme="blue"
-            onClick={handleDownload}
-            size="sm"
-            variant="ghost"
-          />
-        </Tooltip>
-      </HStack>
-    );
-  }
+  // Render consistently; if no URL, render disabled controls
+  const isDisabled = !safeImageUrl;
 
   return (
     <Box>
-      {isOptimized && (
+      {isOptimized && !!safeImageUrl && (
         <HStack justify="center" spacing={1} mb={1}>
           <Icon as={FaCheck} color="green.500" boxSize={3} />
           <Text fontSize="xs" color="green.500">
@@ -188,7 +159,17 @@ export default function SocialShare({
           </Text>
         </HStack>
       )}
+
       <HStack spacing={1} justify="center" mt={1}>
+        {isUploading && (
+          <>
+            <Spinner size="sm" color="blue.500" mr={2} />
+            <Text fontSize="sm" color="gray.500">
+              Optimizing for sharing...
+            </Text>
+          </>
+        )}
+
         <Tooltip label="Share on Twitter" hasArrow size="sm">
           <IconButton
             aria-label="Share on Twitter"
@@ -197,6 +178,7 @@ export default function SocialShare({
             onClick={() => window.open(twitterUrl, "_blank")}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
 
@@ -208,6 +190,7 @@ export default function SocialShare({
             onClick={() => window.open(facebookUrl, "_blank")}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
 
@@ -219,6 +202,7 @@ export default function SocialShare({
             onClick={() => window.open(farcasterUrl, "_blank")}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
 
@@ -230,6 +214,7 @@ export default function SocialShare({
             onClick={() => window.open(lensUrl, "_blank")}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
 
@@ -241,6 +226,7 @@ export default function SocialShare({
             onClick={handleCopyLink}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
 
@@ -252,6 +238,7 @@ export default function SocialShare({
             onClick={handleDownload}
             size="sm"
             variant="ghost"
+            isDisabled={isDisabled}
           />
         </Tooltip>
       </HStack>
