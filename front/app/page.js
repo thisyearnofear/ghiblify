@@ -211,13 +211,13 @@ export default function Home() {
         });
 
         if (imageUrl && typeof imageUrl === "string") {
-          console.log("✅ Setting generated image URL");
-          setGeneratedImageURL(imageUrl);
-          setIsLoading(false);
-          cleanupIntervals(); // Ensure we clean up all intervals
+          // Use setTimeout to prevent React Error #31 by ensuring state updates happen in separate render cycles
+          setTimeout(() => {
+            setGeneratedImageURL(imageUrl);
+            setIsLoading(false);
+            cleanupIntervals();
+          }, 0);
           return true;
-        } else {
-          console.error("❌ Invalid image URL:", imageUrl);
         }
       } else if (data.status === "ERROR") {
         const errorMessage =
@@ -600,14 +600,10 @@ export default function Home() {
                     height="400px"
                   />
                   <Box mt={2}>
-                    <Text fontSize="sm" color="green.500" mb={2}>
-                      ✅ Image generated successfully!
-                    </Text>
-                    {/* Temporarily disable SocialShare to debug React Error #31 */}
-                    {/* <SocialShare
+                    <SocialShare
                       imageUrl={generatedImageURL}
                       title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                    /> */}
+                    />
                   </Box>
                 </Box>
               ) : (
