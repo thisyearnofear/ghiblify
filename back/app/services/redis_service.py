@@ -331,7 +331,59 @@ class ModernRedisService:
         except Exception as e:
             logger.error(f"[Redis ERROR] Deleting key {key}: {str(e)}")
             return self._memory_general.pop(key, None) is not None
-    
+
+    def lrange(self, key: str, start: int, end: int) -> List[str]:
+        """Get a range of elements from a list"""
+        if not self.available:
+            list_data = self._memory_general.get(key, [])
+            if end == -1:
+                return list_data[start:]
+            return list_data[start:end+1]
+
+        try:
+            return self.client.lrange(key, start, end) or []
+        except Exception as e:
+            logger.error(f"[Redis ERROR] Getting list range {key}: {str(e)}")
+            list_data = self._memory_general.get(key, [])
+            if end == -1:
+                return list_data[start:]
+            return list_data[start:end+1]
+
+    def lpush(self, key: str, *values) -> int:
+        """Push values to the left of a list"""
+        if not self.available:
+            if key not in self._memory_general:
+                self._memory_general[key] = []
+            for value in reversed(values):
+                self._memory_general[key].insert(0, value)
+            return len(self._memory_general[key])
+
+        try:
+            return self.client.lpush(key, *values)
+        except Exception as e:
+            logger.error(f"[Redis ERROR] Pushing to list {key}: {str(e)}")
+            if key not in self._memory_general:
+                self._memory_general[key] = []
+            for value in reversed(values):
+                self._memory_general[key].insert(0, value)
+            return len(self._memory_general[key])
+
+    def ltrim(self, key: str, start: int, end: int) -> bool:
+        """Trim a list to the specified range"""
+        if not self.available:
+            if key in self._memory_general:
+                self._memory_general[key] = self._memory_general[key][start:end+1]
+            return True
+
+        try:
+            self.client.ltrim(key, start, end)
+            return True
+        except Exception as e:
+            logger.error(f"[Redis ERROR] Trimming list {key}: {str(e)}")
+            if key in self._memory_general:
+                self._memory_general[key] = self._memory_general[key][start:end+1]
+            return False
+
     @contextmanager
     def pipeline(self):
         """Get a Redis pipeline with fallback"""

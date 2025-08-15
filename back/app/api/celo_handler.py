@@ -109,7 +109,7 @@ async def check_payment_status(tx_hash: str):
     try:
         # Check if transaction was already processed
         processed_key = f'processed_tx:42220:{tx_hash}'
-        if redis_client.get(processed_key):
+        if redis_service.get(processed_key):
             logger.info(f"[CELO] Transaction {tx_hash} already processed")
             return PaymentStatus(status="processed")
 
@@ -148,7 +148,7 @@ async def check_payment_status(tx_hash: str):
             credits_to_add = PACKAGES[mapped_tier]['credits']
 
             # Use Redis transaction to ensure atomicity
-            with redis_client.pipeline() as pipe:
+            with redis_service.pipeline() as pipe:
                 while True:
                     try:
                         # Watch both keys
@@ -156,7 +156,7 @@ async def check_payment_status(tx_hash: str):
                         pipe.watch(credit_key, processed_key)
 
                         # Check if already processed
-                        if redis_client.get(processed_key):
+                        if redis_service.get(processed_key):
                             logger.info(f"[CELO] Transaction {tx_hash} already processed")
                             return PaymentStatus(status="processed")
 
@@ -189,9 +189,12 @@ async def check_payment_status(tx_hash: str):
                         logger.info(f"[CELO] Successfully credited {credits_to_add} to {buyer}")
                         break
 
-                    except redis_client.WatchError:
-                        logger.warning(f"[CELO] Concurrent modification detected for {buyer}, retrying...")
-                        continue
+                    except Exception as watch_error:
+                        if "WatchError" in str(type(watch_error)):
+                            logger.warning(f"[CELO] Concurrent modification detected for {buyer}, retrying...")
+                            continue
+                        else:
+                            raise watch_error
                     except Exception as e:
                         logger.error(f"[CELO] Redis error: {str(e)}")
                         return PaymentStatus(status="error", reason="redis_error")
@@ -212,7 +215,7 @@ async def get_purchase_history(address: str):
     try:
         # Get history from Redis
         history_key = f'celo_history:{address.lower()}'
-        history = redis_client.lrange(history_key, 0, -1)
+        history = redis_service.lrange(history_key, 0, -1) or []
         
         # Parse the history
         purchases = []
@@ -286,13 +289,13 @@ async def process_pending_events():
                 credits_to_add = PACKAGES[mapped_tier]['credits']
 
                 # Use Redis transaction to ensure atomicity
-                with redis_client.pipeline() as pipe:
+                with redis_service.pipeline() as pipe:
                     while True:
                         try:
                             credit_key = f'credits:{buyer.lower()}'
                             pipe.watch(credit_key, processed_key)
 
-                            if redis_client.get(processed_key):
+                            if redis_service.get(processed_key):
                                 break
 
                             current_credits = int(pipe.get(credit_key) or 0)
@@ -319,8 +322,11 @@ async def process_pending_events():
                             logger.info(f"[CELO] Processed event: credited {credits_to_add} to {buyer}")
                             break
 
-                        except redis_client.WatchError:
-                            continue
+                        except Exception as watch_error:
+                            if "WatchError" in str(type(watch_error)):
+                                continue
+                            else:
+                                raise watch_error
                         except Exception as e:
                             logger.error(f"[CELO] Error processing transaction {tx_hash}: {str(e)}")
                             break
