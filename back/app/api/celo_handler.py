@@ -2,7 +2,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from web3 import Web3
-from web3.auto import w3
 import os
 from dotenv import load_dotenv
 import logging
