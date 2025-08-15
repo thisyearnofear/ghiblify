@@ -220,9 +220,9 @@ SUCCESS_URL=http://localhost:3000/success
 CANCEL_URL=http://localhost:3000/cancel
 
 # CELO Configuration (Optional - for Web3 payments)
-CELO_RPC_URL=https://celo-alfajores.g.alchemy.com/v2/your_key
-CELO_CONTRACT_ADDRESS=0x060c876F8C86D77A4A5E6A7AAF6f20bf5B3ce578
-CELO_CHAIN_ID=44787
+CELO_RPC_URL=https://celo-mainnet.g.alchemy.com/v2/your_alchemy_key
+CELO_CONTRACT_ADDRESS=0xC1a6b48d1898815bbD82C980f44f6f5688C2A9e4
+CELO_CHAIN_ID=42220
 CELO_CONFIRMATION_BLOCKS=2
 
 # Base Pay Configuration (Optional - for Base Pay payments)
