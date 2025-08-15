@@ -331,6 +331,14 @@ async def check_comfyui_status(task_id: str):
                             except Exception as e:
                                 logger.error(f"Error downloading image: {str(e)}")
                                 await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
+                        else:
+                            # ComfyUI completed but returned no output URLs
+                            logger.error(f"ComfyUI task {task_id} completed but returned no output URLs")
+                            await update_task_status(
+                                task_id,
+                                "ERROR",
+                                error="ComfyUI processing completed but no output was generated. This may be due to missing API keys or workflow configuration issues."
+                            )
                     elif workflow_data.get("state") == "ERROR":
                         await update_task_status(task_id, "ERROR", error=workflow_data.get("errorMsg", "Task failed"))
     except Exception as e:
