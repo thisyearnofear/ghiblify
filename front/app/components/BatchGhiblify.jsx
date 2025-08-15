@@ -167,13 +167,22 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
               const pollData = await pollRes.json();
               if (pollData.status === "COMPLETED") {
                 const raw = pollData.result ?? pollData.url ?? null;
-                const imageUrl = typeof raw === "string"
-                  ? raw
-                  : raw && typeof raw === "object" && typeof raw.url === "string"
-                  ? raw.url
-                  : null;
+
+                let imageUrl = null;
+                if (typeof raw === "string" && (raw.startsWith("data:image/") || raw.startsWith("http"))) {
+                  imageUrl = raw;
+                } else if (raw && typeof raw === "object") {
+                  if (typeof raw.url === "string" && (raw.url.startsWith("data:image/") || raw.url.startsWith("http"))) {
+                    imageUrl = raw.url;
+                  } else if (typeof raw.result === "string" && (raw.result.startsWith("data:image/") || raw.result.startsWith("http"))) {
+                    imageUrl = raw.result;
+                  }
+                }
+
                 if (imageUrl) {
                   return imageUrl;
+                } else {
+                  throw new Error("Invalid image response format");
                 }
               } else if (pollData.status === "ERROR") {
                 throw new Error(pollData.error || "Error processing image");

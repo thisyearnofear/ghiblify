@@ -92,6 +92,7 @@ const MobileFileUpload = dynamic(
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
+import ImageErrorBoundary from "./components/ImageErrorBoundary";
 import {
   Slider,
   SliderTrack,
@@ -190,11 +191,29 @@ export default function Home() {
   // Helper to coerce various result shapes to a string URL
   const ensureStringUrl = (val) => {
     if (!val) return null;
-    if (typeof val === "string") return val;
+
+    // If it's already a string, validate it's a proper data URL or HTTP URL
+    if (typeof val === "string") {
+      if (val.startsWith("data:image/") || val.startsWith("http")) {
+        return val;
+      }
+      return null;
+    }
+
     if (typeof val === "object") {
       // common shapes: { url }, { result: string }, arrays
-      if (typeof val.url === "string") return val.url;
-      if (typeof val.result === "string") return val.result;
+      if (
+        typeof val.url === "string" &&
+        (val.url.startsWith("data:image/") || val.url.startsWith("http"))
+      ) {
+        return val.url;
+      }
+      if (
+        typeof val.result === "string" &&
+        (val.result.startsWith("data:image/") || val.result.startsWith("http"))
+      ) {
+        return val.result;
+      }
       if (Array.isArray(val)) {
         // return first string-like
         for (const item of val) {
@@ -221,7 +240,7 @@ export default function Home() {
       if (data.status === "COMPLETED") {
         const imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
 
-        if (typeof imageUrl === "string") {
+        if (typeof imageUrl === "string" && imageUrl.length > 0) {
           // Defer state update to next frame to avoid reconciliation edge cases
           if (typeof window !== "undefined" && window.requestAnimationFrame) {
             window.requestAnimationFrame(() => {
@@ -236,6 +255,16 @@ export default function Home() {
               cleanupIntervals();
             }, 0);
           }
+          return true;
+        } else {
+          // Handle case where we can't extract a valid image URL
+          console.error(
+            "Failed to extract valid image URL from ComfyUI response:",
+            data
+          );
+          setError("Failed to process image: Invalid response format");
+          setIsLoading(false);
+          cleanupIntervals();
           return true;
         }
       } else if (data.status === "ERROR") {
@@ -608,21 +637,29 @@ export default function Home() {
           ) : (
             <>
               {selectedImageURL && generatedImageURL ? (
-                <Box w="100%">
-                  {typeof selectedImageURL === "string" && typeof generatedImageURL === "string" ? (
-                    <CompareSlider
-                      originalUrl={selectedImageURL}
-                      resultUrl={generatedImageURL}
-                      height="400px"
-                    />
-                  ) : null}
-                  <Box mt={2}>
-                    <SocialShare
-                      imageUrl={generatedImageURL}
-                      title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                    />
+                <ImageErrorBoundary
+                  onRetry={() => {
+                    setGeneratedImageURL("");
+                    setSelectedImageURL("");
+                  }}
+                >
+                  <Box w="100%">
+                    {typeof selectedImageURL === "string" &&
+                    typeof generatedImageURL === "string" ? (
+                      <CompareSlider
+                        originalUrl={selectedImageURL}
+                        resultUrl={generatedImageURL}
+                        height="400px"
+                      />
+                    ) : null}
+                    <Box mt={2}>
+                      <SocialShare
+                        imageUrl={generatedImageURL}
+                        title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
+                      />
+                    </Box>
                   </Box>
-                </Box>
+                </ImageErrorBoundary>
               ) : (
                 <>
                   {selectedImageURL && (
@@ -644,29 +681,33 @@ export default function Home() {
                     </Box>
                   )}
                   {generatedImageURL && (
-                    <Box
-                      flex={{ base: "1", md: "1" }}
-                      maxW={{ base: "100%", md: "50%" }}
+                    <ImageErrorBoundary
+                      onRetry={() => setGeneratedImageURL("")}
                     >
-                      <Text textAlign="center" mb={2}>
-                        Ghibli Style
-                      </Text>
-                      <Image
-                        src={generatedImageURL}
-                        alt="Generated Ghibli-style image"
-                        boxShadow="lg"
-                        maxH="400px"
-                        width="100%"
-                        objectFit="contain"
-                      />
-                      <Text fontSize="sm" color="green.500" mt={2}>
-                        ✅ Image generated successfully!
-                      </Text>
-                      <SocialShare
-                        imageUrl={generatedImageURL}
-                        title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                      />
-                    </Box>
+                      <Box
+                        flex={{ base: "1", md: "1" }}
+                        maxW={{ base: "100%", md: "50%" }}
+                      >
+                        <Text textAlign="center" mb={2}>
+                          Ghibli Style
+                        </Text>
+                        <Image
+                          src={generatedImageURL}
+                          alt="Generated Ghibli-style image"
+                          boxShadow="lg"
+                          maxH="400px"
+                          width="100%"
+                          objectFit="contain"
+                        />
+                        <Text fontSize="sm" color="green.500" mt={2}>
+                          ✅ Image generated successfully!
+                        </Text>
+                        <SocialShare
+                          imageUrl={generatedImageURL}
+                          title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
+                        />
+                      </Box>
+                    </ImageErrorBoundary>
                   )}
                   {error && (
                     <Text color="red.500" mt={4}>
