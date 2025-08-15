@@ -60,7 +60,7 @@ async def update_task_status(task_id: str, status: str, **kwargs):
     logger.info(f"Task {task_id} status updated to {status}")
 
 async def upload_to_imgbb(image_bytes: bytes) -> str:
-    """Upload image to ImgBB and return the URL"""
+    """Upload image to ImgBB and return the URL, with a short retry to avoid first-call failures"""
     logger.info("Uploading image to ImgBB...")
 
     if not IMGBB_API_KEY:
@@ -79,37 +79,51 @@ async def upload_to_imgbb(image_bytes: bytes) -> str:
         'image': image_base64,
     }
     
-    try:
-        # Use httpx with timeout settings
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, data=payload)
-            response.raise_for_status()
-            
-            data = response.json()
-            if data.get('success'):
-                image_url = data['data']['url']
-                logger.info(f"Image uploaded successfully to ImgBB: {image_url}")
-                return image_url
-            else:
-                error_msg = data.get('error', {}).get('message', 'Unknown error')
-                logger.error(f"ImgBB upload failed: {error_msg}")
-                raise HTTPException(status_code=500, detail=f"Failed to upload image to ImgBB: {error_msg}")
+    # Simple retry policy: try up to 2 times on transient errors
+    attempts = 0
+    last_error = None
+    while attempts < 2:
+        attempts += 1
+        try:
+            # Use httpx with timeout settings
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, data=payload)
+                response.raise_for_status()
                 
-    except httpx.TimeoutException as e:
-        logger.error(f"Timeout uploading to ImgBB: {str(e)}")
-        raise HTTPException(status_code=504, detail="Timeout uploading to ImgBB. Please try again.")
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP error uploading to ImgBB: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error uploading to ImgBB: {str(e)}")
-    except Exception as e:
-        logger.error(f"Unexpected error uploading to ImgBB: {str(e)}")
-        raise HTTPException(status_code=500, detail="Unexpected error during image upload")
+                data = response.json()
+                if data.get('success'):
+                    image_url = data['data']['url']
+                    logger.info(f"Image uploaded successfully to ImgBB: {image_url}")
+                    return image_url
+                else:
+                    error_msg = data.get('error', {}).get('message', 'Unknown error')
+                    logger.error(f"ImgBB upload failed: {error_msg}")
+                    last_error = HTTPException(status_code=500, detail=f"Failed to upload image to ImgBB: {error_msg}")
+        except (httpx.TimeoutException, httpx.ReadTimeout) as e:
+            logger.error(f"Timeout uploading to ImgBB (attempt {attempts}): {str(e)}")
+            last_error = HTTPException(status_code=504, detail="Timeout uploading to ImgBB. Please try again.")
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error uploading to ImgBB (attempt {attempts}): {str(e)}")
+            last_error = HTTPException(status_code=500, detail=f"Error uploading to ImgBB: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error uploading to ImgBB (attempt {attempts}): {str(e)}")
+            last_error = HTTPException(status_code=500, detail="Unexpected error during image upload")
+        
+        if attempts < 2:
+            await asyncio.sleep(1.0)
+    
+    # If we reach here, all attempts failed
+    raise last_error or HTTPException(status_code=500, detail="Failed to upload image to ImgBB")
 
-async def handle_comfyui(image_bytes: bytes):
+async def handle_comfyui(image_bytes: bytes, webhook_url: str = None):
     logger.info("Starting ComfyUI workflow")
     
     # First upload to ImgBB
     image_url = await upload_to_imgbb(image_bytes)
+    
+    # Determine webhook URL (prefer request-derived value)
+    final_webhook = webhook_url or WEBHOOK_URL
+    logger.info(f"Using webhook URL: {final_webhook}")
     
     # API endpoints
     create_task_endpoint = "https://api.comfyonline.app/api/run_workflow"
@@ -120,14 +134,13 @@ async def handle_comfyui(image_bytes: bytes):
     }
     
     # Create the task payload with the ImgBB URL and webhook
-    logger.info(f"Using webhook URL: {WEBHOOK_URL}")
     task_payload = {
         "workflow_id": "0f9f99b9-69e7-4651-a37f-7d997b159ce6",
         "input": {
             "LoadImage_image_17": image_url,
             "CLIPTextEncode_text_7": ""
         },
-        "webhook": WEBHOOK_URL
+        "webhook": final_webhook
     }
     
     logger.info(f"Task payload: {task_payload}")
@@ -398,7 +411,7 @@ async def get_task_status(task_id: str):
     })
 
 @comfyui_router.post("/")
-async def process_with_comfyui(file: UploadFile = File("test"), address: str = None):
+async def process_with_comfyui(file: UploadFile = File("test"), address: str = None, request: Request = None):
     # Check if ComfyUI is properly configured
     if not COMFYUI_ENABLED:
         raise HTTPException(
@@ -423,8 +436,23 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         image_bytes = image_bytes_io.getvalue()
         base64_encoded = base64.b64encode(image_bytes).decode("utf-8")
 
+        # Build a webhook URL from the incoming request to avoid first-call base URL issues
+        derived_base = None
+        if request is not None:
+            # Prefer the Origin header for correct public URL in edge/proxy setups
+            origin = request.headers.get("origin") or request.headers.get("Origin")
+            if origin and origin.startswith("http"):
+                derived_base = origin.replace("http://", "https://") if origin.startswith("http://") else origin
+            else:
+                # Fallback to request.url to construct base
+                try:
+                    derived_base = str(request.url).split("/api/")[0]
+                except Exception:
+                    derived_base = None
+        webhook_override = f"{derived_base}/api/comfyui/webhook" if derived_base else None
+
         logger.info("Processing image with ComfyUI...")
-        output = await handle_comfyui(image_bytes)
+        output = await handle_comfyui(image_bytes, webhook_url=webhook_override)
         
         return JSONResponse(
             content={
