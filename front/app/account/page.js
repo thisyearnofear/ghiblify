@@ -99,7 +99,7 @@ export default function Account() {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "X-Web3-Address": userAddress,
+            "X-Wallet-Address": userAddress,
           },
         }
       );
@@ -188,7 +188,7 @@ export default function Account() {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "X-Web3-Address": userAddress,
+            "X-Wallet-Address": userAddress,
           },
         }
       );

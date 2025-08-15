@@ -63,24 +63,34 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
 
   // Auto-connect when external wallets connect with proper cleanup
   useEffect(() => {
+    let isConnecting = false;
+
     const autoConnect = async () => {
+      // Prevent concurrent connection attempts
+      if (isConnecting || connection.isLoading) return;
+
       try {
         // Priority 1: RainbowKit connection (highest priority)
         if (isRainbowKitConnected && rainbowKitAddress) {
-          // If currently connected to a different provider or address, disconnect first
+          // If already connected to this exact RainbowKit address, do nothing
           if (connection.isConnected &&
-              (connection.user?.provider !== 'rainbowkit' ||
-               connection.user?.address !== rainbowKitAddress.toLowerCase())) {
-            console.log('[Unified Wallet] Switching to RainbowKit, disconnecting current wallet');
-            unifiedWalletService.disconnect();
+              connection.user?.provider === 'rainbowkit' &&
+              connection.user?.address === rainbowKitAddress.toLowerCase()) {
+            return;
           }
 
-          // Only connect if not already connected to this RainbowKit address
-          if (!connection.isConnected ||
-              connection.user?.address !== rainbowKitAddress.toLowerCase() ||
-              connection.user?.provider !== 'rainbowkit') {
-            await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
+          isConnecting = true;
+
+          // If currently connected to a different provider or address, disconnect first
+          if (connection.isConnected) {
+            console.log('[Unified Wallet] Switching to RainbowKit, disconnecting current wallet');
+            unifiedWalletService.disconnect();
+            // Small delay to allow state to settle
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
+
+          await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
+          isConnecting = false;
           return;
         }
 
@@ -93,20 +103,25 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
 
         // Priority 2: Base Account connection (only if RainbowKit not connected)
         if (!isRainbowKitConnected && isBaseAuthenticated && baseUser?.address) {
-          // If currently connected to a different provider or address, disconnect first
+          // If already connected to this exact Base address, do nothing
           if (connection.isConnected &&
-              (connection.user?.provider !== 'base' ||
-               connection.user?.address !== baseUser.address.toLowerCase())) {
-            console.log('[Unified Wallet] Switching to Base Account, disconnecting current wallet');
-            unifiedWalletService.disconnect();
+              connection.user?.provider === 'base' &&
+              connection.user?.address === baseUser.address.toLowerCase()) {
+            return;
           }
 
-          // Only connect if not already connected to this Base address
-          if (!connection.isConnected ||
-              connection.user?.address !== baseUser.address.toLowerCase() ||
-              connection.user?.provider !== 'base') {
-            await unifiedWalletService.connectBase(baseUser.address);
+          isConnecting = true;
+
+          // If currently connected to a different provider or address, disconnect first
+          if (connection.isConnected) {
+            console.log('[Unified Wallet] Switching to Base Account, disconnecting current wallet');
+            unifiedWalletService.disconnect();
+            // Small delay to allow state to settle
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
+
+          await unifiedWalletService.connectBase(baseUser.address);
+          isConnecting = false;
           return;
         }
 
@@ -128,10 +143,17 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
         }
       } catch (error) {
         console.warn('Auto-connect failed:', error);
+        isConnecting = false;
       }
     };
 
-    autoConnect();
+    // Use a small delay to prevent rapid re-execution
+    const timeoutId = setTimeout(autoConnect, 50);
+
+    return () => {
+      clearTimeout(timeoutId);
+      isConnecting = false;
+    };
   }, [
     isRainbowKitConnected,
     rainbowKitAddress,

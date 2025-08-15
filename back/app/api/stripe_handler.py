@@ -23,9 +23,9 @@ stripe_router = APIRouter()
 async def create_portal_session(request: Request):
     """Create a Stripe Customer Portal session"""
     try:
-        address = request.headers.get('X-Web3-Address')
+        address = request.headers.get('X-Wallet-Address')
         if not address:
-            raise HTTPException(status_code=401, detail="Web3 address required")
+            raise HTTPException(status_code=401, detail="Wallet address required")
 
         # Get customer ID from address
         customer_id = get_customer_id_from_address(address)
@@ -62,9 +62,9 @@ async def create_portal_session(request: Request):
 async def get_purchase_history(request: Request):
     """Get purchase history for a customer"""
     try:
-        address = request.headers.get('X-Web3-Address')
+        address = request.headers.get('X-Wallet-Address')
         if not address:
-            raise HTTPException(status_code=401, detail="Web3 address required")
+            raise HTTPException(status_code=401, detail="Wallet address required")
 
         # Get customer ID from address
         customer_id = get_customer_id_from_address(address)
