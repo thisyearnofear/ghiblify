@@ -187,6 +187,25 @@ export default function Home() {
     setCreditsRefreshKey((prev) => prev + 1);
   };
 
+  // Helper to coerce various result shapes to a string URL
+  const ensureStringUrl = (val) => {
+    if (!val) return null;
+    if (typeof val === "string") return val;
+    if (typeof val === "object") {
+      // common shapes: { url }, { result: string }, arrays
+      if (typeof val.url === "string") return val.url;
+      if (typeof val.result === "string") return val.result;
+      if (Array.isArray(val)) {
+        // return first string-like
+        for (const item of val) {
+          const s = ensureStringUrl(item);
+          if (s) return s;
+        }
+      }
+    }
+    return null;
+  };
+
   // Function to poll task status
   const pollTaskStatus = async (taskId) => {
     try {
@@ -200,20 +219,23 @@ export default function Home() {
       const data = await response.json();
 
       if (data.status === "COMPLETED") {
-        const raw = data.result ?? data.url ?? null;
-        const imageUrl = typeof raw === "string"
-          ? raw
-          : raw && typeof raw === "object" && typeof raw.url === "string"
-          ? raw.url
-          : null;
+        const imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
 
-        if (imageUrl) {
-          // Use setTimeout to prevent React Error #31 by ensuring state updates happen in separate render cycles
-          setTimeout(() => {
-            setGeneratedImageURL(imageUrl);
-            setIsLoading(false);
-            cleanupIntervals();
-          }, 0);
+        if (typeof imageUrl === "string") {
+          // Defer state update to next frame to avoid reconciliation edge cases
+          if (typeof window !== "undefined" && window.requestAnimationFrame) {
+            window.requestAnimationFrame(() => {
+              setGeneratedImageURL(imageUrl);
+              setIsLoading(false);
+              cleanupIntervals();
+            });
+          } else {
+            setTimeout(() => {
+              setGeneratedImageURL(imageUrl);
+              setIsLoading(false);
+              cleanupIntervals();
+            }, 0);
+          }
           return true;
         }
       } else if (data.status === "ERROR") {
@@ -587,11 +609,13 @@ export default function Home() {
             <>
               {selectedImageURL && generatedImageURL ? (
                 <Box w="100%">
-                  <CompareSlider
-                    originalUrl={selectedImageURL}
-                    resultUrl={generatedImageURL}
-                    height="400px"
-                  />
+                  {typeof selectedImageURL === "string" && typeof generatedImageURL === "string" ? (
+                    <CompareSlider
+                      originalUrl={selectedImageURL}
+                      resultUrl={generatedImageURL}
+                      height="400px"
+                    />
+                  ) : null}
                   <Box mt={2}>
                     <SocialShare
                       imageUrl={generatedImageURL}
