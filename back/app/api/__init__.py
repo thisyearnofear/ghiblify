@@ -14,12 +14,15 @@ app = FastAPI()
 UPLOAD_FOLDER = os.path.abspath("initial_photos")
 app.mount("/initial_photos", StaticFiles(directory=UPLOAD_FOLDER), name="initial_photos")
 
+# Get production API URL from environment
+PRODUCTION_API_URL = os.getenv('PRODUCTION_API_URL', 'https://api.thisyearnofear.com')
+
 # Get allowed origins from environment or use defaults
 ALLOWED_ORIGINS = [
     "http://localhost:3000",     # Local development
     "http://localhost:8000",     # Local backend
     "https://ghiblify-it.vercel.app",  # Production frontend
-    "https://ghiblify.onrender.com",    # Production backend
+    PRODUCTION_API_URL,          # Production backend
     "*"  # Allow all origins as fallback
 ]
 

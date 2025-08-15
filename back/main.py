@@ -16,6 +16,7 @@ app = FastAPI()
 
 # CORS is handled by Nginx reverse proxy in production
 # Uncomment below for local development without Nginx
+# PRODUCTION_API_URL = getenv('PRODUCTION_API_URL', 'https://api.thisyearnofear.com')
 # app.add_middleware(
 #     CORSMiddleware,
 #     allow_origins=[
@@ -24,8 +25,7 @@ app = FastAPI()
 #         "http://localhost:4133",
 #         "https://ghiblify-it.vercel.app",
 #         "https://ghiblify.vercel.app",
-#         "https://ghiblify.onrender.com",
-#         "https://ghiblify.yourdomain.com",  # Add your Hetzner domain
+#         PRODUCTION_API_URL,
 #         getenv("FRONTEND_URL", "")  # Environment-based frontend URL
 #     ],
 #     allow_origin_regex=r"https://.*\.vercel\.app$",  # Allow all Vercel subdomains

@@ -7,7 +7,7 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
 ### Live URLs
 
 - **Frontend**: [ghiblify-it.vercel.app](https://ghiblify-it.vercel.app)
-- **Backend**: [ghiblify.onrender.com](https://ghiblify.onrender.com)
+- **Backend**: [api.thisyearnofear.com](https://api.thisyearnofear.com)
 
 ## Architecture
 
@@ -25,7 +25,7 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
 
 #### Stripe Integration
 
-- Live mode with webhook endpoint: `https://ghiblify.onrender.com/api/stripe/webhook`
+- Live mode with webhook endpoint: `https://api.thisyearnofear.com/api/stripe/webhook`
 - Price tiers: Starter ($0.50/1 credit), Pro ($4.99/12 credits), Unlimited ($9.99/30 credits)
 
 #### CELO Integration
@@ -262,7 +262,7 @@ To switch between local development and production:
 
 2. **For Production**:
    - Comment out or remove `NEXT_PUBLIC_API_URL=http://localhost:8000` in `front/.env.local`
-   - The frontend will then use the default production URL (`https://ghiblify.onrender.com`)
+   - The frontend will then use the default production URL (`https://api.thisyearnofear.com`)
 
 ### Getting API Keys
 
@@ -285,7 +285,7 @@ To switch between local development and production:
 Transform images programmatically:
 
 ```javascript
-const response = await fetch("https://ghiblify.onrender.com/ghiblify", {
+const response = await fetch("https://api.thisyearnofear.com/ghiblify", {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -297,7 +297,7 @@ const response = await fetch("https://ghiblify.onrender.com/ghiblify", {
 const { id } = await response.json();
 
 // Poll for completion
-const result = await fetch(`https://ghiblify.onrender.com/ghiblify/${id}`, {
+const result = await fetch(`https://api.thisyearnofear.com/ghiblify/${id}`, {
   headers: { "X-API-Key": "your-api-key" },
 });
 ```
@@ -384,10 +384,11 @@ python -c "import redis; r=redis.Redis(host='localhost', port=6379); print(r.pin
 
 ```env
 # Frontend (Production)
-NEXT_PUBLIC_API_URL=https://ghiblify.onrender.com
+NEXT_PUBLIC_API_URL=https://api.thisyearnofear.com
 NEXT_PUBLIC_BASE_PAY_TESTNET=false
 
 # Backend (Production)
+PRODUCTION_API_URL=https://api.thisyearnofear.com
 FRONTEND_URL=https://ghiblify-it.vercel.app
 SUCCESS_URL=https://ghiblify-it.vercel.app/success
 CANCEL_URL=https://ghiblify-it.vercel.app/cancel
@@ -397,8 +398,26 @@ BASE_PAY_TESTNET=false
 ### Deployment
 
 - **Frontend**: Vercel (automatic deployments from main branch)
-- **Backend**: Render (automatic deployments from main branch)
+- **Backend**: Hetzner VPS (automatic deployments via GitHub Actions)
 - **Redis**: Upstash (managed Redis with SSL)
+
+### Environment Variables
+
+The application uses environment variables for configuration. Key variables include:
+
+#### Backend Environment Variables
+
+- `PRODUCTION_API_URL`: Production API URL (default: `https://api.thisyearnofear.com`)
+- `WEBHOOK_BASE_URL`: Base URL for webhooks
+- `FRONTEND_URL`: Frontend URL for CORS and redirects
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`: Redis configuration
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`: Stripe configuration
+- `COMFY_UI_API_KEY`, `IMGBB_API_KEY`: External service API keys
+
+#### Frontend Environment Variables
+
+- `NEXT_PUBLIC_API_URL`: API endpoint URL (default: `https://api.thisyearnofear.com`)
+- `NEXT_PUBLIC_BASE_PAY_TESTNET`: Base Pay testnet flag
 
 ## Built By
 

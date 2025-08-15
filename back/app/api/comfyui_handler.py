@@ -24,11 +24,12 @@ BASE64_PREAMBLE = "data:image/png;base64,"
 # Get webhook URL from environment or construct it
 WEBHOOK_BASE_URL = os.getenv('WEBHOOK_BASE_URL')
 if not WEBHOOK_BASE_URL:
-    # Default to localhost in development, Render URL in production
+    # Default to localhost in development, production API URL from environment
+    PRODUCTION_API_URL = os.getenv('PRODUCTION_API_URL', 'https://api.thisyearnofear.com')
     WEBHOOK_BASE_URL = (
-        "http://localhost:8000" 
-        if os.getenv('NODE_ENV') == 'development' 
-        else "https://ghiblify.onrender.com"
+        "http://localhost:8000"
+        if os.getenv('NODE_ENV') == 'development'
+        else PRODUCTION_API_URL
     )
 
 WEBHOOK_URL = f"{WEBHOOK_BASE_URL}/api/comfyui/webhook"

@@ -16,6 +16,9 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 NGROK_URL = os.getenv('WEBHOOK_BASE_URL', 'http://localhost:8000')
 
 # Configure CORS - ensure all domains are properly allowed
+# Get production API URL from environment
+PRODUCTION_API_URL = os.getenv('PRODUCTION_API_URL', 'https://api.thisyearnofear.com')
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -25,7 +28,7 @@ app.add_middleware(
         "http://localhost:6903",
         "https://ghiblify-it.vercel.app",
         "https://ghiblify.vercel.app",
-        "https://ghiblify.onrender.com"
+        PRODUCTION_API_URL
     ],
     allow_origin_regex="https://.*\.vercel\.app$",  # Allow all Vercel subdomains
     allow_credentials=True,

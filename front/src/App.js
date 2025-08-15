@@ -64,7 +64,7 @@ const App = () => {
   const API_URL =
     process.env.NODE_ENV === "development"
       ? "http://localhost:8000"
-      : "https://ghiblify.onrender.com";
+      : process.env.REACT_APP_API_URL || "https://api.thisyearnofear.com";
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
