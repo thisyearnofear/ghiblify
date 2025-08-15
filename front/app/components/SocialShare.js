@@ -9,6 +9,7 @@ import {
   Spinner,
   Text,
   Box,
+  Icon,
 } from "@chakra-ui/react";
 import {
   FaTwitter,
@@ -31,12 +32,10 @@ export default function SocialShare({
   // Safety check: ensure imageUrl is a string
   const safeImageUrl = typeof imageUrl === "string" ? imageUrl : "";
 
-  console.log("🔍 SocialShare render:", {
-    imageUrl: typeof imageUrl,
-    safeImageUrl: typeof safeImageUrl,
-    imageUrlLength: imageUrl?.length,
-    safeImageUrlLength: safeImageUrl?.length,
-  });
+  // Early return if no valid image URL
+  if (!safeImageUrl) {
+    return null;
+  }
 
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(safeImageUrl);
@@ -46,6 +45,8 @@ export default function SocialShare({
 
   // Prepare for sharing when component mounts or imageUrl changes
   useEffect(() => {
+    let mounted = true;
+
     const prepareForSharing = async () => {
       // Reset states when image URL changes
       setIsOptimized(false);
@@ -56,15 +57,12 @@ export default function SocialShare({
       if (safeImageUrl) {
         setIsUploading(true);
         try {
-          console.log(
-            "Preparing image for sharing:",
-            safeImageUrl.substring(0, 100) + "..."
-          );
           const result = await uploadImageToGrove(safeImageUrl);
-          console.log("Grove upload result:", result);
+          
+          // Check if component is still mounted before updating state
+          if (!mounted) return;
 
           if (result && result.success && result.gatewayUrl) {
-            console.log("Grove upload successful:", result.gatewayUrl);
             setSharingUrl(result.gatewayUrl);
             setIsOptimized(true);
             toast({
@@ -77,10 +75,6 @@ export default function SocialShare({
             });
           } else {
             // If Grove upload fails, fallback to original URL
-            console.warn(
-              "Grove upload failed, using original URL",
-              result?.error || "Unknown error"
-            );
             // For data URLs, we can't share them directly, so we'll need to warn the user
             if (safeImageUrl.startsWith("data:")) {
               toast({
@@ -104,15 +98,23 @@ export default function SocialShare({
             }
           }
         } catch (error) {
-          console.error("Error preparing image for sharing:", error);
-          setSharingUrl(imageUrl);
+          if (mounted) {
+            setSharingUrl(safeImageUrl);
+          }
         } finally {
-          setIsUploading(false);
+          if (mounted) {
+            setIsUploading(false);
+          }
         }
       }
     };
 
     prepareForSharing();
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      mounted = false;
+    };
   }, [safeImageUrl, toast]);
 
   const encodedTitle = encodeURIComponent(title);
@@ -179,10 +181,12 @@ export default function SocialShare({
   return (
     <Box>
       {isOptimized && (
-        <Text fontSize="xs" color="green.500" textAlign="center" mb={1}>
-          <FaCheck style={{ display: "inline", marginRight: "4px" }} />
-          Optimized for social sharing
-        </Text>
+        <HStack justify="center" spacing={1} mb={1}>
+          <Icon as={FaCheck} color="green.500" boxSize={3} />
+          <Text fontSize="xs" color="green.500">
+            Optimized for social sharing
+          </Text>
+        </HStack>
       )}
       <HStack spacing={1} justify="center" mt={1}>
         <Tooltip label="Share on Twitter" hasArrow size="sm">

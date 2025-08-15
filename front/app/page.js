@@ -198,17 +198,9 @@ export default function Home() {
         throw new Error("Failed to fetch status");
       }
       const data = await response.json();
-      console.log("Poll response:", data); // Debug log
 
       if (data.status === "COMPLETED") {
         const imageUrl = data.result || data.url;
-        console.log("🎯 Processing completion:", {
-          hasResult: !!data.result,
-          hasUrl: !!data.url,
-          imageUrlType: typeof imageUrl,
-          imageUrlLength: imageUrl?.length,
-          isString: typeof imageUrl === "string",
-        });
 
         if (imageUrl && typeof imageUrl === "string") {
           // Use setTimeout to prevent React Error #31 by ensuring state updates happen in separate render cycles
@@ -231,11 +223,9 @@ export default function Home() {
         // Refund credit for failed processing
         try {
           await refundCredits(1);
-          console.log("Credit refunded due to processing error");
           setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
         } catch (refundError) {
-          console.error("Failed to refund credit:", refundError);
-          // Don't show refund error to user, but log it
+          // Don't show refund error to user, but silently handle it
         }
 
         return true;
@@ -384,11 +374,9 @@ export default function Home() {
       // Refund credit if the API call failed after spending
       try {
         await refundCredits(1);
-        console.log("Credit refunded due to processing error");
         setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
       } catch (refundError) {
-        console.error("Failed to refund credit:", refundError);
-        // Don't show refund error to user, but log it
+        // Don't show refund error to user, but silently handle it
       }
     }
   };
@@ -645,11 +633,10 @@ export default function Home() {
                       <Text fontSize="sm" color="green.500" mt={2}>
                         ✅ Image generated successfully!
                       </Text>
-                      {/* Temporarily disable SocialShare to debug React Error #31 */}
-                      {/* <SocialShare
+                      <SocialShare
                         imageUrl={generatedImageURL}
                         title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                      /> */}
+                      />
                     </Box>
                   )}
                   {error && (
