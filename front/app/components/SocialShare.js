@@ -28,8 +28,11 @@ export default function SocialShare({
   imageUrl,
   title = "Ghiblified via https://ghiblify-it.vercel.app 🌱",
 }) {
+  // Safety check: ensure imageUrl is a string
+  const safeImageUrl = typeof imageUrl === "string" ? imageUrl : "";
+
   const toast = useToast();
-  const [sharingUrl, setSharingUrl] = useState(imageUrl);
+  const [sharingUrl, setSharingUrl] = useState(safeImageUrl);
   const [isUploading, setIsUploading] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
   const { onCopy, hasCopied } = useClipboard(sharingUrl);
@@ -39,18 +42,18 @@ export default function SocialShare({
     const prepareForSharing = async () => {
       // Reset states when image URL changes
       setIsOptimized(false);
-      setSharingUrl(imageUrl);
+      setSharingUrl(safeImageUrl);
 
       // Always try to upload to Grove for social sharing
       // Data URLs won't work on social platforms, and Google Storage URLs may expire
-      if (imageUrl) {
+      if (safeImageUrl) {
         setIsUploading(true);
         try {
           console.log(
             "Preparing image for sharing:",
-            imageUrl.substring(0, 100) + "..."
+            safeImageUrl.substring(0, 100) + "..."
           );
-          const result = await uploadImageToGrove(imageUrl);
+          const result = await uploadImageToGrove(safeImageUrl);
           console.log("Grove upload result:", result);
 
           if (result && result.success && result.gatewayUrl) {
@@ -72,7 +75,7 @@ export default function SocialShare({
               result?.error || "Unknown error"
             );
             // For data URLs, we can't share them directly, so we'll need to warn the user
-            if (imageUrl.startsWith("data:")) {
+            if (safeImageUrl.startsWith("data:")) {
               toast({
                 title: "Sharing may not work properly",
                 description:
@@ -82,7 +85,7 @@ export default function SocialShare({
                 isClosable: true,
               });
             } else {
-              setSharingUrl(imageUrl);
+              setSharingUrl(safeImageUrl);
               toast({
                 title: "Using original image URL",
                 description:
@@ -103,7 +106,7 @@ export default function SocialShare({
     };
 
     prepareForSharing();
-  }, [imageUrl, toast]);
+  }, [safeImageUrl, toast]);
 
   const encodedTitle = encodeURIComponent(title);
   const encodedUrl = encodeURIComponent(sharingUrl);

@@ -260,7 +260,7 @@ export default function Web3Button() {
                     {baseUser.address.slice(-4)}
                   </Text>
                   <Text fontSize="xs" color="whiteAlpha.800">
-                    Credits: {baseUser.credits || 0}
+                    Credits: {unifiedCredits || baseUser.credits || 0}
                   </Text>
                 </VStack>
               </MagicalButton>

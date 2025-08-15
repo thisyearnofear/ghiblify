@@ -208,7 +208,11 @@ export default function Home() {
           return true;
         }
       } else if (data.status === "ERROR") {
-        setError(data.error || "An error occurred during processing");
+        const errorMessage =
+          typeof data.error === "string"
+            ? data.error
+            : "An error occurred during processing";
+        setError(errorMessage);
         setIsLoading(false);
         cleanupIntervals(); // Ensure we clean up all intervals
         return true;
@@ -320,10 +324,14 @@ export default function Home() {
       }
 
       const data = await response.json();
-      setSelectedImageURL(data.original);
+      if (data.original && typeof data.original === "string") {
+        setSelectedImageURL(data.original);
+      }
 
       if (apiChoice === "replicate") {
-        setGeneratedImageURL(data.result);
+        if (data.result && typeof data.result === "string") {
+          setGeneratedImageURL(data.result);
+        }
         setIsLoading(false);
       } else {
         // For ComfyUI, start polling
