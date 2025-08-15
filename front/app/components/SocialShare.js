@@ -34,7 +34,20 @@ export default function SocialShare({
   const [sharingUrl, setSharingUrl] = useState(safeImageUrl);
   const [isUploading, setIsUploading] = useState(false);
   const [isOptimized, setIsOptimized] = useState(false);
-  const { onCopy, hasCopied } = useClipboard(sharingUrl);
+
+  // Ensure sharingUrl is always a string for clipboard
+  const safeSharingUrl = typeof sharingUrl === "string" ? sharingUrl : "";
+  const { onCopy, hasCopied } = useClipboard(safeSharingUrl);
+
+  // Safe setter for sharing URL that ensures only strings are set
+  const setSharingUrlSafe = (url) => {
+    if (typeof url === "string") {
+      setSharingUrl(url);
+    } else {
+      console.warn("Attempted to set non-string sharing URL:", url);
+      setSharingUrl("");
+    }
+  };
 
   // Prepare for sharing when component mounts or imageUrl changes
   useEffect(() => {
@@ -43,7 +56,7 @@ export default function SocialShare({
     const prepareForSharing = async () => {
       // Reset states when image URL changes
       setIsOptimized(false);
-      setSharingUrl(safeImageUrl);
+      setSharingUrlSafe(safeImageUrl);
 
       // If no URL, nothing to do
       if (!safeImageUrl) return;
@@ -55,8 +68,13 @@ export default function SocialShare({
 
         if (!mounted) return;
 
-        if (result && result.success && result.gatewayUrl) {
-          setSharingUrl(result.gatewayUrl);
+        if (
+          result &&
+          result.success &&
+          result.gatewayUrl &&
+          typeof result.gatewayUrl === "string"
+        ) {
+          setSharingUrlSafe(result.gatewayUrl);
           setIsOptimized(true);
           toast({
             title: "Image optimized for sharing",
@@ -78,7 +96,7 @@ export default function SocialShare({
               isClosable: true,
             });
           } else {
-            setSharingUrl(safeImageUrl);
+            setSharingUrlSafe(safeImageUrl);
             toast({
               title: "Using original image URL",
               description:
@@ -91,7 +109,7 @@ export default function SocialShare({
         }
       } catch (error) {
         if (mounted) {
-          setSharingUrl(safeImageUrl);
+          setSharingUrlSafe(safeImageUrl);
         }
       } finally {
         if (mounted) {
@@ -108,7 +126,7 @@ export default function SocialShare({
   }, [safeImageUrl, toast]);
 
   const encodedTitle = encodeURIComponent(title);
-  const encodedUrl = encodeURIComponent(sharingUrl);
+  const encodedUrl = encodeURIComponent(safeSharingUrl);
 
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`;
   const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedTitle}`;

@@ -107,20 +107,27 @@ export async function uploadImageToGrove(imageUrl) {
     }
 
     const data = await uploadResponse.json();
-    console.log("Grove upload successful:", data);
 
     // Handle both array and object responses from Grove API
     const groveData = Array.isArray(data) ? data[0] : data;
+    console.log("Grove upload successful:", groveData);
 
-    if (!groveData || !groveData.gateway_url) {
-      throw new Error("Invalid response from Grove API - missing gateway_url");
+    if (
+      !groveData ||
+      !groveData.gateway_url ||
+      typeof groveData.gateway_url !== "string"
+    ) {
+      throw new Error(
+        "Invalid response from Grove API - missing or invalid gateway_url"
+      );
     }
 
     return {
       success: true,
-      storageKey: groveData.storage_key,
+      storageKey:
+        typeof groveData.storage_key === "string" ? groveData.storage_key : "",
       gatewayUrl: groveData.gateway_url,
-      uri: groveData.uri,
+      uri: typeof groveData.uri === "string" ? groveData.uri : "",
     };
   } catch (error) {
     console.error("Error uploading to Grove:", error);
