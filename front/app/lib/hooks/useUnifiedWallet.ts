@@ -143,6 +143,10 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     return await unifiedWalletService.addCredits(amount);
   }, []);
 
+  const refundCredits = useCallback(async (amount: number) => {
+    return await unifiedWalletService.refundCredits(amount);
+  }, []);
+
   const clearError = useCallback(() => {
     // This would need to be implemented in the service
     console.log('Clear error called');
@@ -178,6 +182,7 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     refreshCredits,
     spendCredits,
     addCredits,
+    refundCredits,
     
     // Utilities
     clearError,

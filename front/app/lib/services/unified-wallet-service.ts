@@ -155,6 +155,41 @@ class UnifiedWalletService {
   }
 
   /**
+   * Refund credits (for failed operations)
+   */
+  async refundCredits(amount: number): Promise<number> {
+    if (!this.currentConnection?.user?.address) {
+      throw new Error('No wallet connected');
+    }
+
+    try {
+      const response = await api.post('/api/wallet/credits/add', {
+        address: this.currentConnection.user.address,
+        amount: amount,
+      });
+
+      const newCredits = response.credits;
+
+      // Update local state
+      const updatedUser = {
+        ...this.currentConnection.user,
+        credits: newCredits,
+        timestamp: Date.now(),
+      };
+
+      this.updateConnection({
+        ...this.currentConnection,
+        user: updatedUser,
+      });
+
+      console.log(`[UnifiedWallet] Refunded ${amount} credits. New balance: ${newCredits}`);
+      return newCredits;
+    } catch (error) {
+      throw new Error(`Failed to refund credits: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Add credits (for purchases)
    */
   async addCredits(amount: number): Promise<number> {

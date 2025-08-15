@@ -110,6 +110,7 @@ export default function Home() {
     isConnected,
     credits,
     spendCredits,
+    refundCredits,
     refreshCredits,
     isLoading: walletLoading,
   } = useUnifiedWallet();
@@ -215,6 +216,17 @@ export default function Home() {
         setError(errorMessage);
         setIsLoading(false);
         cleanupIntervals(); // Ensure we clean up all intervals
+
+        // Refund credit for failed processing
+        try {
+          await refundCredits(1);
+          console.log("Credit refunded due to processing error");
+          setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
+        } catch (refundError) {
+          console.error("Failed to refund credit:", refundError);
+          // Don't show refund error to user, but log it
+        }
+
         return true;
       } else if (data.status === "PROCESSING") {
         // Only update progress for significant changes
@@ -357,6 +369,16 @@ export default function Home() {
       setError(error.message);
       setIsLoading(false);
       cleanupIntervals();
+
+      // Refund credit if the API call failed after spending
+      try {
+        await refundCredits(1);
+        console.log("Credit refunded due to processing error");
+        setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
+      } catch (refundError) {
+        console.error("Failed to refund credit:", refundError);
+        // Don't show refund error to user, but log it
+      }
     }
   };
 
