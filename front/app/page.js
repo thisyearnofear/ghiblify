@@ -202,11 +202,22 @@ export default function Home() {
 
       if (data.status === "COMPLETED") {
         const imageUrl = data.result || data.url;
+        console.log("🎯 Processing completion:", {
+          hasResult: !!data.result,
+          hasUrl: !!data.url,
+          imageUrlType: typeof imageUrl,
+          imageUrlLength: imageUrl?.length,
+          isString: typeof imageUrl === "string",
+        });
+
         if (imageUrl && typeof imageUrl === "string") {
+          console.log("✅ Setting generated image URL");
           setGeneratedImageURL(imageUrl);
           setIsLoading(false);
           cleanupIntervals(); // Ensure we clean up all intervals
           return true;
+        } else {
+          console.error("❌ Invalid image URL:", imageUrl);
         }
       } else if (data.status === "ERROR") {
         const errorMessage =
@@ -589,10 +600,14 @@ export default function Home() {
                     height="400px"
                   />
                   <Box mt={2}>
-                    <SocialShare
+                    <Text fontSize="sm" color="green.500" mb={2}>
+                      ✅ Image generated successfully!
+                    </Text>
+                    {/* Temporarily disable SocialShare to debug React Error #31 */}
+                    {/* <SocialShare
                       imageUrl={generatedImageURL}
                       title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                    />
+                    /> */}
                   </Box>
                 </Box>
               ) : (
@@ -631,10 +646,14 @@ export default function Home() {
                         width="100%"
                         objectFit="contain"
                       />
-                      <SocialShare
+                      <Text fontSize="sm" color="green.500" mt={2}>
+                        ✅ Image generated successfully!
+                      </Text>
+                      {/* Temporarily disable SocialShare to debug React Error #31 */}
+                      {/* <SocialShare
                         imageUrl={generatedImageURL}
                         title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                      />
+                      /> */}
                     </Box>
                   )}
                   {error && (

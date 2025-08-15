@@ -31,6 +31,13 @@ export default function SocialShare({
   // Safety check: ensure imageUrl is a string
   const safeImageUrl = typeof imageUrl === "string" ? imageUrl : "";
 
+  console.log("🔍 SocialShare render:", {
+    imageUrl: typeof imageUrl,
+    safeImageUrl: typeof safeImageUrl,
+    imageUrlLength: imageUrl?.length,
+    safeImageUrlLength: safeImageUrl?.length,
+  });
+
   const toast = useToast();
   const [sharingUrl, setSharingUrl] = useState(safeImageUrl);
   const [isUploading, setIsUploading] = useState(false);
