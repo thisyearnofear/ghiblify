@@ -87,6 +87,7 @@ class UnifiedWalletService {
    * Disconnect current wallet
    */
   disconnect(): void {
+    console.log('[Unified Wallet] Disconnecting wallet:', this.currentConnection.user?.provider, this.currentConnection.user?.address);
     this.updateConnection({
       isConnected: false,
       user: null,
@@ -94,6 +95,21 @@ class UnifiedWalletService {
       error: null,
     });
     this.clearPersistedState();
+  }
+
+  /**
+   * Force clear all wallet state (for debugging)
+   */
+  forceReset(): void {
+    console.log('[Unified Wallet] Force resetting all wallet state');
+    this.currentConnection = {
+      isConnected: false,
+      user: null,
+      isLoading: false,
+      error: null,
+    };
+    this.clearPersistedState();
+    this.notifyListeners();
   }
 
   /**
@@ -222,6 +238,8 @@ class UnifiedWalletService {
   // ===== PRIVATE METHODS =====
 
   private async connectWallet(address: string, provider: WalletProvider): Promise<UnifiedWalletUser> {
+    console.log(`[Unified Wallet] Connecting ${provider} wallet:`, address);
+
     this.updateConnection({
       ...this.currentConnection,
       isLoading: true,
@@ -246,6 +264,8 @@ class UnifiedWalletService {
         timestamp: Date.now(),
       };
 
+      console.log(`[Unified Wallet] Successfully connected ${provider}:`, normalizedAddress, `(${credits} credits)`);
+
       this.updateConnection({
         isConnected: true,
         user,
@@ -256,7 +276,8 @@ class UnifiedWalletService {
       return user;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Connection failed';
-      
+      console.error(`[Unified Wallet] Failed to connect ${provider}:`, errorMessage);
+
       this.updateConnection({
         isConnected: false,
         user: null,
@@ -319,13 +340,20 @@ class UnifiedWalletService {
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Only restore if timestamp is recent (within 24 hours)
-        if (parsed.user && Date.now() - parsed.user.timestamp < 24 * 60 * 60 * 1000) {
+        // Only restore if timestamp is recent (within 1 hour) and no active connection
+        if (parsed.user &&
+            Date.now() - parsed.user.timestamp < 60 * 60 * 1000 && // 1 hour instead of 24
+            !this.currentConnection.isConnected) {
+          console.log('[Unified Wallet] Restoring persisted state:', parsed.user.provider, parsed.user.address);
           this.currentConnection = parsed;
+        } else if (parsed.user) {
+          console.log('[Unified Wallet] Clearing stale persisted state');
+          this.clearPersistedState();
         }
       }
     } catch (error) {
       console.warn('Failed to load persisted wallet state:', error);
+      this.clearPersistedState();
     }
   }
 

@@ -61,28 +61,69 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     return unsubscribe;
   }, []);
 
-  // Auto-connect when external wallets connect
+  // Auto-connect when external wallets connect with proper cleanup
   useEffect(() => {
     const autoConnect = async () => {
-      // Don't auto-connect if already connected or loading
-      if (connection.isConnected || connection.isLoading) return;
-
       try {
-        // Priority 1: RainbowKit connection
+        // Priority 1: RainbowKit connection (highest priority)
         if (isRainbowKitConnected && rainbowKitAddress) {
-          await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
+          // If currently connected to a different provider or address, disconnect first
+          if (connection.isConnected &&
+              (connection.user?.provider !== 'rainbowkit' ||
+               connection.user?.address !== rainbowKitAddress.toLowerCase())) {
+            console.log('[Unified Wallet] Switching to RainbowKit, disconnecting current wallet');
+            unifiedWalletService.disconnect();
+          }
+
+          // Only connect if not already connected to this RainbowKit address
+          if (!connection.isConnected ||
+              connection.user?.address !== rainbowKitAddress.toLowerCase() ||
+              connection.user?.provider !== 'rainbowkit') {
+            await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
+          }
           return;
         }
 
-        // Priority 2: Base Account connection
-        if (isBaseAuthenticated && baseUser?.address) {
-          await unifiedWalletService.connectBase(baseUser.address);
+        // If RainbowKit disconnected but we're still connected to it, disconnect
+        if (!isRainbowKitConnected && connection.isConnected && connection.user?.provider === 'rainbowkit') {
+          console.log('[Unified Wallet] RainbowKit disconnected, cleaning up');
+          unifiedWalletService.disconnect();
           return;
         }
 
-        // Priority 3: Farcaster Frame (if in frame)
-        if (isInFrame && rainbowKitAddress) {
-          await unifiedWalletService.connectFarcaster(rainbowKitAddress);
+        // Priority 2: Base Account connection (only if RainbowKit not connected)
+        if (!isRainbowKitConnected && isBaseAuthenticated && baseUser?.address) {
+          // If currently connected to a different provider or address, disconnect first
+          if (connection.isConnected &&
+              (connection.user?.provider !== 'base' ||
+               connection.user?.address !== baseUser.address.toLowerCase())) {
+            console.log('[Unified Wallet] Switching to Base Account, disconnecting current wallet');
+            unifiedWalletService.disconnect();
+          }
+
+          // Only connect if not already connected to this Base address
+          if (!connection.isConnected ||
+              connection.user?.address !== baseUser.address.toLowerCase() ||
+              connection.user?.provider !== 'base') {
+            await unifiedWalletService.connectBase(baseUser.address);
+          }
+          return;
+        }
+
+        // If Base disconnected but we're still connected to it, disconnect
+        if (!isBaseAuthenticated && connection.isConnected && connection.user?.provider === 'base') {
+          console.log('[Unified Wallet] Base Account disconnected, cleaning up');
+          unifiedWalletService.disconnect();
+          return;
+        }
+
+        // Priority 3: Farcaster Frame (only if no other connections)
+        if (!isRainbowKitConnected && !isBaseAuthenticated && isInFrame && rainbowKitAddress) {
+          if (!connection.isConnected ||
+              connection.user?.address !== rainbowKitAddress.toLowerCase() ||
+              connection.user?.provider !== 'farcaster') {
+            await unifiedWalletService.connectFarcaster(rainbowKitAddress);
+          }
           return;
         }
       } catch (error) {
@@ -92,13 +133,13 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
 
     autoConnect();
   }, [
-    isRainbowKitConnected, 
-    rainbowKitAddress, 
-    isBaseAuthenticated, 
-    baseUser, 
+    isRainbowKitConnected,
+    rainbowKitAddress,
+    isBaseAuthenticated,
+    baseUser,
     isInFrame,
     connection.isConnected,
-    connection.isLoading
+    connection.user
   ]);
 
   // Actions
