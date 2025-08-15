@@ -244,41 +244,42 @@ export default function Home() {
       const data = await response.json();
 
       if (data.status === "COMPLETED") {
-        const imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
+        let imageUrl = null;
+        
+        // More defensive extraction with extensive logging
+        try {
+          console.log("ComfyUI response data:", data);
+          imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
+          console.log("Extracted imageUrl:", typeof imageUrl, imageUrl ? imageUrl.substring(0, 100) + "..." : "null");
+        } catch (error) {
+          console.error("Error in ensureStringUrl:", error);
+          imageUrl = null;
+        }
 
         if (typeof imageUrl === "string" && imageUrl.length > 0) {
-          // Defer state update to next frame to avoid reconciliation edge cases
-          // Also ensure the URL is ready for rendering
-          const updateImage = async () => {
+          // Simple, synchronous update - remove async validation that might be causing issues
+          const updateImage = () => {
             try {
-              // For data URLs or URLs that might need processing, do a basic validation
-              if (imageUrl.startsWith("data:image/")) {
-                // Validate the data URL is properly formatted
-                const img = new Image();
-                await new Promise((resolve, reject) => {
-                  img.onload = resolve;
-                  img.onerror = reject;
-                  img.src = imageUrl;
-                });
+              // Basic string validation only
+              if (!imageUrl || typeof imageUrl !== "string") {
+                throw new Error("Invalid image URL type");
               }
               
-              setGeneratedImageURL(imageUrl);
+              // Store the string URL immediately
+              setGeneratedImageURL(String(imageUrl));
               setIsLoading(false);
               cleanupIntervals();
             } catch (error) {
-              console.error("Error validating image URL:", error);
-              // Set the URL anyway, let ImageErrorBoundary handle it
-              setGeneratedImageURL(imageUrl);
+              console.error("Error setting image URL:", error);
+              // Even if there's an error, try to set it and let ErrorBoundary handle it
+              setGeneratedImageURL(imageUrl ? String(imageUrl) : "");
               setIsLoading(false);
               cleanupIntervals();
             }
           };
 
-          if (typeof window !== "undefined" && window.requestAnimationFrame) {
-            window.requestAnimationFrame(updateImage);
-          } else {
-            setTimeout(updateImage, 0);
-          }
+          // Use immediate execution instead of requestAnimationFrame
+          updateImage();
           return true;
         } else {
           // Handle case where we can't extract a valid image URL

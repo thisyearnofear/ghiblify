@@ -2,15 +2,27 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   return NextResponse.json({
-    version: "1",
-    name: "Ghiblify",
-    homeUrl: "https://ghiblify-it.vercel.app",
-    iconUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
-    imageUrl: "https://ghiblify-it.vercel.app/ghibli-time.png",
-    buttonTitle: "Transform Photo",
-    splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
-    splashBackgroundColor: "#4FD1C5",
-    webhookUrl: "https://ghiblify-it.vercel.app/api/farcaster/webhook",
+    miniapp: {
+      version: "1",
+      name: "Ghiblify",
+      homeUrl: "https://ghiblify-it.vercel.app",
+      iconUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+      imageUrl: "https://ghiblify-it.vercel.app/ghibli-time.png",
+      buttonTitle: "Transform Photo",
+      splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
+      splashBackgroundColor: "#4FD1C5",
+      description: "Transform your photos into Studio Ghibli style art using AI",
+      author: "ghiblify.app",
+      category: "art",
+      screenshots: [
+        "https://ghiblify-it.vercel.app/examples/grow.png",
+        "https://ghiblify-it.vercel.app/examples/grow2.png",
+        "https://ghiblify-it.vercel.app/examples/bridge0.png",
+        "https://ghiblify-it.vercel.app/examples/bridge.png"
+      ],
+      keywords: ["art", "ai", "ghibli", "photo", "transform", "anime"],
+      webhookUrl: "https://ghiblify-it.vercel.app/api/farcaster/webhook"
+    },
     accountAssociation: {
       header: "eyJmaWQiOjM2NzcsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhkMzNiNmU4YTE4NzQzYTE4NTlmMzQ1ZjFmOTY2MTNkYzBjMWEzMzk4In0",
       payload: "eyJkb21haW4iOiJnaGlibGlmeS1pdC52ZXJjZWwuYXBwIn0",
