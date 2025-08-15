@@ -194,6 +194,22 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     console.log('Clear error called');
   }, []);
 
+  // Debug utilities (only in development)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      (window as any).debugWallet = {
+        getState: () => unifiedWalletService.getConnection(),
+        forceReset: () => unifiedWalletService.forceReset(),
+        disconnect: () => unifiedWalletService.disconnect(),
+        clearStorage: () => {
+          localStorage.removeItem('ghiblify_wallet_state');
+          localStorage.removeItem('ghiblify_auth');
+          console.log('Cleared all wallet storage');
+        }
+      };
+    }
+  }, []);
+
   // Derived state
   const isConnected = connection.isConnected;
   const user = connection.user;
