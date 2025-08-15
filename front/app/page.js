@@ -248,18 +248,36 @@ export default function Home() {
 
         if (typeof imageUrl === "string" && imageUrl.length > 0) {
           // Defer state update to next frame to avoid reconciliation edge cases
+          // Also ensure the URL is ready for rendering
+          const updateImage = async () => {
+            try {
+              // For data URLs or URLs that might need processing, do a basic validation
+              if (imageUrl.startsWith("data:image/")) {
+                // Validate the data URL is properly formatted
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                  img.onload = resolve;
+                  img.onerror = reject;
+                  img.src = imageUrl;
+                });
+              }
+              
+              setGeneratedImageURL(imageUrl);
+              setIsLoading(false);
+              cleanupIntervals();
+            } catch (error) {
+              console.error("Error validating image URL:", error);
+              // Set the URL anyway, let ImageErrorBoundary handle it
+              setGeneratedImageURL(imageUrl);
+              setIsLoading(false);
+              cleanupIntervals();
+            }
+          };
+
           if (typeof window !== "undefined" && window.requestAnimationFrame) {
-            window.requestAnimationFrame(() => {
-              setGeneratedImageURL(imageUrl);
-              setIsLoading(false);
-              cleanupIntervals();
-            });
+            window.requestAnimationFrame(updateImage);
           } else {
-            setTimeout(() => {
-              setGeneratedImageURL(imageUrl);
-              setIsLoading(false);
-              cleanupIntervals();
-            }, 0);
+            setTimeout(updateImage, 0);
           }
           return true;
         } else {
