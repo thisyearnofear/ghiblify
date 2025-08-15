@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize Web3 with Celo provider
-CELO_RPC_URL = os.getenv('CELO_RPC_URL')
+CELO_RPC_URL = os.getenv('CELO_RPC_URL', 'https://forno.celo.org')
+logger.info(f"[CELO] Using RPC URL: {CELO_RPC_URL}")
 w3 = Web3(Web3.HTTPProvider(CELO_RPC_URL))
 
 # Create router

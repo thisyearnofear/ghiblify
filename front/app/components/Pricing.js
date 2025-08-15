@@ -212,6 +212,14 @@ export default function Pricing({ onPurchaseComplete }) {
   };
 
   const handleCeloPurchase = async (tier) => {
+    // Prevent duplicate transactions
+    if (isCeloProcessing) {
+      console.log(
+        "[CELO] Purchase already in progress, ignoring duplicate request"
+      );
+      return;
+    }
+
     // For now, we'll keep the existing Celo implementation since it's more complex
     // and involves direct contract interactions that aren't easily abstracted
     try {
@@ -225,6 +233,8 @@ export default function Pricing({ onPurchaseComplete }) {
         });
         return;
       }
+
+      setIsCeloProcessing(true);
 
       // Check if we're on the correct chain
       const chainId = await window.ethereum.request({ method: "eth_chainId" });
@@ -341,9 +351,31 @@ export default function Pricing({ onPurchaseComplete }) {
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       console.log("[CELO] Purchase transaction receipt:", receipt);
 
-      if (receipt.status !== "success") {
-        throw new Error("Purchase failed");
+      // Check if transaction was successful (status can be 'success', 1, or true)
+      if (
+        receipt.status !== "success" &&
+        receipt.status !== 1 &&
+        receipt.status !== true
+      ) {
+        console.error("[CELO] Transaction failed with status:", receipt.status);
+        throw new Error(
+          `Purchase transaction failed with status: ${receipt.status}`
+        );
       }
+
+      // Check if transaction has events (indicates successful purchase)
+      if (!receipt.logs || receipt.logs.length === 0) {
+        console.error("[CELO] Transaction succeeded but no events found");
+        throw new Error(
+          "Purchase transaction succeeded but no purchase events were emitted"
+        );
+      }
+
+      console.log(
+        "[CELO] Purchase transaction successful with",
+        receipt.logs.length,
+        "events!"
+      );
 
       // Handle success
       handleSuccess(hash);
