@@ -200,9 +200,14 @@ export default function Home() {
       const data = await response.json();
 
       if (data.status === "COMPLETED") {
-        const imageUrl = data.result || data.url;
+        const raw = data.result ?? data.url ?? null;
+        const imageUrl = typeof raw === "string"
+          ? raw
+          : raw && typeof raw === "object" && typeof raw.url === "string"
+          ? raw.url
+          : null;
 
-        if (imageUrl && typeof imageUrl === "string") {
+        if (imageUrl) {
           // Use setTimeout to prevent React Error #31 by ensuring state updates happen in separate render cycles
           setTimeout(() => {
             setGeneratedImageURL(imageUrl);

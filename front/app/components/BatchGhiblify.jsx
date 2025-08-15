@@ -165,8 +165,16 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
                 continue;
               }
               const pollData = await pollRes.json();
-              if (pollData.status === "COMPLETED" && (pollData.result || pollData.url)) {
-                return pollData.result || pollData.url;
+              if (pollData.status === "COMPLETED") {
+                const raw = pollData.result ?? pollData.url ?? null;
+                const imageUrl = typeof raw === "string"
+                  ? raw
+                  : raw && typeof raw === "object" && typeof raw.url === "string"
+                  ? raw.url
+                  : null;
+                if (imageUrl) {
+                  return imageUrl;
+                }
               } else if (pollData.status === "ERROR") {
                 throw new Error(pollData.error || "Error processing image");
               }
