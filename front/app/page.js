@@ -189,8 +189,9 @@ export default function Home() {
   };
 
   // Helper to coerce various result shapes to a string URL
-  const ensureStringUrl = (val) => {
-    if (!val) return null;
+  const ensureStringUrl = (val, depth = 0) => {
+    // Prevent infinite recursion
+    if (depth > 3 || !val) return null;
 
     // If it's already a string, validate it's a proper data URL or HTTP URL
     if (typeof val === "string") {
@@ -200,7 +201,12 @@ export default function Home() {
       return null;
     }
 
-    if (typeof val === "object") {
+    if (typeof val === "object" && val !== null) {
+      // Avoid processing circular references or React elements
+      if (val.$$typeof || val._owner || val.constructor === Object.prototype.constructor) {
+        return null;
+      }
+      
       // common shapes: { url }, { result: string }, arrays
       if (
         typeof val.url === "string" &&
@@ -214,10 +220,10 @@ export default function Home() {
       ) {
         return val.result;
       }
-      if (Array.isArray(val)) {
-        // return first string-like
-        for (const item of val) {
-          const s = ensureStringUrl(item);
+      if (Array.isArray(val) && val.length > 0) {
+        // return first string-like, limiting array processing to first 5 items
+        for (let i = 0; i < Math.min(val.length, 5); i++) {
+          const s = ensureStringUrl(val[i], depth + 1);
           if (s) return s;
         }
       }
