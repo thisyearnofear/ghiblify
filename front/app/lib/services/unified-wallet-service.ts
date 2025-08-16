@@ -38,6 +38,8 @@ class UnifiedWalletService {
 
   private listeners: Array<(connection: WalletConnection) => void> = [];
   private storageKey = 'ghiblify_wallet_state';
+  private connectionDebounceTimeout: NodeJS.Timeout | null = null;
+  private lastConnectionAttempt: number = 0;
 
   constructor() {
     this.loadPersistedState();
@@ -238,7 +240,21 @@ class UnifiedWalletService {
   // ===== PRIVATE METHODS =====
 
   private async connectWallet(address: string, provider: WalletProvider): Promise<UnifiedWalletUser> {
+    // Debounce connection attempts to prevent rapid switching
+    const now = Date.now();
+    if (now - this.lastConnectionAttempt < 500) {
+      console.log(`[Unified Wallet] Debouncing connection attempt for ${provider}`);
+      throw new Error('Connection attempt too soon, please wait');
+    }
+    this.lastConnectionAttempt = now;
+
     console.log(`[Unified Wallet] Connecting ${provider} wallet:`, address);
+
+    // Clear any pending connection timeout
+    if (this.connectionDebounceTimeout) {
+      clearTimeout(this.connectionDebounceTimeout);
+      this.connectionDebounceTimeout = null;
+    }
 
     this.updateConnection({
       ...this.currentConnection,

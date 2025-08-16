@@ -64,12 +64,41 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
   // Auto-connect when external wallets connect with proper cleanup
   useEffect(() => {
     let isConnecting = false;
+    let timeoutId: NodeJS.Timeout;
 
     const autoConnect = async () => {
       // Prevent concurrent connection attempts
       if (isConnecting || connection.isLoading) return;
 
       try {
+        // In Farcaster frame, prioritize stability over switching
+        if (isInFrame) {
+          // If we have a Farcaster connection and RainbowKit connects, prefer RainbowKit but don't force switch
+          if (isRainbowKitConnected && rainbowKitAddress) {
+            if (!connection.isConnected) {
+              isConnecting = true;
+              await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
+              isConnecting = false;
+            }
+            return;
+          }
+
+          // If we have Base auth and no other connection, connect Base
+          if (isBaseAuthenticated && baseUser?.address && !connection.isConnected) {
+            isConnecting = true;
+            await unifiedWalletService.connectBase(baseUser.address);
+            isConnecting = false;
+            return;
+          }
+
+          // Farcaster frame connection as fallback
+          if (rainbowKitAddress && !connection.isConnected) {
+            await unifiedWalletService.connectFarcaster(rainbowKitAddress);
+          }
+          return;
+        }
+
+        // Regular web app logic - more aggressive switching allowed
         // Priority 1: RainbowKit connection (highest priority)
         if (isRainbowKitConnected && rainbowKitAddress) {
           // If already connected to this exact RainbowKit address, do nothing
@@ -131,24 +160,15 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
           unifiedWalletService.disconnect();
           return;
         }
-
-        // Priority 3: Farcaster Frame (only if no other connections)
-        if (!isRainbowKitConnected && !isBaseAuthenticated && isInFrame && rainbowKitAddress) {
-          if (!connection.isConnected ||
-              connection.user?.address !== rainbowKitAddress.toLowerCase() ||
-              connection.user?.provider !== 'farcaster') {
-            await unifiedWalletService.connectFarcaster(rainbowKitAddress);
-          }
-          return;
-        }
       } catch (error) {
         console.warn('Auto-connect failed:', error);
         isConnecting = false;
       }
     };
 
-    // Use a small delay to prevent rapid re-execution
-    const timeoutId = setTimeout(autoConnect, 50);
+    // Use longer delay in Farcaster frame to prevent rapid switching
+    const delay = isInFrame ? 200 : 50;
+    timeoutId = setTimeout(autoConnect, delay);
 
     return () => {
       clearTimeout(timeoutId);

@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
-import Web3Button from "./Web3Button";
+import FarcasterAwareWeb3Button from "./FarcasterAwareWeb3Button";
 import {
   COLORS,
   GRADIENTS,
@@ -36,7 +36,7 @@ export default function Navigation() {
       <Box {...LAYOUTS.headerContainer} bgGradient={GRADIENTS.ghibliPrimary}>
         <Flex {...LAYOUTS.centeredFlex}>
           <HStack spacing={4} />
-          <Web3Button />
+          <FarcasterAwareWeb3Button />
         </Flex>
       </Box>
     );
@@ -92,7 +92,7 @@ export default function Navigation() {
           )}
         </HStack>
 
-        <Web3Button />
+        <FarcasterAwareWeb3Button />
       </Flex>
     </Box>
   );
