@@ -354,7 +354,7 @@ export default function Home() {
     try {
       // Check if wallet is connected
       if (!isConnected || !address) {
-        setError("Please connect your wallet to continue.");
+        setError("Connect your wallet to start creating ✨");
         setIsLoading(false);
         return;
       }
@@ -365,13 +365,13 @@ export default function Home() {
       } catch (creditError) {
         if (creditError.message.includes("Insufficient credits")) {
           setError(
-            "No credits available. Please purchase credits to continue."
+            "Add credits to continue creating magical art ✨"
           );
           document
             .getElementById("pricing")
             ?.scrollIntoView({ behavior: "smooth" });
         } else {
-          setError("Failed to use credit. Please try again.");
+          setError("Connection issue. Please try again.");
         }
         setIsLoading(false);
         return;

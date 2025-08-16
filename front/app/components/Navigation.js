@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
-import FarcasterAwareWeb3Button from "./FarcasterAwareWeb3Button";
+import CompactWalletButton from "./ui/CompactWalletButton";
 import {
   COLORS,
   GRADIENTS,
@@ -33,10 +33,20 @@ export default function Navigation() {
   // During SSR and before mounting, render a placeholder layout
   if (!mounted) {
     return (
-      <Box {...LAYOUTS.headerContainer} bgGradient={GRADIENTS.ghibliPrimary}>
-        <Flex {...LAYOUTS.centeredFlex}>
+      <Box 
+        position="sticky" 
+        top={0} 
+        zIndex={1000}
+        py={3}
+        px={4}
+        bgGradient={GRADIENTS.ghibliPrimary}
+        backdropFilter="blur(10px)"
+        borderBottom="1px solid"
+        borderColor="whiteAlpha.200"
+      >
+        <Flex justify="space-between" align="center" maxW="1200px" mx="auto">
           <HStack spacing={4} />
-          <FarcasterAwareWeb3Button />
+          <CompactWalletButton />
         </Flex>
       </Box>
     );
@@ -44,8 +54,15 @@ export default function Navigation() {
 
   return (
     <Box
-      {...LAYOUTS.headerContainer}
+      position="sticky"
+      top={0}
+      zIndex={1000}
+      py={3}
+      px={4}
       bgGradient={GRADIENTS.ghibliPrimary}
+      backdropFilter="blur(10px)"
+      borderBottom="1px solid"
+      borderColor="whiteAlpha.200"
       _before={{
         content: '""',
         position: "absolute",
@@ -55,20 +72,22 @@ export default function Navigation() {
         bottom: 0,
         bgGradient: GRADIENTS.shimmerOverlay,
         animation: ANIMATION_PRESETS.sparkleSlow,
+        opacity: 0.6,
       }}
     >
-      {/* Magical sparkles */}
-      <SparkleEffect />
+      {/* Subtle sparkles */}
+      <Box opacity={0.7}>
+        <SparkleEffect />
+      </Box>
 
-      <Flex {...LAYOUTS.centeredFlex}>
-        <HStack spacing={6}>
-          {/* Logo/Brand */}
+      <Flex justify="space-between" align="center" maxW="1200px" mx="auto" position="relative">
+        {/* Logo/Brand - more compact */}
+        <HStack spacing={4}>
           <Text
-            fontSize={{ base: "xl", md: "2xl" }}
+            fontSize={{ base: "lg", md: "xl" }}
             fontWeight="bold"
             color="white"
             textShadow="0 2px 4px rgba(0,0,0,0.3)"
-            animation={ANIMATION_PRESETS.floatGentle}
             cursor="pointer"
             onClick={() => router.push("/")}
             _hover={INTERACTIONS.scaleHover}
@@ -81,18 +100,19 @@ export default function Navigation() {
             <Button
               {...PATTERNS.glassButton}
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={() => router.push("/account")}
               color="whiteAlpha.900"
-              display={{ base: "none", sm: "flex" }}
-              px={6}
+              display={{ base: "none", md: "flex" }}
+              px={3}
+              fontSize="xs"
             >
-              My Account
+              Account
             </Button>
           )}
         </HStack>
 
-        <FarcasterAwareWeb3Button />
+        <CompactWalletButton />
       </Flex>
     </Box>
   );

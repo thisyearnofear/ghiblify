@@ -99,7 +99,7 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
 
     // Check wallet connection
     if (!isConnected || !address) {
-      setError("Please connect your wallet to continue.");
+      setError("Connect your wallet to start batch creating ✨");
       setIsLoading(false);
       return;
     }
@@ -110,9 +110,9 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
       if (onCreditsUsed) onCreditsUsed();
     } catch (creditError) {
       if (creditError.message.includes("Insufficient credits")) {
-        setError(`Not enough credits for this batch. You need ${selectedFiles.length} credits but only have ${credits}.`);
+        setError(`Need ${selectedFiles.length} credits for this batch. You have ${credits}. Add more below ✨`);
       } else {
-        setError("Failed to use credits. Please try again.");
+        setError("Connection issue. Please try again.");
       }
       setIsLoading(false);
       return;

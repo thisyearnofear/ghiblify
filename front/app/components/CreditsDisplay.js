@@ -90,64 +90,56 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   // Connected state
   return (
     <Box
-      p={4}
+      p={3}
       borderWidth={1}
-      borderRadius="md"
-      borderColor={credits > 0 ? "green.200" : "orange.200"}
-      bg={credits > 0 ? "green.50" : "orange.50"}
+      borderRadius="lg"
+      borderColor={credits > 0 ? "blue.200" : "gray.200"}
+      bg={credits > 0 ? "blue.50" : "gray.50"}
+      maxW="400px"
+      mx="auto"
     >
       <HStack justify="space-between" align="center">
-        <Box>
-          <HStack spacing={2}>
-            <Text fontSize="lg" fontWeight="bold" color="gray.800">
-              Credits: {isLoading ? "..." : credits}
-            </Text>
-            {provider && (
-              <Tooltip label={`Connected via ${provider}`}>
-                <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                  {provider}
-                </Text>
-              </Tooltip>
-            )}
-          </HStack>
-          {address && (
-            <Text fontSize="xs" color="gray.500" fontFamily="mono">
-              {address.slice(0, 6)}...{address.slice(-4)}
-            </Text>
+        <HStack spacing={3}>
+          <Text fontSize="md" fontWeight="bold" color="gray.800">
+            {isLoading ? "..." : credits} credits
+          </Text>
+          {credits === 0 && (
+            <Button 
+              size="xs" 
+              colorScheme="blue" 
+              onClick={scrollToPricing}
+              borderRadius="full"
+              px={3}
+            >
+              + Add
+            </Button>
           )}
-        </Box>
+        </HStack>
 
-        <HStack spacing={2}>
+        {credits > 0 && (
           <Tooltip label="Refresh credits balance">
             <Button
-              size="sm"
-              variant="outline"
+              size="xs"
+              variant="ghost"
               onClick={handleRefresh}
               isLoading={isLoading}
-              loadingText="Refreshing"
+              color="gray.600"
+              p={1}
+              minW="auto"
             >
               🔄
             </Button>
           </Tooltip>
-
-          {credits === 0 && (
-            <Button size="sm" colorScheme="orange" onClick={scrollToPricing}>
-              Buy Credits
-            </Button>
-          )}
-        </HStack>
+        )}
       </HStack>
 
-      {credits > 0 && (
-        <Text fontSize="xs" color="green.600" mt={2}>
-          ✅ Ready to Ghiblify! You have {credits} credit
-          {credits !== 1 ? "s" : ""} available.
+      {credits > 0 ? (
+        <Text fontSize="xs" color="blue.600" mt={1}>
+          Ready to create ✨
         </Text>
-      )}
-
-      {credits === 0 && (
-        <Text fontSize="xs" color="orange.600" mt={2}>
-          ⚠️ No credits available. Purchase credits below to start creating!
+      ) : (
+        <Text fontSize="xs" color="gray.600" mt={1}>
+          Add credits to start creating magical art
         </Text>
       )}
     </Box>

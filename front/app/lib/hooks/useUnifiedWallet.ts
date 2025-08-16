@@ -181,7 +181,8 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     baseUser,
     isInFrame,
     connection.isConnected,
-    connection.user
+    connection.user,
+    connection.isLoading
   ]);
 
   // Actions
