@@ -92,7 +92,7 @@ const MobileFileUpload = dynamic(
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
-import ImageErrorBoundary from "./components/ImageErrorBoundary";
+import ImageReadyBoundary from "./components/ImageReadyBoundary";
 import {
   Slider,
   SliderTrack,
@@ -128,8 +128,6 @@ export default function Home() {
   const [taskId, setTaskId] = useState(null);
   const [taskProgress, setTaskProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
-  const [pollInterval, setPollInterval] = useState(null);
-  const [factInterval, setFactInterval] = useState(null);
   const [token, setToken] = useState(null);
   const [creditsRefreshKey, setCreditsRefreshKey] = useState(0);
   const [promptStrength, setPromptStrength] = useState(DEFAULT_PROMPT_STRENGTH);
@@ -232,7 +230,7 @@ export default function Home() {
   };
 
   // Function to poll task status
-  const pollTaskStatus = async (taskId) => {
+  const pollTaskStatus = useCallback(async (taskId) => {
     try {
       const response = await fetch(
         `${API_URL}/api/comfyui/status/${taskId}`,
@@ -266,13 +264,11 @@ export default function Home() {
             // Store the validated string URL
             setGeneratedImageURL(imageUrl);
             setIsLoading(false);
-            cleanupIntervals();
             return true;
           } catch (error) {
             console.error("Error validating image URL:", error);
             setError("Invalid image format received");
             setIsLoading(false);
-            cleanupIntervals();
             return true;
           }
         } else {
@@ -283,7 +279,6 @@ export default function Home() {
           );
           setError("Failed to process image: Invalid response format");
           setIsLoading(false);
-          cleanupIntervals();
           return true;
         }
       } else if (data.status === "ERROR") {
@@ -293,7 +288,6 @@ export default function Home() {
             : "An error occurred during processing";
         setError(errorMessage);
         setIsLoading(false);
-        cleanupIntervals(); // Ensure we clean up all intervals
 
         // Refund credit for failed processing
         try {
@@ -315,24 +309,45 @@ export default function Home() {
       console.error("Error polling status:", error);
       return false;
     }
-  };
+  }, [ensureStringUrl, setGeneratedImageURL, setError, setIsLoading, refundCredits, setCreditsRefreshKey]);
 
-  // Cleanup function for intervals
-  const cleanupIntervals = useCallback(() => {
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      setPollInterval(null);
-    }
-    if (factInterval) {
-      clearInterval(factInterval);
-      setFactInterval(null);
-    }
-  }, [pollInterval, factInterval]);
 
-  // Cleanup on unmount
+
+  // Auto-rotate Studio Ghibli facts while loading
   useEffect(() => {
-    return () => cleanupIntervals();
-  }, [cleanupIntervals]);
+    if (!isLoading) {
+      setCurrentFact(0);
+      return;
+    }
+    const factTimer = setInterval(() => {
+      setCurrentFact((f) => (f + 1) % ghibliFacts.length);
+    }, 30000);
+    return () => clearInterval(factTimer);
+  }, [isLoading, ghibliFacts.length]);
+
+  // Auto-poll ComfyUI status while loading
+  useEffect(() => {
+    if (!isLoading || apiChoice !== "comfy" || !taskId) return;
+    
+    let cancelled = false;
+    let timeoutId;
+
+    const doPoll = async () => {
+      if (cancelled) return;
+      const done = await pollTaskStatus(taskId);
+      if (!done && !cancelled) {
+        timeoutId = setTimeout(doPoll, 10000);
+      }
+    };
+
+    // Start polling after a short delay
+    timeoutId = setTimeout(doPoll, 10000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [isLoading, apiChoice, taskId, pollTaskStatus]);
 
   const handleGhiblify = async () => {
     if (!selectedFile) return;
@@ -342,8 +357,7 @@ export default function Home() {
     setCurrentFact(0);
     setGeneratedImageURL(""); // Clear any previous result
 
-    // Clean up any existing intervals
-    cleanupIntervals();
+
 
     try {
       // Check if wallet is connected
@@ -417,34 +431,22 @@ export default function Home() {
       }
 
       if (apiChoice === "replicate") {
-        if (data.result && typeof data.result === "string") {
-          setGeneratedImageURL(data.result);
+        // Use the same helper so we never store an object/array
+        const imageUrl = ensureStringUrl(data.result ?? data.url ?? data);
+        if (imageUrl) {
+          setGeneratedImageURL(imageUrl);
+        } else {
+          setError("Invalid image format received from Replicate");
         }
         setIsLoading(false);
       } else {
-        // For ComfyUI, start polling
+        // For ComfyUI, set task ID to trigger polling via useEffect
         setTaskId(data.task_id);
-
-        // Set up polling interval
-        const newPollInterval = setInterval(async () => {
-          const isDone = await pollTaskStatus(data.task_id);
-          if (isDone) {
-            cleanupIntervals();
-          }
-        }, 10000);
-        setPollInterval(newPollInterval);
-
-        // Set up fact rotation interval
-        const newFactInterval = setInterval(() => {
-          setCurrentFact((prev) => (prev + 1) % ghibliFacts.length);
-        }, 30000);
-        setFactInterval(newFactInterval);
       }
     } catch (error) {
       console.error("Error:", error);
       setError(error.message);
       setIsLoading(false);
-      cleanupIntervals();
 
       // Refund credit if the API call failed after spending
       try {
@@ -656,7 +658,7 @@ export default function Home() {
           ) : (
             <>
               {selectedImageURL && generatedImageURL ? (
-                <ImageErrorBoundary
+                <ImageReadyBoundary
                   onRetry={() => {
                     setGeneratedImageURL("");
                     setSelectedImageURL("");
@@ -678,7 +680,7 @@ export default function Home() {
                       />
                     </Box>
                   </Box>
-                </ImageErrorBoundary>
+                </ImageReadyBoundary>
               ) : (
                 <>
                   {selectedImageURL && (
@@ -700,7 +702,7 @@ export default function Home() {
                     </Box>
                   )}
                   {generatedImageURL && (
-                    <ImageErrorBoundary
+                    <ImageReadyBoundary
                       onRetry={() => setGeneratedImageURL("")}
                     >
                       <Box
@@ -726,7 +728,7 @@ export default function Home() {
                           title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
                         />
                       </Box>
-                    </ImageErrorBoundary>
+                    </ImageReadyBoundary>
                   )}
                   {error && (
                     <Text color="red.500" mt={4}>

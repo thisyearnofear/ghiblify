@@ -208,7 +208,13 @@ async def download_and_convert_to_base64(url: str) -> str:
             
             # Convert to base64
             image_base64 = base64.b64encode(response.content).decode("utf-8")
-            return BASE64_PREAMBLE + image_base64
+            result = BASE64_PREAMBLE + image_base64
+            
+            # Validate result is a string
+            if not isinstance(result, str):
+                raise ValueError(f"Expected string result, got {type(result)}")
+            
+            return result
             
     except Exception as e:
         logger.error(f"Error downloading image from {url}: {str(e)}")
@@ -251,6 +257,12 @@ async def comfyui_webhook(request: Request):
                 # Download and convert the image to base64
                 image_base64 = await download_and_convert_to_base64(output_urls[0])
                 
+                # Validate the base64 result is a string
+                if not isinstance(image_base64, str):
+                    logger.error(f"Non-string base64 result for task {task_id}")
+                    await update_task_status(task_id, "ERROR", error="Invalid base64 format")
+                    raise HTTPException(status_code=500, detail="Invalid base64 format")
+                
                 # Store both the base64 and the URL
                 await update_task_status(
                     task_id,
@@ -284,6 +296,13 @@ async def update_status(task_id: str, request: Request):
             if output_urls:
                 try:
                     base64_data = await download_and_convert_to_base64(output_urls[0])
+                    
+                    # Validate the base64 data is a string
+                    if not isinstance(base64_data, str):
+                        logger.error(f"Non-string base64 data for task {task_id}")
+                        await update_task_status(task_id, "ERROR", error="Invalid base64 format")
+                        return JSONResponse(content={"message": "Invalid base64 format"}, status_code=500)
+                    
                     await update_task_status(
                         task_id,
                         "COMPLETED",
@@ -336,6 +355,13 @@ async def check_comfyui_status(task_id: str):
                         if output_urls:
                             try:
                                 base64_data = await download_and_convert_to_base64(output_urls[0])
+                                
+                                # Validate the base64 data is a string
+                                if not isinstance(base64_data, str):
+                                    logger.error(f"Non-string base64 data for task {task_id}")
+                                    await update_task_status(task_id, "ERROR", error="Invalid base64 format")
+                                    return
+                                
                                 await update_task_status(
                                     task_id,
                                     "COMPLETED",
@@ -375,10 +401,27 @@ async def get_task_status(task_id: str):
         
     # If task is completed, return both URL and base64 result
     if result["status"] == "COMPLETED":
+        result_data = result.get("result")
+        url_data = result.get("url")
+        
+        # Validate that result is a string
+        if result_data and not isinstance(result_data, str):
+            logger.error(f"Non-string result data for task {task_id}: {type(result_data)}")
+            return JSONResponse(content={
+                "status": "ERROR",
+                "error": "Invalid result format - expected string URL",
+                "message": "Processing failed"
+            })
+        
+        # Validate that url is a string if present
+        if url_data and not isinstance(url_data, str):
+            logger.error(f"Non-string URL data for task {task_id}: {type(url_data)}")
+            url_data = None
+        
         return JSONResponse(content={
             "status": "COMPLETED",
-            "result": result.get("result"),  # base64 data
-            "url": result.get("url"),        # direct URL
+            "result": result_data,  # base64 data (validated string)
+            "url": url_data,        # direct URL (validated string or None)
             "message": "Processing complete"
         })
         

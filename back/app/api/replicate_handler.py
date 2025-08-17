@@ -89,11 +89,18 @@ async def process_with_replicate(file: UploadFile = File("test")):
         output_image.save(output_bytes_io, format="PNG")
         output_base64 = base64.b64encode(output_bytes_io.getvalue()).decode("utf-8")
         
+        # Validate the result is a proper string URL
+        result_url = BASE64_PREAMBLE + output_base64
+        if not isinstance(result_url, str):
+            raise HTTPException(status_code=500, detail="Non-string URL returned from processing")
+        
         return JSONResponse(
             content={
                 "message": "Photo processed successfully",
                 "original": BASE64_PREAMBLE + base64_encoded,
-                "result": BASE64_PREAMBLE + output_base64
+                "result": result_url,
+                "url": result_url,  # Add url field for consistency with ComfyUI
+                "task_id": None  # Add task_id field for consistency
             },
             status_code=200
         )
