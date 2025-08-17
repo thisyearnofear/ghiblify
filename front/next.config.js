@@ -4,7 +4,14 @@ const nextConfig = {
   images: {
     domains: ["ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com"],
   },
-  // Remove rewrite - let the static file be served directly
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/farcaster.json",
+        destination: "/api/farcaster",
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
