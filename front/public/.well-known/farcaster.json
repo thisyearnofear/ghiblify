@@ -1,5 +1,5 @@
 {
-  "miniapp": {
+  "frame": {
     "version": "1",
     "name": "Ghiblify",
     "homeUrl": "https://ghiblify-it.vercel.app",

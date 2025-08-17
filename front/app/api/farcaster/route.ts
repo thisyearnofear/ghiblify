@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   return NextResponse.json({
-    miniapp: {
+    frame: {
       version: "1",
       name: "Ghiblify",
       homeUrl: "https://ghiblify-it.vercel.app",
