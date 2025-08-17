@@ -13,16 +13,23 @@ export const FARCASTER_CONFIG = {
     buttonTitle: "Transform Photo",
     splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it.png",
     splashBackgroundColor: "#4FD1C5",
-    webhookUrl: "https://ghiblify-it.vercel.app/api/farcaster/webhook"
+    webhookUrl: "https://ghiblify-it.vercel.app/api/farcaster/webhook",
   },
 
-  // Meta tags for feed embedding
-  metaTags: {
-    "fc:miniapp": "https://ghiblify-it.vercel.app/api/farcaster",
-    "fc:miniapp:image": "https://ghiblify-it.vercel.app/ghibli-time.png",
-    "fc:miniapp:button:1": "Transform Photo",
-    "fc:miniapp:button:1:action": "launch",
-    "fc:miniapp:button:1:target": "https://ghiblify-it.vercel.app"
+  // Meta tags for feed embedding (correct format)
+  embedConfig: {
+    version: "1",
+    imageUrl: "https://ghiblify-it.vercel.app/ghibli-time-og.png",
+    button: {
+      title: "Transform Photo",
+      action: {
+        type: "launch_frame",
+        name: "Ghiblify",
+        url: "https://ghiblify-it.vercel.app",
+        splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it-splash.png",
+        splashBackgroundColor: "#4FD1C5",
+      },
+    },
   },
 
   // SDK configuration
@@ -31,8 +38,8 @@ export const FARCASTER_CONFIG = {
     maxRetries: 3,
     notificationRateLimit: {
       perMinute: 2,
-      perDay: 100
-    }
+      perDay: 100,
+    },
   },
 
   // Notification templates
@@ -40,41 +47,42 @@ export const FARCASTER_CONFIG = {
     transformComplete: {
       title: "✨ Your Ghibli transformation is ready!",
       body: "Tap to see your magical artwork",
-      ttl: 3600000 // 1 hour
+      ttl: 3600000, // 1 hour
     },
     transformStarted: {
       title: "🎨 Creating your Ghibli masterpiece...",
       body: "We'll notify you when it's ready",
-      ttl: 1800000 // 30 minutes
+      ttl: 1800000, // 30 minutes
     },
     error: {
       title: "❌ Transformation failed",
       body: "Please try again with a different image",
-      ttl: 900000 // 15 minutes
-    }
+      ttl: 900000, // 15 minutes
+    },
   },
 
   // Environment detection
   userAgentPatterns: {
     farcaster: /Farcaster/i,
-    mobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
+    mobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i,
   },
 
   // Analytics events
   events: {
-    APP_LAUNCHED: 'miniapp_launched',
-    IMAGE_UPLOADED: 'image_uploaded', 
-    TRANSFORM_STARTED: 'transform_started',
-    TRANSFORM_COMPLETED: 'transform_completed',
-    SHARED: 'image_shared',
-    ERROR: 'error_occurred'
-  }
+    APP_LAUNCHED: "miniapp_launched",
+    IMAGE_UPLOADED: "image_uploaded",
+    TRANSFORM_STARTED: "transform_started",
+    TRANSFORM_COMPLETED: "transform_completed",
+    SHARED: "image_shared",
+    ERROR: "error_occurred",
+  },
 };
 
 // Helper functions
 export function isFarcasterEnvironment() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  
+  if (typeof window === "undefined" || typeof navigator === "undefined")
+    return false;
+
   try {
     return !!(
       window?.parent !== window ||
@@ -88,9 +96,13 @@ export function isFarcasterEnvironment() {
 }
 
 export function getNotificationConfig(type) {
-  return FARCASTER_CONFIG.notifications[type] || FARCASTER_CONFIG.notifications.error;
+  return (
+    FARCASTER_CONFIG.notifications[type] || FARCASTER_CONFIG.notifications.error
+  );
 }
 
-export function createNotificationId(prefix = 'ghiblify') {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+export function createNotificationId(prefix = "ghiblify") {
+  return `${prefix}-${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(2, 11)}`;
 }

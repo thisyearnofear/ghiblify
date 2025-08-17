@@ -4,7 +4,7 @@ import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
 import Navigation from "./components/Navigation";
 
 export const metadata = {
-  metadataBase: new URL('https://ghiblify-it.vercel.app'),
+  metadataBase: new URL("https://ghiblify-it.vercel.app"),
   title: "Ghiblify",
   description: "Transform your photos into Studio Ghibli style art",
   openGraph: {
@@ -14,24 +14,31 @@ export const metadata = {
     type: "website",
     locale: "en_US",
     url: "https://ghiblify-it.vercel.app",
-    siteName: "Ghiblify"
+    siteName: "Ghiblify",
   },
   twitter: {
     card: "summary_large_image",
     title: "Ghiblify",
     description: "Transform your photos into Studio Ghibli style art",
     images: ["/ghibli-time.png"],
-    creator: "@ghiblify"
+    creator: "@ghiblify",
   },
   other: {
-    "fc:miniapp": "https://ghiblify-it.vercel.app/.well-known/farcaster.json",
-    "fc:miniapp:name": "Ghiblify",
-    "fc:miniapp:icon": "https://ghiblify-it.vercel.app/ghibli-it-icon.png",
-    "fc:miniapp:image": "https://ghiblify-it.vercel.app/ghibli-time-og.png",
-    "fc:miniapp:button:1": "Ghiblify",
-    "fc:miniapp:button:1:action": "launch",
-    "fc:miniapp:button:1:target": "https://ghiblify-it.vercel.app"
-  }
+    "fc:miniapp": JSON.stringify({
+      version: "1",
+      imageUrl: "https://ghiblify-it.vercel.app/ghibli-time-og.png",
+      button: {
+        title: "Transform Photo",
+        action: {
+          type: "launch_frame",
+          name: "Ghiblify",
+          url: "https://ghiblify-it.vercel.app",
+          splashImageUrl: "https://ghiblify-it.vercel.app/ghibli-it-splash.png",
+          splashBackgroundColor: "#4FD1C5",
+        },
+      },
+    }),
+  },
 };
 
 export default function RootLayout({ children }) {
@@ -39,7 +46,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"
+        />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="theme-color" content="#4FD1C5" />
