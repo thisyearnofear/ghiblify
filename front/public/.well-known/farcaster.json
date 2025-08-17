@@ -5,7 +5,7 @@
     "homeUrl": "https://ghiblify-it.vercel.app",
     "iconUrl": "https://ghiblify-it.vercel.app/ghibli-it-icon.png",
     "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time-og.png",
-    "buttonTitle": "Transform Photo",
+    "buttonTitle": "Ghiblify",
     "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-it-splash.png",
     "splashBackgroundColor": "#4FD1C5",
     "description": "Transform your photos into Studio Ghibli style art using AI",
