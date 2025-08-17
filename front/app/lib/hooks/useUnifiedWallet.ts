@@ -71,9 +71,20 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
       if (isConnecting || connection.isLoading) return;
 
       try {
-        // In Farcaster frame, prioritize stability over switching
+        // In Farcaster frame, prioritize Base Account for Base Pay compatibility
         if (isInFrame) {
-          // If we have a Farcaster connection and RainbowKit connects, prefer RainbowKit but don't force switch
+          // Priority 1: Base Account (for Base Pay functionality)
+          if (isBaseAuthenticated && baseUser?.address) {
+            if (!connection.isConnected || 
+                (connection.user?.provider !== 'base' && connection.user?.address !== baseUser.address.toLowerCase())) {
+              isConnecting = true;
+              await unifiedWalletService.connectBase(baseUser.address);
+              isConnecting = false;
+            }
+            return;
+          }
+
+          // Priority 2: RainbowKit connection (for Celo support)
           if (isRainbowKitConnected && rainbowKitAddress) {
             if (!connection.isConnected) {
               isConnecting = true;
@@ -83,15 +94,7 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
             return;
           }
 
-          // If we have Base auth and no other connection, connect Base
-          if (isBaseAuthenticated && baseUser?.address && !connection.isConnected) {
-            isConnecting = true;
-            await unifiedWalletService.connectBase(baseUser.address);
-            isConnecting = false;
-            return;
-          }
-
-          // Farcaster frame connection as fallback
+          // Fallback: Farcaster frame connection
           if (rainbowKitAddress && !connection.isConnected) {
             await unifiedWalletService.connectFarcaster(rainbowKitAddress);
           }

@@ -99,6 +99,12 @@ class AutoConnectionService {
     }
 
     try {
+      // Disconnect current connection first for clean switch
+      unifiedWalletService.disconnect();
+      
+      // Small delay to allow state to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       if (network === 'base') {
         await unifiedWalletService.connectBase(address);
       } else {
@@ -114,6 +120,23 @@ class AutoConnectionService {
       console.error(`[AutoConnection] Failed to switch to ${network}:`, error);
       return false;
     }
+  }
+
+  /**
+   * Check if we can use Base Pay (requires Base Account in Farcaster)
+   */
+  canUseBasePay(): boolean {
+    const connection = unifiedWalletService.getConnection();
+    return connection.isConnected && connection.user?.provider === 'base';
+  }
+
+  /**
+   * Check if we can use Celo payments
+   */
+  canUseCeloPayments(): boolean {
+    const connection = unifiedWalletService.getConnection();
+    return connection.isConnected && 
+           (connection.user?.provider === 'rainbowkit' || connection.user?.provider === 'farcaster');
   }
 
   /**
