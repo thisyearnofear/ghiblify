@@ -21,7 +21,7 @@ export const FARCASTER_CONFIG = {
     version: "1",
     imageUrl: "https://ghiblify-it.vercel.app/ghibli-time-og.png",
     button: {
-      title: "Transform Photo",
+      title: "Ghiblify",
       action: {
         type: "launch_frame",
         name: "Ghiblify",

@@ -21,8 +21,8 @@
     "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
   },
   "accountAssociation": {
-    "header": "eyJmaWQiOjM2NzcsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhkMzNiNmU4YTE4NzQzYTE4NTlmMzQ1ZjFmOTY2MTNkYzBjMWEzMzk4In0",
+    "header": "eyJmaWQiOjUyNTQsInR5cGUiOiJhdXRoIiwia2V5IjoiMHhkODY1Q2Q3Y2NjOTFGODM2OTJhQjMzMDk4MWMzRTNlOWQ3QTA1MjZBIn0",
     "payload": "eyJkb21haW4iOiJnaGlibGlmeS1pdC52ZXJjZWwuYXBwIn0",
-    "signature": "MHg5NDNhMTBjMTczYjc4NDZhZGEzZjE3NzBmMmRjNzNjNDQzYjkzYWU5YzY2YzFhMTQwZjc0ZGJlYjczOGQ1OWJiNzIzMzRhOGY2YmExYjc1YTllNGQ3ODg2YjUyNDNjMzNlNjI3YjU0MzkyMDM2NWFkYmZlNGRhZTI1YzZmOTFiZjFiMGFiYzJlNGM0ZGJkYzJhZjFkM2UyOWM4ZDNjZmRmNDcyZTY3NWJjYjNiNTg1MzYyZmZkOGE4M2ExNTZhNGQ3ZmI0NzFmZGJjMDZhYTI2NjMyYmY3NzM2NGUyNGYzM2M0YTFlOGQzNjQ1Zjg5NzI0ZmQ5MThjZjI1M2U0"
+    "signature": "J7gCdUFjCMXrYRofpNYFwFmWurcdHfLkK9pUzvQmhZFmEg773bTtsvoBt5gOudCRCQ7X6uoN9FumwlQ2WXBnFBw="
   }
 }
