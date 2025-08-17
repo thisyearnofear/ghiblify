@@ -24,11 +24,17 @@ export const metadata = {
     creator: "@ghiblify"
   },
   other: {
-    "fc:miniapp": "https://ghiblify-it.vercel.app/api/farcaster",
-    "fc:miniapp:image": "https://ghiblify-it.vercel.app/ghibli-time.png",
-    "fc:miniapp:button:1": "Transform Photo",
-    "fc:miniapp:button:1:action": "launch",
-    "fc:miniapp:button:1:target": "https://ghiblify-it.vercel.app"
+    "fc:miniapp": JSON.stringify({
+      "version": "1",
+      "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time-og.png",
+      "button": {
+        "title": "Transform Photo",
+        "action": {
+          "type": "launch_miniapp",
+          "url": "https://ghiblify-it.vercel.app"
+        }
+      }
+    })
   }
 };
 

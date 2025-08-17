@@ -20,21 +20,17 @@
       content="https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png"
     />
     <meta
-      name="fc:frame"
+      name="fc:miniapp"
       content='{
-        "version": "next",
-        "image": {
-          "url": "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png",
-          "aspectRatio": "1.91:1"
-        },
-        "buttons": [
-          {
-            "label": "Transform Photo",
-            "action": "post_redirect"
+        "version": "1",
+        "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time-og.png",
+        "button": {
+          "title": "Transform Photo",
+          "action": {
+            "type": "launch_miniapp",
+            "url": "https://ghiblify-it.vercel.app"
           }
-        ],
-        "postUrl": "https://ghiblify-it.vercel.app",
-        "ogImage": "https://ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com/wowowify/ghibli-time.png"
+        }
       }'
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />

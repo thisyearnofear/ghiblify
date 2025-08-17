@@ -203,7 +203,7 @@ export default function Home() {
 
     if (typeof val === "object" && val !== null) {
       // Avoid processing circular references or React elements
-      if (val.$$typeof || val._owner || val.constructor === Object.prototype.constructor) {
+      if (val.$$typeof || val._owner || val.type || val.key || val.ref || val.props) {
         return null;
       }
       
@@ -257,30 +257,24 @@ export default function Home() {
         }
 
         if (typeof imageUrl === "string" && imageUrl.length > 0) {
-          // Simple, synchronous update - remove async validation that might be causing issues
-          const updateImage = () => {
-            try {
-              // Basic string validation only
-              if (!imageUrl || typeof imageUrl !== "string") {
-                throw new Error("Invalid image URL type");
-              }
-              
-              // Store the string URL immediately
-              setGeneratedImageURL(String(imageUrl));
-              setIsLoading(false);
-              cleanupIntervals();
-            } catch (error) {
-              console.error("Error setting image URL:", error);
-              // Even if there's an error, try to set it and let ErrorBoundary handle it
-              setGeneratedImageURL(imageUrl ? String(imageUrl) : "");
-              setIsLoading(false);
-              cleanupIntervals();
+          // Validate it's actually a proper URL string
+          try {
+            if (!imageUrl.startsWith("data:image/") && !imageUrl.startsWith("http")) {
+              throw new Error("Invalid image URL format");
             }
-          };
-
-          // Use immediate execution instead of requestAnimationFrame
-          updateImage();
-          return true;
+            
+            // Store the validated string URL
+            setGeneratedImageURL(imageUrl);
+            setIsLoading(false);
+            cleanupIntervals();
+            return true;
+          } catch (error) {
+            console.error("Error validating image URL:", error);
+            setError("Invalid image format received");
+            setIsLoading(false);
+            cleanupIntervals();
+            return true;
+          }
         } else {
           // Handle case where we can't extract a valid image URL
           console.error(
