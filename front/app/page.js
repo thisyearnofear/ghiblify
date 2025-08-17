@@ -34,7 +34,7 @@ import {
   Radio,
   RadioGroup,
 } from "@chakra-ui/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUnifiedWallet } from "./lib/hooks/useUnifiedWallet";
 import dynamic from "next/dynamic";
 import CreditsDisplay from "./components/CreditsDisplay";
@@ -159,7 +159,7 @@ export default function Home() {
     process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
   // Standard fetch options for all API calls to handle CORS properly
-  const fetchOptions = {
+  const fetchOptions = useMemo(() => ({
     credentials: "include",
     mode: "cors",
     headers: {
@@ -170,7 +170,7 @@ export default function Home() {
           ? window.location.origin
           : "https://ghiblify-it.vercel.app",
     },
-  };
+  }), []);
 
   // Load token on mount
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function Home() {
   };
 
   // Helper to coerce various result shapes to a string URL
-  const ensureStringUrl = (val, depth = 0) => {
+  const ensureStringUrl = useCallback((val, depth = 0) => {
     // Prevent infinite recursion
     if (depth > 3 || !val) return null;
 
@@ -227,7 +227,7 @@ export default function Home() {
       }
     }
     return null;
-  };
+  }, []);
 
   // Function to poll task status
   const pollTaskStatus = useCallback(async (taskId) => {
@@ -309,7 +309,7 @@ export default function Home() {
       console.error("Error polling status:", error);
       return false;
     }
-  }, [ensureStringUrl, setGeneratedImageURL, setError, setIsLoading, refundCredits, setCreditsRefreshKey]);
+  }, [API_URL, fetchOptions, ensureStringUrl, setGeneratedImageURL, setError, setIsLoading, refundCredits, setCreditsRefreshKey]);
 
 
 

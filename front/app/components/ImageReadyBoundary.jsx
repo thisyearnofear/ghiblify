@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Text, Button, Alert, AlertIcon, AlertTitle, AlertDescription, keyframes } from '@chakra-ui/react';
+import { Box, Text, Button, Alert, AlertIcon, AlertTitle, AlertDescription } from '@chakra-ui/react';
+import { keyframes } from '@emotion/react';
 
 const sparkle = keyframes`
   0%, 100% { transform: scale(1) rotate(0deg); }
