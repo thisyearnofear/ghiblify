@@ -68,13 +68,11 @@ class ImageReadyBoundary extends React.Component {
             leftIcon={<span>🎨</span>}
             onClick={() => {
               this.setState({ hasError: false, error: null });
-              // Optionally call a callback to retry the operation
-              if (this.props.onRetry) {
-                this.props.onRetry();
-              }
+              // Force a page refresh to clear any React state issues
+              window.location.reload();
             }}
           >
-            View My Image
+            Refresh & View Image
           </Button>
         </Alert>
       );

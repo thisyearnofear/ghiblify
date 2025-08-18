@@ -242,84 +242,43 @@ export default function PaymentMethodSelector({
                   minW="fit-content"
                   maxW={{ base: "120px", md: "160px" }}
                 >
-                  {priceLayout === "horizontal" ? (
-                    // Desktop layout: Badge and price side by side
-                    <HStack spacing={2} align="center" justify="end">
-                      {method.badge && (
-                        <Badge
-                          colorScheme="red"
-                          variant="solid"
-                          fontSize="2xs"
-                          px={badgePadding}
-                          py={1}
-                          borderRadius="md"
-                          whiteSpace="nowrap"
-                          flexShrink={0}
-                        >
-                          {method.badge}
-                        </Badge>
-                      )}
-                      <VStack spacing={0} align="end">
+                  <VStack spacing={1} align="end">
+                    {method.badge && (
+                      <Badge
+                        colorScheme="red"
+                        variant="solid"
+                        fontSize="2xs"
+                        px={badgePadding}
+                        py={1}
+                        borderRadius="md"
+                        whiteSpace="nowrap"
+                        alignSelf="end"
+                      >
+                        {method.badge}
+                      </Badge>
+                    )}
+                    <VStack spacing={0} align="end">
+                      <Text
+                        fontWeight="bold"
+                        fontSize="md"
+                        color={colors.text.primary}
+                        whiteSpace="nowrap"
+                      >
+                        {pricing.formattedDiscounted}
+                      </Text>
+                      {pricing.savings > 0 && (
                         <Text
-                          fontWeight="bold"
-                          fontSize="md"
-                          color={colors.text.primary}
+                          fontSize="xs"
+                          textDecoration="line-through"
+                          color={colors.text.muted}
                           whiteSpace="nowrap"
+                          lineHeight="1"
                         >
-                          {pricing.formattedDiscounted}
+                          {pricing.formattedOriginal}
                         </Text>
-                        {pricing.savings > 0 && (
-                          <Text
-                            fontSize="xs"
-                            textDecoration="line-through"
-                            color={colors.text.muted}
-                            whiteSpace="nowrap"
-                            lineHeight="1"
-                          >
-                            {pricing.formattedOriginal}
-                          </Text>
-                        )}
-                      </VStack>
-                    </HStack>
-                  ) : (
-                    // Mobile layout: Badge above price
-                    <VStack spacing={1} align="end">
-                      {method.badge && (
-                        <Badge
-                          colorScheme="red"
-                          variant="solid"
-                          fontSize="2xs"
-                          px={badgePadding}
-                          py={1}
-                          borderRadius="md"
-                          whiteSpace="nowrap"
-                        >
-                          {method.badge}
-                        </Badge>
                       )}
-                      <VStack spacing={0} align="end">
-                        <Text
-                          fontWeight="bold"
-                          fontSize="md"
-                          color={colors.text.primary}
-                          whiteSpace="nowrap"
-                        >
-                          {pricing.formattedDiscounted}
-                        </Text>
-                        {pricing.savings > 0 && (
-                          <Text
-                            fontSize="xs"
-                            textDecoration="line-through"
-                            color={colors.text.muted}
-                            whiteSpace="nowrap"
-                            lineHeight="1"
-                          >
-                            {pricing.formattedOriginal}
-                          </Text>
-                        )}
-                      </VStack>
                     </VStack>
-                  )}
+                  </VStack>
                 </VStack>
               </HStack>
             </Button>

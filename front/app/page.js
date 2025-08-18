@@ -159,18 +159,21 @@ export default function Home() {
     process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
 
   // Standard fetch options for all API calls to handle CORS properly
-  const fetchOptions = useMemo(() => ({
-    credentials: "include",
-    mode: "cors",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Origin:
-        typeof window !== "undefined"
-          ? window.location.origin
-          : "https://ghiblify-it.vercel.app",
-    },
-  }), []);
+  const fetchOptions = useMemo(
+    () => ({
+      credentials: "include",
+      mode: "cors",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Origin:
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://ghiblify-it.vercel.app",
+      },
+    }),
+    []
+  );
 
   // Load token on mount
   useEffect(() => {
@@ -201,10 +204,17 @@ export default function Home() {
 
     if (typeof val === "object" && val !== null) {
       // Avoid processing circular references or React elements
-      if (val.$$typeof || val._owner || val.type || val.key || val.ref || val.props) {
+      if (
+        val.$$typeof ||
+        val._owner ||
+        val.type ||
+        val.key ||
+        val.ref ||
+        val.props
+      ) {
         return null;
       }
-      
+
       // common shapes: { url }, { result: string }, arrays
       if (
         typeof val.url === "string" &&
@@ -230,88 +240,105 @@ export default function Home() {
   }, []);
 
   // Function to poll task status
-  const pollTaskStatus = useCallback(async (taskId) => {
-    try {
-      const response = await fetch(
-        `${API_URL}/api/comfyui/status/${taskId}`,
-        fetchOptions
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch status");
-      }
-      const data = await response.json();
-
-      if (data.status === "COMPLETED") {
-        let imageUrl = null;
-        
-        // More defensive extraction with extensive logging
-        try {
-          console.log("ComfyUI response data:", data);
-          imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
-          console.log("Extracted imageUrl:", typeof imageUrl, imageUrl ? imageUrl.substring(0, 100) + "..." : "null");
-        } catch (error) {
-          console.error("Error in ensureStringUrl:", error);
-          imageUrl = null;
+  const pollTaskStatus = useCallback(
+    async (taskId) => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/comfyui/status/${taskId}`,
+          fetchOptions
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch status");
         }
+        const data = await response.json();
 
-        if (typeof imageUrl === "string" && imageUrl.length > 0) {
-          // Validate it's actually a proper URL string
+        if (data.status === "COMPLETED") {
+          let imageUrl = null;
+
+          // More defensive extraction with extensive logging
           try {
-            if (!imageUrl.startsWith("data:image/") && !imageUrl.startsWith("http")) {
-              throw new Error("Invalid image URL format");
-            }
-            
-            // Store the validated string URL
-            setGeneratedImageURL(imageUrl);
-            setIsLoading(false);
-            return true;
+            console.log("ComfyUI response data:", data);
+            imageUrl = ensureStringUrl(data.result ?? data.url ?? null);
+            console.log(
+              "Extracted imageUrl:",
+              typeof imageUrl,
+              imageUrl ? imageUrl.substring(0, 100) + "..." : "null"
+            );
           } catch (error) {
-            console.error("Error validating image URL:", error);
-            setError("Invalid image format received");
+            console.error("Error in ensureStringUrl:", error);
+            imageUrl = null;
+          }
+
+          if (typeof imageUrl === "string" && imageUrl.length > 0) {
+            // Validate it's actually a proper URL string
+            try {
+              if (
+                !imageUrl.startsWith("data:image/") &&
+                !imageUrl.startsWith("http")
+              ) {
+                throw new Error("Invalid image URL format");
+              }
+
+              // Store the validated string URL
+              setGeneratedImageURL(imageUrl);
+              setIsLoading(false);
+              return true;
+            } catch (error) {
+              console.error("Error validating image URL:", error);
+              setError("Invalid image format received");
+              setIsLoading(false);
+              return true;
+            }
+          } else {
+            // Handle case where we can't extract a valid image URL
+            console.error(
+              "Failed to extract valid image URL from ComfyUI response:",
+              data
+            );
+            setError("Failed to process image: Invalid response format");
             setIsLoading(false);
             return true;
           }
-        } else {
-          // Handle case where we can't extract a valid image URL
-          console.error(
-            "Failed to extract valid image URL from ComfyUI response:",
-            data
-          );
-          setError("Failed to process image: Invalid response format");
+        } else if (data.status === "ERROR") {
+          const errorMessage =
+            typeof data.error === "string"
+              ? data.error
+              : "An error occurred during processing";
+          setError(errorMessage);
           setIsLoading(false);
+
+          // Refund credit for failed processing
+          try {
+            await refundCredits(1);
+            setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
+          } catch (refundError) {
+            // Don't show refund error to user, but silently handle it
+          }
+
           return true;
+        } else if (data.status === "PROCESSING") {
+          // Only update progress for significant changes
+          if (data.milestone && typeof data.milestone === "number") {
+            setTaskProgress(data.milestone);
+          }
+          return false;
         }
-      } else if (data.status === "ERROR") {
-        const errorMessage =
-          typeof data.error === "string"
-            ? data.error
-            : "An error occurred during processing";
-        setError(errorMessage);
-        setIsLoading(false);
-
-        // Refund credit for failed processing
-        try {
-          await refundCredits(1);
-          setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
-        } catch (refundError) {
-          // Don't show refund error to user, but silently handle it
-        }
-
-        return true;
-      } else if (data.status === "PROCESSING") {
-        // Only update progress for significant changes
-        if (data.milestone && typeof data.milestone === "number") {
-          setTaskProgress(data.milestone);
-        }
+      } catch (error) {
+        console.error("Error polling status:", error);
         return false;
       }
-    } catch (error) {
-      console.error("Error polling status:", error);
-      return false;
-    }
-  }, [API_URL, fetchOptions, ensureStringUrl, setGeneratedImageURL, setError, setIsLoading, refundCredits, setCreditsRefreshKey]);
-
-
+    },
+    [
+      API_URL,
+      fetchOptions,
+      ensureStringUrl,
+      setGeneratedImageURL,
+      setError,
+      setIsLoading,
+      refundCredits,
+      setCreditsRefreshKey,
+    ]
+  );
 
   // Auto-rotate Studio Ghibli facts while loading
   useEffect(() => {
@@ -328,7 +355,7 @@ export default function Home() {
   // Auto-poll ComfyUI status while loading
   useEffect(() => {
     if (!isLoading || apiChoice !== "comfy" || !taskId) return;
-    
+
     let cancelled = false;
     let timeoutId;
 
@@ -357,8 +384,6 @@ export default function Home() {
     setCurrentFact(0);
     setGeneratedImageURL(""); // Clear any previous result
 
-
-
     try {
       // Check if wallet is connected
       if (!isConnected || !address) {
@@ -372,9 +397,7 @@ export default function Home() {
         await spendCredits(1);
       } catch (creditError) {
         if (creditError.message.includes("Insufficient credits")) {
-          setError(
-            "Add credits to continue creating magical art ✨"
-          );
+          setError("Add credits to continue creating magical art ✨");
           document
             .getElementById("pricing")
             ?.scrollIntoView({ behavior: "smooth" });
@@ -666,18 +689,49 @@ export default function Home() {
                 >
                   <Box w="100%">
                     {typeof selectedImageURL === "string" &&
-                    typeof generatedImageURL === "string" ? (
-                      <CompareSlider
-                        originalUrl={selectedImageURL}
-                        resultUrl={generatedImageURL}
-                        height="400px"
-                      />
-                    ) : null}
-                    <Box mt={2}>
-                      <SocialShare
-                        imageUrl={generatedImageURL}
-                        title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
-                      />
+                    typeof generatedImageURL === "string" &&
+                    selectedImageURL.length > 0 &&
+                    generatedImageURL.length > 0 ? (
+                      (() => {
+                        console.log("Rendering CompareSlider with:", {
+                          selectedImageURL: typeof selectedImageURL,
+                          generatedImageURL: typeof generatedImageURL,
+                          selectedLength: selectedImageURL.length,
+                          generatedLength: generatedImageURL.length,
+                        });
+                        return (
+                          <CompareSlider
+                            originalUrl={selectedImageURL}
+                            resultUrl={generatedImageURL}
+                            height="400px"
+                          />
+                        );
+                      })()
+                    ) : (
+                      <Box textAlign="center" p={4}>
+                        <Text color="gray.500">Loading comparison view...</Text>
+                      </Box>
+                    )}
+                    <Box mt={4} textAlign="center">
+                      {typeof generatedImageURL === "string" &&
+                        generatedImageURL.length > 0 && (
+                          <SocialShare
+                            imageUrl={generatedImageURL}
+                            title="Ghiblified via https://ghiblify-it.vercel.app 🌱"
+                          />
+                        )}
+                      <Button
+                        mt={4}
+                        colorScheme="blue"
+                        variant="outline"
+                        onClick={() => {
+                          setGeneratedImageURL("");
+                          setSelectedImageURL("");
+                          setError("");
+                        }}
+                      >
+                        ✨ Create Another
+                      </Button>
                     </Box>
                   </Box>
                 </ImageReadyBoundary>
