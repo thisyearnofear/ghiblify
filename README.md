@@ -5,8 +5,21 @@ Transform your photos into enchanting Studio Ghibli style artwork using AI. Feat
 **Latest Updates:**
 - 🌙 **Dark Mode Support** - Elegant theme with glass morphism styling
 - 💎 **$GHIBLIFY Token Payments** - 50% discount with native token
+- 🎯 **Divvi Integration** - Earn referral rewards on Celo and Base transactions
 - 🔧 **Enhanced UX** - Centralized theme system and improved responsiveness
 - 🖥️ **Desktop Fixes** - Token payment visibility resolved
+
+## Divvi Integration
+
+Earn referral rewards on Celo and Base transactions. Users sign the same transaction - referral tracking is appended to calldata.
+
+**Setup**: Enhance existing wagmi hooks in `Pricing.js`:
+```javascript
+import { createDivviEnhancedWriteContract } from "../lib/utils/divvi-enhancer";
+const approveAsync = createDivviEnhancedWriteContract(originalApproveAsync, publicClient);
+```
+
+**Environment**: Already configured in `.env.local`
 
 ## Production Deployment
 
