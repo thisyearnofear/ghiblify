@@ -6,6 +6,11 @@
 const { ethers } = require('ethers');
 const { GhiblifyPriceAutomation } = require('./ghiblify-price-automation.cjs');
 
+// Load environment variables
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env.local') });
+
 // Configuration
 const CONFIG = {
   contractAddress: '0x41f2fA6E60A34c26BD2C467d21EcB0a2f9087B03',

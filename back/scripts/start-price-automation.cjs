@@ -11,7 +11,7 @@ const path = require('path');
 function startAutomation() {
   console.log('🤖 Starting $GHIBLIFY price automation daemon...');
   
-  const scriptPath = path.join(__dirname, '../backend/ghiblify-price-automation.cjs');
+  const scriptPath = path.join(__dirname, '../automation/ghiblify-price-automation.cjs');
   
   // Start the automation service
   const child = spawn('node', [scriptPath], {

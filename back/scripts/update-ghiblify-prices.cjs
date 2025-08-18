@@ -6,11 +6,12 @@
  */
 
 const { ethers } = require('ethers');
-const { GhiblifyPriceAutomation } = require('../backend/ghiblify-price-automation.cjs');
+const { GhiblifyPriceAutomation } = require('../automation/ghiblify-price-automation.cjs');
 
 // Load environment variables
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-require('dotenv').config({ path: require('path').join(__dirname, '../.env.local') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env.local') });
 
 async function main() {
   console.log('🚀 Starting manual $GHIBLIFY price update...\n');

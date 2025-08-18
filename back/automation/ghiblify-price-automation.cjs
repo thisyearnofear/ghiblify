@@ -8,7 +8,8 @@ const fetch = require('node-fetch');
 
 // Load environment variables
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-require('dotenv').config({ path: require('path').join(__dirname, '../.env.local') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../front/.env.local') });
 
 // Configuration
 const CONFIG = {

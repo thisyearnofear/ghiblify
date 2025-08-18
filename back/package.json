@@ -1,0 +1,24 @@
+{
+  "name": "ghiblify-backend",
+  "version": "1.0.0",
+  "description": "Backend automation services for Ghiblify",
+  "main": "automation/ghiblify-price-automation.cjs",
+  "scripts": {
+    "price:update": "node scripts/update-ghiblify-prices.cjs",
+    "price:start": "node scripts/start-price-automation.cjs", 
+    "price:stop": "node scripts/stop-price-automation.cjs",
+    "price:status": "node scripts/check-automation-status.cjs",
+    "events:start": "node automation/ghiblify-event-listener.cjs",
+    "health:check": "node scripts/health-check.cjs",
+    "monitor": "node scripts/monitoring-dashboard.cjs",
+    "automation:install": "npm install && echo '✅ Automation dependencies installed'"
+  },
+  "dependencies": {
+    "ethers": "^6.13.5",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^17.2.1"
+  },
+  "keywords": ["ghiblify", "automation", "blockchain", "price-oracle"],
+  "author": "Ghiblify Team",
+  "license": "MIT"
+}

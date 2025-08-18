@@ -7,13 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "price:update": "node scripts/update-ghiblify-prices.cjs",
-    "price:start": "node scripts/start-price-automation.cjs",
-    "price:stop": "node scripts/stop-price-automation.cjs",
-    "price:status": "node scripts/check-automation-status.cjs",
-    "events:start": "node backend/ghiblify-event-listener.cjs",
-    "health:check": "node scripts/health-check.cjs",
-    "monitor": "node scripts/monitoring-dashboard.cjs"
+    "price:update": "node ../back/scripts/update-ghiblify-prices.cjs",
+    "price:start": "node ../back/scripts/start-price-automation.cjs",
+    "price:stop": "node ../back/scripts/stop-price-automation.cjs",
+    "price:status": "node ../back/scripts/check-automation-status.cjs",
+    "events:start": "node ../back/automation/ghiblify-event-listener.cjs",
+    "health:check": "node ../back/scripts/health-check.cjs",
+    "monitor": "node ../back/scripts/monitoring-dashboard.cjs"
   },
   "dependencies": {
     "@base-org/account": "^1.1.1",
