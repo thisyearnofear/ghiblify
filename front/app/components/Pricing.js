@@ -10,6 +10,7 @@ import {
   HStack,
   Icon,
 } from "@chakra-ui/react";
+import { useGhibliTheme } from "../hooks/useGhibliTheme";
 import { useState, useEffect } from "react";
 import {
   useAccount,
@@ -552,13 +553,16 @@ export default function Pricing({ onPurchaseComplete }) {
     },
   ];
 
+  // DRY: Use centralized theme instead of duplicated color definitions
+  const { colors, patterns, utils } = useGhibliTheme();
+
   return (
     <Box py={12}>
       <VStack spacing={8}>
-        <Text fontSize="2xl" fontWeight="bold" textAlign="center">
+        <Text fontSize="2xl" fontWeight="bold" textAlign="center" color={colors.text.primary}>
           Choose Your Package
         </Text>
-        <Text color="gray.500" textAlign="center">
+        <Text color={colors.text.secondary} textAlign="center">
           Transform your photos into Studio Ghibli style artwork
         </Text>
 
@@ -566,14 +570,11 @@ export default function Pricing({ onPurchaseComplete }) {
           {tiers.map((tier) => (
             <Box
               key={tier.name}
-              bg="white"
-              border="1px"
-              borderColor="gray.200"
-              rounded="lg"
-              shadow="base"
+              {...patterns.card}
               p={6}
               width={{ base: "full", md: "320px" }}
               position="relative"
+              {...utils.getElevationStyle(2)}
             >
               {tier.description === "Most popular" && (
                 <Badge
@@ -590,7 +591,7 @@ export default function Pricing({ onPurchaseComplete }) {
               )}
 
               <VStack spacing={4} align="stretch">
-                <Text fontSize="2xl" fontWeight="bold">
+                <Text fontSize="2xl" fontWeight="bold" color={colors.text.primary}>
                   {tier.name === "starter"
                     ? "Starter"
                     : tier.name === "pro"
@@ -598,18 +599,18 @@ export default function Pricing({ onPurchaseComplete }) {
                     : "Unlimited"}
                 </Text>
                 <HStack>
-                  <Text fontSize="4xl" fontWeight="bold">
+                  <Text fontSize="4xl" fontWeight="bold" color={colors.text.primary}>
                     {tier.price}
                   </Text>
-                  <Text color="gray.500">USD</Text>
+                  <Text color={colors.text.secondary}>USD</Text>
                 </HStack>
-                <Text color="gray.500">{tier.description}</Text>
+                <Text color={colors.text.secondary}>{tier.description}</Text>
 
                 <VStack align="stretch" spacing={3} mt={4}>
                   {tier.features.map((feature) => (
                     <HStack key={feature}>
                       <Icon as={FiCheck} color="green.500" />
-                      <Text>{feature}</Text>
+                      <Text color={colors.text.primary}>{feature}</Text>
                     </HStack>
                   ))}
                 </VStack>

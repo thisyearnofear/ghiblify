@@ -1,16 +1,22 @@
 "use client";
 
-import { Box, Flex, Button, HStack, Text } from "@chakra-ui/react";
+import { 
+  Box, 
+  Flex, 
+  Button, 
+  HStack, 
+  Text, 
+} from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 import CompactWalletButton from "./ui/CompactWalletButton";
+import { DarkModeToggle } from "./ui/SimpleDarkModeToggle";
+import { useGhibliTheme } from "../hooks/useGhibliTheme";
 import {
-  COLORS,
   GRADIENTS,
-  LAYOUTS,
   PATTERNS,
   INTERACTIONS,
   ANIMATION_PRESETS,
@@ -112,7 +118,10 @@ export default function Navigation() {
           )}
         </HStack>
 
-        <CompactWalletButton />
+        <HStack spacing={3}>
+          <DarkModeToggle variant="glass" size="sm" />
+          <CompactWalletButton />
+        </HStack>
       </Flex>
     </Box>
   );

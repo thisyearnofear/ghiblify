@@ -1,4 +1,6 @@
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
+import theme from "./theme/chakra-theme";
+import themeConfig from "./theme/config";
 import { Web3Provider } from "./providers/Web3Provider";
 import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
 import Navigation from "./components/Navigation";
@@ -55,7 +57,8 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#4FD1C5" />
       </head>
       <body>
-        <ChakraProvider>
+        <ColorModeScript initialColorMode={themeConfig.initialColorMode} />
+        <ChakraProvider theme={theme}>
           <Web3Provider>
             <FarcasterFrameProvider>
               <Navigation />

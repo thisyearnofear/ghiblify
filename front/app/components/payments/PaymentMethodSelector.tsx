@@ -9,9 +9,9 @@ import {
   Icon,
   Box,
   Divider,
-  useColorModeValue,
   Tooltip,
 } from "@chakra-ui/react";
+import { useGhibliTheme } from "../../hooks/useGhibliTheme";
 import { 
   FiCreditCard, 
   FiDollarSign, 
@@ -46,18 +46,16 @@ export default function PaymentMethodSelector({
   const { user, provider, isConnected } = useUnifiedWallet();
   const { isInFrame } = useFarcaster();
   
-  const borderColor = useColorModeValue("gray.200", "gray.600");
-  const bgColor = useColorModeValue("white", "gray.800");
-  const hoverBg = useColorModeValue("gray.50", "gray.700");
+  // DRY: Use centralized theme instead of scattered useColorModeValue calls
+  const { colors, patterns, utils } = useGhibliTheme();
 
   // Determine available payment methods based on context
   const getAvailablePaymentMethods = () => {
     const methods = [];
 
-    // $GHIBLIFY Token (only show on Base network in Farcaster)
-    if (ghiblifyTokenPayments.isAvailable() && 
-        provider === 'base' && 
-        (!isInFrame || provider === 'base')) {
+    // $GHIBLIFY Token (show when available, regardless of provider)
+    // The token service itself handles network compatibility
+    if (ghiblifyTokenPayments.isAvailable()) {
       methods.push({
         id: 'ghiblifyToken',
         name: 'Pay with $GHIBLIFY',
@@ -133,14 +131,12 @@ export default function PaymentMethodSelector({
   if (!isConnected) {
     return (
       <Box
+        {...patterns.card}
         p={4}
         borderRadius="xl"
-        border="1px solid"
-        borderColor={borderColor}
-        bg={bgColor}
         textAlign="center"
       >
-        <Text color="gray.500" fontSize="sm">
+        <Text color={colors.text.secondary} fontSize="sm">
           Connect your wallet to see payment options
         </Text>
       </Box>
@@ -150,12 +146,12 @@ export default function PaymentMethodSelector({
   return (
     <VStack spacing={3} align="stretch">
       <HStack justify="space-between" align="center">
-        <Text fontSize="md" fontWeight="semibold">
+        <Text fontSize="md" fontWeight="semibold" color={colors.text.primary}>
           Choose Payment Method
         </Text>
         {isInFrame && (
           <Tooltip label="Optimized for Farcaster mini app">
-            <Icon as={FiInfo as any} color="blue.400" boxSize={4} />
+            <Icon as={FiInfo as any} color={colors.text.accent} boxSize={4} />
           </Tooltip>
         )}
       </HStack>
@@ -173,12 +169,10 @@ export default function PaymentMethodSelector({
                 p={3}
                 borderRadius="lg"
                 border="2px solid"
-                borderColor={isSelected ? "green.400" : "transparent"}
-                bg={isSelected ? "green.50" : "transparent"}
-                _dark={{
-                  bg: isSelected ? "green.900" : "transparent",
-                }}
+                borderColor={isSelected ? colors.border.accent : "transparent"}
+                bg={isSelected ? colors.interactive.hover : "transparent"}
                 transition="all 0.2s ease"
+                {...utils.getElevationStyle(isSelected ? 2 : 1)}
               >
                 <method.component
                   tier={tier}
@@ -202,9 +196,9 @@ export default function PaymentMethodSelector({
               isLoading={isProcessing && isSelected}
               loadingText="Processing..."
               _hover={{
-                bg: isSelected ? undefined : hoverBg,
+                bg: isSelected ? undefined : colors.interactive.hover,
                 transform: "translateY(-1px)",
-                boxShadow: "md",
+                boxShadow: colors.shadow.elevated,
               }}
               transition="all 0.2s ease"
             >
@@ -212,10 +206,10 @@ export default function PaymentMethodSelector({
                 <HStack spacing={3}>
                   <Icon as={method.icon as any} boxSize={5} />
                   <VStack align="start" spacing={0}>
-                    <Text fontWeight="semibold" fontSize="sm">
+                    <Text fontWeight="semibold" fontSize="sm" color={colors.text.primary}>
                       {method.name}
                     </Text>
-                    <Text fontSize="xs" opacity={0.8}>
+                    <Text fontSize="xs" color={colors.text.secondary}>
                       {method.description}
                     </Text>
                   </VStack>
@@ -223,7 +217,7 @@ export default function PaymentMethodSelector({
 
                 <VStack align="end" spacing={1}>
                   <HStack spacing={2}>
-                    <Text fontWeight="bold" fontSize="md">
+                    <Text fontWeight="bold" fontSize="md" color={colors.text.primary}>
                       {pricing.formattedDiscounted}
                     </Text>
                     {method.badge && (
@@ -247,7 +241,7 @@ export default function PaymentMethodSelector({
                     <Text 
                       fontSize="xs" 
                       textDecoration="line-through"
-                      opacity={0.6}
+                      color={colors.text.muted}
                     >
                       {pricing.formattedOriginal}
                     </Text>
@@ -263,8 +257,8 @@ export default function PaymentMethodSelector({
       {isInFrame && (
         <>
           <Divider />
-          <Box p={3} bg="blue.50" _dark={{ bg: "blue.900" }} borderRadius="md">
-            <Text fontSize="xs" color="blue.600" _dark={{ color: "blue.300" }}>
+          <Box p={3} bg={colors.bg.secondary} borderRadius="md">
+            <Text fontSize="xs" color={colors.text.accent}>
               💡 <strong>Tip:</strong> $GHIBLIFY tokens offer the biggest savings and help grow the project!
             </Text>
           </Box>

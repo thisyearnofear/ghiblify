@@ -1,6 +1,12 @@
-# Ghiblify
+# Ghiblify ✨
 
-A full-stack application that converts photos into Studio Ghibli style artwork using Stable Diffusion. Built with Next.js frontend, FastAPI backend, and multiple payment options including Stripe, CELO, and Base Pay.
+Transform your photos into enchanting Studio Ghibli style artwork using AI. Features multiple payment options, batch processing, and a beautiful dark/light mode interface.
+
+**Latest Updates:**
+- 🌙 **Dark Mode Support** - Elegant theme with glass morphism styling
+- 💎 **$GHIBLIFY Token Payments** - 50% discount with native token
+- 🔧 **Enhanced UX** - Centralized theme system and improved responsiveness
+- 🖥️ **Desktop Fixes** - Token payment visibility resolved
 
 ## Production Deployment
 
@@ -33,6 +39,19 @@ A full-stack application that converts photos into Studio Ghibli style artwork u
 - **Network**: Celo Mainnet (Chain ID: 42220)
 - **Contract**: `0xC1a6b48d1898815bbD82C980f44f6f5688C2A9e4`
 - **Features**: cUSD payments with 30% discount, event-based credit processing
+
+#### $GHIBLIFY Token Integration
+
+- **Network**: Base Mainnet (Chain ID: 8453)
+- **Token Contract**: `0xc2B2EA7f6218CC37debBAFE71361C088329AE090`
+- **Payment Contract**: `0x41f2fA6E60A34c26BD2C467d21EcB0a2f9087B03`
+- **Features**: 50% discount on all tiers, native token utility, automated credit processing
+- **Supported Wallets**: Base Account, MetaMask, WalletConnect-compatible wallets
+
+**Pricing with $GHIBLIFY:**
+- Starter: ~$0.25 worth of $GHIBLIFY (vs $0.50 USD)
+- Pro: ~$2.50 worth of $GHIBLIFY (vs $4.99 USD)  
+- Unlimited: ~$5.00 worth of $GHIBLIFY (vs $9.99 USD)
 
 #### Base Pay Integration
 
@@ -270,15 +289,41 @@ To switch between local development and production:
 2. **ImgBB**: [ImgBB API](https://api.imgbb.com)
 3. **Stripe**: [Stripe Dashboard](https://dashboard.stripe.com/apikeys) (use test keys for development)
 
+## Tech Stack
+
+### Frontend
+- **Framework**: Next.js 14 (App Router)
+- **UI**: Chakra UI with custom Ghibli theme
+- **Web3**: RainbowKit + Wagmi + Viem
+- **State**: React hooks + context
+- **Styling**: Dark/light mode with glass morphism
+- **TypeScript**: Full type safety
+
+### Backend  
+- **Framework**: FastAPI (Python)
+- **Database**: Redis (sessions + credit management)
+- **AI**: ComfyUI + Replicate integration
+- **Storage**: ImgBB for image hosting
+- **Payments**: Stripe + Web3 (Base, Celo)
+
+### Infrastructure
+- **Frontend Hosting**: Vercel
+- **Backend Hosting**: Hetzner VPS
+- **Redis**: Upstash (managed)
+- **CI/CD**: GitHub Actions
+
 ## Features
 
 ### Web Interface
 
-- **Authentication**: Web3 wallet integration (MetaMask, WalletConnect)
-- **Processing Options**: "Slow Ghibli" (high quality) vs "Faster Ghibli" (medium quality)
-- **Batch Processing**: Up to 6 images with storyboard generation
-- **Customization**: Ghibli intensity slider (50-100%)
-- **Social Features**: Share results, download storyboards
+- **🎨 Theming**: Beautiful dark/light mode with Ghibli aesthetics
+- **🔐 Authentication**: Web3 wallet integration (MetaMask, WalletConnect, Base Account)
+- **⚡ Processing Options**: "Slow Ghibli" (high quality) vs "Faster Ghibli" (medium quality)
+- **📚 Batch Processing**: Up to 6 images with storyboard generation
+- **🎛️ Customization**: Ghibli intensity slider (50-100%)
+- **📱 Responsive**: Mobile-first design with touch optimizations
+- **💰 Multiple Payments**: Stripe, $GHIBLIFY tokens (50% off), CELO, Base Pay
+- **📤 Social Features**: Share results, download storyboards
 
 ### External API
 
