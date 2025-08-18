@@ -30,6 +30,7 @@ import {
 import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import PaymentMethodSelector from "./payments/PaymentMethodSelector";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
@@ -615,81 +616,31 @@ export default function Pricing({ onPurchaseComplete }) {
                   ))}
                 </VStack>
 
-                <VStack spacing={3} mt={4}>
-                  <Button
-                    w="full"
-                    colorScheme="purple"
-                    variant="solid"
-                    onClick={() => handleStripePurchase(tier)}
-                    isLoading={isLoading && selectedTier === tier.name}
-                    leftIcon={<Icon as={FiCreditCard} />}
-                  >
-                    Pay with Card
-                  </Button>
-                  <Box position="relative" w="full">
-                    <Button
-                      w="full"
-                      colorScheme="yellow"
-                      variant="solid"
-                      onClick={() => handleCeloPurchase(tier)}
-                      isLoading={isCeloProcessing && selectedTier === tier.name}
-                      leftIcon={<Icon as={FiDollarSign} />}
-                      size="md"
-                    >
-                      Pay with cUSD
-                    </Button>
-                    <Badge
-                      colorScheme="red"
-                      position="absolute"
-                      top="-2"
-                      right="-2"
-                      rounded="full"
-                      px={2}
-                      py={0.5}
-                      fontSize="xs"
-                    >
-                      30% OFF
-                    </Badge>
-                  </Box>
-                  <Box position="relative" w="full">
-                    <BasePayButton
-                      colorScheme="light"
-                      onClick={() => handleBasePayPurchase(tier)}
-                      isLoading={
-                        isBasePayProcessing && selectedTier === tier.name
-                      }
-                      style={{ width: "100%" }}
-                    />
-                    {typeof window !== "undefined" &&
-                    !localStorage.getItem("ghiblify_auth") ? (
-                      <Badge
-                        colorScheme="blue"
-                        position="absolute"
-                        top="-2"
-                        right="-2"
-                        rounded="full"
-                        px={2}
-                        py={0.5}
-                        fontSize="xs"
-                      >
-                        Base Account Required
-                      </Badge>
-                    ) : (
-                      <Badge
-                        colorScheme="red"
-                        position="absolute"
-                        top="-2"
-                        right="-2"
-                        rounded="full"
-                        px={2}
-                        py={0.5}
-                        fontSize="xs"
-                      >
-                        30% OFF
-                      </Badge>
-                    )}
-                  </Box>
-                </VStack>
+                <PaymentMethodSelector
+                  tier={{
+                    name: tier.name,
+                    displayName: tier.name === "starter" ? "Starter" : tier.name === "pro" ? "Pro" : "Unlimited",
+                    basePrice: parseFloat(tier.price.replace('$', '')),
+                    credits: tier.credits
+                  }}
+                  onMethodSelect={(method) => {
+                    setSelectedTier(tier.name);
+                    if (method === 'stripe') {
+                      handleStripePurchase(tier);
+                    } else if (method === 'celo') {
+                      handleCeloPurchase(tier);
+                    } else if (method === 'basePay') {
+                      handleBasePayPurchase(tier);
+                    }
+                    // ghiblifyToken method is handled internally by PaymentMethodSelector
+                  }}
+                  selectedMethod={selectedTier === tier.name ? 'selected' : undefined}
+                  isProcessing={
+                    (isLoading && selectedTier === tier.name) ||
+                    (isCeloProcessing && selectedTier === tier.name) ||
+                    (isBasePayProcessing && selectedTier === tier.name)
+                  }
+                />
               </VStack>
             </Box>
           ))}
