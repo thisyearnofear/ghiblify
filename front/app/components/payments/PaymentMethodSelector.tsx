@@ -10,14 +10,10 @@ import {
   Box,
   Divider,
   Tooltip,
+  useBreakpointValue,
 } from "@chakra-ui/react";
 import { useGhibliTheme } from "../../hooks/useGhibliTheme";
-import { 
-  FiCreditCard, 
-  FiDollarSign, 
-  FiZap,
-  FiInfo
-} from "react-icons/fi";
+import { FiCreditCard, FiDollarSign, FiZap, FiInfo } from "react-icons/fi";
 import { useState } from "react";
 import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
 import { useFarcaster } from "../FarcasterFrameProvider";
@@ -41,13 +37,21 @@ export default function PaymentMethodSelector({
   tier,
   onMethodSelect,
   selectedMethod,
-  isProcessing = false
+  isProcessing = false,
 }: PaymentMethodSelectorProps) {
   const { user, provider, isConnected } = useUnifiedWallet();
   const { isInFrame } = useFarcaster();
-  
+
   // DRY: Use centralized theme instead of scattered useColorModeValue calls
   const { colors, patterns, utils } = useGhibliTheme();
+
+  // Responsive layout values
+  const buttonSpacing = useBreakpointValue({ base: 3, md: 4 });
+  const badgePadding = useBreakpointValue({ base: 1, md: 2 });
+  const priceLayout = useBreakpointValue({
+    base: "vertical", // Stack vertically on mobile
+    md: "horizontal", // Side by side on desktop
+  });
 
   // Determine available payment methods based on context
   const getAvailablePaymentMethods = () => {
@@ -57,55 +61,55 @@ export default function PaymentMethodSelector({
     // The token service itself handles network compatibility
     if (ghiblifyTokenPayments.isAvailable()) {
       methods.push({
-        id: 'ghiblifyToken',
-        name: 'Pay with $GHIBLIFY',
+        id: "ghiblifyToken",
+        name: "Pay with $GHIBLIFY",
         icon: FiZap,
-        colorScheme: 'green',
+        colorScheme: "green",
         discount: 50,
-        badge: '50% OFF',
-        description: 'Support the project & save big',
+        badge: "50% OFF",
+        description: "Support the project & save big",
         priority: 1,
         component: GhiblifyTokenButton,
       });
     }
 
     // Base Pay (when authenticated)
-    if (baseAccountPayments.isAvailable() && provider === 'base') {
+    if (baseAccountPayments.isAvailable() && provider === "base") {
       methods.push({
-        id: 'basePay',
-        name: 'Base Pay',
+        id: "basePay",
+        name: "Base Pay",
         icon: FiDollarSign,
-        colorScheme: 'blue',
+        colorScheme: "blue",
         discount: 30,
-        badge: '30% OFF',
-        description: 'One-tap USDC payments',
+        badge: "30% OFF",
+        description: "One-tap USDC payments",
         priority: 2,
       });
     }
 
     // Celo (when on Celo/RainbowKit)
-    if (provider === 'rainbowkit' || provider === 'farcaster') {
+    if (provider === "rainbowkit" || provider === "farcaster") {
       methods.push({
-        id: 'celo',
-        name: 'Pay with cUSD',
+        id: "celo",
+        name: "Pay with cUSD",
         icon: FiDollarSign,
-        colorScheme: 'yellow',
+        colorScheme: "yellow",
         discount: 30,
-        badge: '30% OFF',
-        description: 'Celo USD stablecoin',
+        badge: "30% OFF",
+        description: "Celo USD stablecoin",
         priority: 3,
       });
     }
 
     // Stripe (always available as fallback)
     methods.push({
-      id: 'stripe',
-      name: 'Pay with Card',
+      id: "stripe",
+      name: "Pay with Card",
       icon: FiCreditCard,
-      colorScheme: 'purple',
+      colorScheme: "purple",
       discount: 0,
       badge: null,
-      description: 'Credit/debit card',
+      description: "Credit/debit card",
       priority: 4,
     });
 
@@ -115,7 +119,7 @@ export default function PaymentMethodSelector({
   const calculatePrice = (basePrice: number, discount: number) => {
     const discounted = basePrice * (1 - discount / 100);
     const savings = basePrice - discounted;
-    
+
     return {
       original: basePrice,
       discounted,
@@ -130,12 +134,7 @@ export default function PaymentMethodSelector({
 
   if (!isConnected) {
     return (
-      <Box
-        {...patterns.card}
-        p={4}
-        borderRadius="xl"
-        textAlign="center"
-      >
+      <Box {...patterns.card} p={4} borderRadius="xl" textAlign="center">
         <Text color={colors.text.secondary} fontSize="sm">
           Connect your wallet to see payment options
         </Text>
@@ -160,7 +159,7 @@ export default function PaymentMethodSelector({
         {availableMethods.map((method) => {
           const pricing = calculatePrice(tier.basePrice, method.discount);
           const isSelected = selectedMethod === method.id;
-          
+
           // Special handling for $GHIBLIFY token button
           if (method.component) {
             return (
@@ -177,7 +176,9 @@ export default function PaymentMethodSelector({
                 <method.component
                   tier={tier}
                   onPayment={() => {
-                    console.log('PaymentMethodSelector: $GHIBLIFY method selected');
+                    console.log(
+                      "PaymentMethodSelector: $GHIBLIFY method selected"
+                    );
                     onMethodSelect(method.id);
                   }}
                   isLoading={isProcessing && isSelected}
@@ -194,6 +195,7 @@ export default function PaymentMethodSelector({
               colorScheme={method.colorScheme}
               size="lg"
               h="auto"
+              minH="72px"
               p={4}
               onClick={() => onMethodSelect(method.id)}
               isLoading={isProcessing && isSelected}
@@ -204,55 +206,118 @@ export default function PaymentMethodSelector({
                 boxShadow: colors.shadow.elevated,
               }}
               transition="all 0.2s ease"
+              overflow="hidden"
             >
-              <HStack w="full" justify="space-between">
-                <HStack spacing={3}>
-                  <Icon as={method.icon as any} boxSize={5} />
-                  <VStack align="start" spacing={0}>
-                    <Text fontWeight="semibold" fontSize="sm" color={colors.text.primary}>
+              <HStack
+                w="full"
+                justify="space-between"
+                align="center"
+                spacing={buttonSpacing}
+              >
+                <HStack spacing={3} flex="1" minW="0">
+                  <Icon as={method.icon as any} boxSize={5} flexShrink={0} />
+                  <VStack align="start" spacing={0} minW="0" flex="1">
+                    <Text
+                      fontWeight="semibold"
+                      fontSize="sm"
+                      color={colors.text.primary}
+                      noOfLines={1}
+                    >
                       {method.name}
                     </Text>
-                    <Text fontSize="xs" color={colors.text.secondary}>
+                    <Text
+                      fontSize="xs"
+                      color={colors.text.secondary}
+                      noOfLines={1}
+                    >
                       {method.description}
                     </Text>
                   </VStack>
                 </HStack>
 
-                <VStack align="end" spacing={1}>
-                  <HStack spacing={2}>
-                    <Text fontWeight="bold" fontSize="md" color={colors.text.primary}>
-                      {pricing.formattedDiscounted}
-                    </Text>
-                    {method.badge && (
-                      <Badge 
-                        colorScheme="red" 
-                        variant="solid"
-                        fontSize="2xs"
-                        px={1}
-                        py={0}
-                        minW="fit-content"
+                <VStack
+                  align="end"
+                  spacing={1}
+                  flexShrink={0}
+                  minW="fit-content"
+                  maxW={{ base: "120px", md: "160px" }}
+                >
+                  {priceLayout === "horizontal" ? (
+                    // Desktop layout: Badge and price side by side
+                    <HStack spacing={2} align="center" justify="end">
+                      {method.badge && (
+                        <Badge
+                          colorScheme="red"
+                          variant="solid"
+                          fontSize="2xs"
+                          px={badgePadding}
+                          py={1}
+                          borderRadius="md"
+                          whiteSpace="nowrap"
+                          flexShrink={0}
+                        >
+                          {method.badge}
+                        </Badge>
+                      )}
+                      <Text
+                        fontWeight="bold"
+                        fontSize="md"
+                        color={colors.text.primary}
                         whiteSpace="nowrap"
                       >
-                        {method.badge}
-                      </Badge>
+                        {pricing.formattedDiscounted}
+                      </Text>
+                    </HStack>
+                  ) : (
+                    // Mobile layout: Badge above price
+                    <>
+                      {method.badge && (
+                        <Badge
+                          colorScheme="red"
+                          variant="solid"
+                          fontSize="2xs"
+                          px={badgePadding}
+                          py={1}
+                          borderRadius="md"
+                          whiteSpace="nowrap"
+                        >
+                          {method.badge}
+                        </Badge>
+                      )}
+                      <Text
+                        fontWeight="bold"
+                        fontSize="md"
+                        color={colors.text.primary}
+                        whiteSpace="nowrap"
+                      >
+                        {pricing.formattedDiscounted}
+                      </Text>
+                    </>
+                  )}
+
+                  <HStack spacing={2} align="center" justify="end">
+                    {pricing.formattedSavings && (
+                      <Text
+                        fontSize="xs"
+                        color="green.500"
+                        fontWeight="medium"
+                        whiteSpace="nowrap"
+                      >
+                        {pricing.formattedSavings}
+                      </Text>
+                    )}
+
+                    {pricing.savings > 0 && (
+                      <Text
+                        fontSize="xs"
+                        textDecoration="line-through"
+                        color={colors.text.muted}
+                        whiteSpace="nowrap"
+                      >
+                        {pricing.formattedOriginal}
+                      </Text>
                     )}
                   </HStack>
-                  
-                  {pricing.formattedSavings && (
-                    <Text fontSize="xs" color="green.500" fontWeight="medium">
-                      {pricing.formattedSavings}
-                    </Text>
-                  )}
-                  
-                  {pricing.savings > 0 && (
-                    <Text 
-                      fontSize="xs" 
-                      textDecoration="line-through"
-                      color={colors.text.muted}
-                    >
-                      {pricing.formattedOriginal}
-                    </Text>
-                  )}
                 </VStack>
               </HStack>
             </Button>
@@ -266,7 +331,8 @@ export default function PaymentMethodSelector({
           <Divider />
           <Box p={3} bg={colors.bg.secondary} borderRadius="md">
             <Text fontSize="xs" color={colors.text.accent}>
-              💡 <strong>Tip:</strong> $GHIBLIFY tokens offer the biggest savings and help grow the project!
+              💡 <strong>Tip:</strong> $GHIBLIFY tokens offer the biggest
+              savings and help grow the project!
             </Text>
           </Box>
         </>

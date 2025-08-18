@@ -8,6 +8,7 @@ from .web3_auth import web3_router
 from .unified_wallet import unified_wallet_router
 from .celo_handler import celo_router
 from .base_pay_handler import base_pay_router
+from .ghiblify_token_handler import ghiblify_token_router
 from .health import router as health_router
 
 router = APIRouter()
@@ -23,3 +24,4 @@ router.include_router(web3_router, prefix="/web3", tags=["web3"])
 router.include_router(unified_wallet_router, tags=["wallet"])  # No prefix - uses /api/wallet from router
 router.include_router(celo_router, prefix="/celo", tags=["celo"])
 router.include_router(base_pay_router, prefix="/base-pay", tags=["base-pay"])
+router.include_router(ghiblify_token_router, prefix="/ghiblify-token", tags=["ghiblify-token"])
