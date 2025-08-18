@@ -25,7 +25,7 @@ interface GhiblifyTokenButtonProps {
     displayName: string;
     basePrice: number;
   };
-  onPayment: () => Promise<void>;
+  onPayment: () => void;
   isLoading?: boolean;
   size?: "sm" | "md" | "lg";
 }
@@ -129,6 +129,10 @@ export default function GhiblifyTokenButton({
               colorScheme="green" 
               variant="solid" 
               fontSize="2xs"
+              px={1}
+              py={0}
+              minW="fit-content"
+              whiteSpace="nowrap"
             >
               50% OFF
             </Badge>
@@ -199,7 +203,10 @@ export default function GhiblifyTokenButton({
           transform: "translateY(0px)",
         }}
         transition="all 0.2s ease"
-        onClick={onPayment}
+        onClick={() => {
+          console.log('$GHIBLIFY button clicked, calling onPayment');
+          onPayment();
+        }}
         isLoading={isLoading}
         loadingText="Processing..."
         position="relative"
@@ -227,6 +234,10 @@ export default function GhiblifyTokenButton({
               bg={badgeBg}
               color="green.800"
               fontSize="2xs"
+              px={1}
+              py={0}
+              minW="fit-content"
+              whiteSpace="nowrap"
             >
               50% OFF
             </Badge>

@@ -176,7 +176,10 @@ export default function PaymentMethodSelector({
               >
                 <method.component
                   tier={tier}
-                  onPayment={() => onMethodSelect(method.id)}
+                  onPayment={() => {
+                    console.log('PaymentMethodSelector: $GHIBLIFY method selected');
+                    onMethodSelect(method.id);
+                  }}
                   isLoading={isProcessing && isSelected}
                   size="lg"
                 />
@@ -225,6 +228,10 @@ export default function PaymentMethodSelector({
                         colorScheme="red" 
                         variant="solid"
                         fontSize="2xs"
+                        px={1}
+                        py={0}
+                        minW="fit-content"
+                        whiteSpace="nowrap"
                       >
                         {method.badge}
                       </Badge>

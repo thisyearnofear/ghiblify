@@ -624,6 +624,7 @@ export default function Pricing({ onPurchaseComplete }) {
                     credits: tier.credits
                   }}
                   onMethodSelect={(method) => {
+                    console.log('Pricing: Payment method selected:', method);
                     setSelectedTier(tier.name);
                     if (method === 'stripe') {
                       handleStripePurchase(tier);
@@ -631,8 +632,11 @@ export default function Pricing({ onPurchaseComplete }) {
                       handleCeloPurchase(tier);
                     } else if (method === 'basePay') {
                       handleBasePayPurchase(tier);
+                    } else if (method === 'ghiblifyToken') {
+                      console.log('Pricing: Starting $GHIBLIFY token payment for tier:', tier.name);
+                      // For now, just show an alert to confirm it's working
+                      alert('$GHIBLIFY token payment selected! This will be implemented with the actual token payment flow.');
                     }
-                    // ghiblifyToken method is handled internally by PaymentMethodSelector
                   }}
                   selectedMethod={selectedTier === tier.name ? 'selected' : undefined}
                   isProcessing={
