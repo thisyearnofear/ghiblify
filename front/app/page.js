@@ -396,8 +396,13 @@ export default function Home() {
       try {
         await spendCredits(1);
       } catch (creditError) {
-        if (creditError.message.includes("Insufficient credits")) {
-          setError("Add credits to continue creating magical art ✨");
+        if (
+          creditError.message.includes("need credits") ||
+          creditError.message.includes("Insufficient credits")
+        ) {
+          setError(
+            "You need credits to create magical art ✨ Add credits to continue transforming your images!"
+          );
           document
             .getElementById("pricing")
             ?.scrollIntoView({ behavior: "smooth" });

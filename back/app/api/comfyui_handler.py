@@ -8,6 +8,7 @@ import requests
 import logging
 import os
 from dotenv import load_dotenv
+from .web3_auth import get_credits, set_credits
 import httpx
 import asyncio
 import json
@@ -465,6 +466,12 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
 
     if not address:
         raise HTTPException(status_code=400, detail="Wallet address is required")
+
+    # Validate user has sufficient credits
+    current_credits = get_credits(address.lower())
+    if current_credits < 1:
+        raise HTTPException(status_code=402, detail="You need credits to create magical art ✨ Add credits to continue transforming your images!")
+
     try:
         # Read the uploaded file into memory
         contents = await file.read()
@@ -508,9 +515,38 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
             status_code=202  # 202 Accepted indicates the request is being processed
         )
     except Exception as e:
-        logger.error(f"Error details: {str(e)}")
+        error_str = str(e)
+        logger.error(f"Error details: {error_str}")
         logger.error(f"Traceback: {traceback.format_exc()}")
+
+        # Refund credit since processing failed
+        # Note: Frontend already deducted the credit, so we need to add it back
+        try:
+            current_credits = get_credits(address.lower())
+            set_credits(address.lower(), current_credits + 1)
+            logger.info(f"Refunded 1 credit to {address} due to processing failure. New balance: {current_credits + 1}")
+        except Exception as refund_error:
+            logger.error(f"Failed to refund credit to {address}: {str(refund_error)}")
+            # Don't fail the main error response due to refund issues
+
+        # Provide user-friendly error messages
+        user_message = "We're experiencing technical difficulties. Your credit has been refunded and you can try again in a few moments."
+
+        # Check for specific error types to provide more targeted messages
+        if "timeout" in error_str.lower() or "timed out" in error_str.lower():
+            user_message = "The request took too long to process. Your credit has been refunded - please try again."
+        elif "network" in error_str.lower() or "connection" in error_str.lower():
+            user_message = "We're having connectivity issues. Your credit has been refunded - please try again shortly."
+        elif "imgbb" in error_str.lower():
+            user_message = "There was an issue uploading your image. Your credit has been refunded - please try again."
+        elif "api key" in error_str.lower() or "unauthorized" in error_str.lower():
+            user_message = "Our image processing service is temporarily unavailable. Your credit has been refunded - please try again later."
+        elif "invalid" in error_str.lower() and "image" in error_str.lower():
+            user_message = "There was an issue with your image format. Your credit has been refunded - please try uploading a different image."
+        elif "workflow" in error_str.lower():
+            user_message = "Our processing pipeline is experiencing issues. Your credit has been refunded - please try again in a few minutes."
+
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing photo: {str(e)}"
-        ) 
+            detail=user_message
+        )

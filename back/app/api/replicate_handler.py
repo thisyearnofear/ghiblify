@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 import base64
 from io import BytesIO
@@ -10,6 +10,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import httpx
+from .web3_auth import get_credits, set_credits
 
 load_dotenv()
 
@@ -36,7 +37,15 @@ REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7ead
 replicate_router = APIRouter()
 
 @replicate_router.post("/")
-async def process_with_replicate(file: UploadFile = File("test")):
+async def process_with_replicate(file: UploadFile = File("test"), address: str = None, request: Request = None):
+    if not address:
+        raise HTTPException(status_code=400, detail="Wallet address is required")
+
+    # Validate user has sufficient credits
+    current_credits = get_credits(address.lower())
+    if current_credits < 1:
+        raise HTTPException(status_code=402, detail="You need credits to create magical art ✨ Add credits to continue transforming your images!")
+
     try:
         # Read the uploaded file into memory
         contents = await file.read()
@@ -105,9 +114,36 @@ async def process_with_replicate(file: UploadFile = File("test")):
             status_code=200
         )
     except Exception as e:
-        logger.error(f"Error details: {str(e)}")
+        error_str = str(e)
+        logger.error(f"Error details: {error_str}")
         logger.error(f"Traceback: {traceback.format_exc()}")
+
+        # Refund credit since processing failed
+        # Note: Frontend already deducted the credit, so we need to add it back
+        try:
+            current_credits = get_credits(address.lower())
+            set_credits(address.lower(), current_credits + 1)
+            logger.info(f"Refunded 1 credit to {address} due to processing failure. New balance: {current_credits + 1}")
+        except Exception as refund_error:
+            logger.error(f"Failed to refund credit to {address}: {str(refund_error)}")
+            # Don't fail the main error response due to refund issues
+
+        # Provide user-friendly error messages
+        user_message = "We're experiencing high demand right now. Your credit has been refunded and you can try again in a few moments."
+
+        # Check for specific error types to provide more targeted messages
+        if "CUDA out of memory" in error_str or "out of memory" in error_str.lower():
+            user_message = "Our servers are currently at capacity. Your credit has been refunded - please try again in a few minutes."
+        elif "timeout" in error_str.lower() or "timed out" in error_str.lower():
+            user_message = "The request took too long to process. Your credit has been refunded - please try again."
+        elif "network" in error_str.lower() or "connection" in error_str.lower():
+            user_message = "We're having connectivity issues. Your credit has been refunded - please try again shortly."
+        elif "rate limit" in error_str.lower() or "quota" in error_str.lower():
+            user_message = "We've hit our processing limit. Your credit has been refunded - please try again in a few minutes."
+        elif "invalid" in error_str.lower() and "image" in error_str.lower():
+            user_message = "There was an issue with your image format. Your credit has been refunded - please try uploading a different image."
+
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing photo: {str(e)}"
-        ) 
+            detail=user_message
+        )
