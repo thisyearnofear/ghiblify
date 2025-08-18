@@ -311,7 +311,7 @@ export default function Account() {
                           purchase.method === "stripe" ? "blue" : "teal"
                         }
                       >
-                        {purchase.method === "stripe" ? "Credit Card" : "CELO"}
+                        {purchase.method === "stripe" ? "Credit Card" : "Pay with cUSD"}
                       </Badge>
                     </Td>
                   </Tr>

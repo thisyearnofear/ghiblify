@@ -13,7 +13,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   IconButton,
-  useColorMode,
   Tooltip,
   Box,
   Icon,
@@ -21,6 +20,7 @@ import {
 import { keyframes } from '@emotion/react';
 import { FiSun, FiMoon } from 'react-icons/fi';
 import { useGhibliTheme } from '../../hooks/useGhibliTheme';
+import { useFarcasterColorMode } from '../../hooks/useFarcasterColorMode';
 
 // Clean, focused interface
 interface DarkModeToggleProps {
@@ -41,15 +41,9 @@ export const DarkModeToggle: React.FC<DarkModeToggleProps> = ({
   variant = 'glass',
   showTooltip = true,
 }) => {
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { colorMode, toggleColorMode, isColorModeReady, isFrameEnvironment } = useFarcasterColorMode();
   const { colors, patterns } = useGhibliTheme();
-  const [mounted, setMounted] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleToggle = () => {
     setIsAnimating(true);
@@ -58,21 +52,22 @@ export const DarkModeToggle: React.FC<DarkModeToggleProps> = ({
   };
 
   // Loading state to prevent hydration issues
-  if (!mounted) {
+  if (!isColorModeReady) {
     return (
       <IconButton
         size={size}
         variant="ghost"
         aria-label="Loading theme toggle"
         icon={<Icon as={FiSun as any} />}
-        opacity={0}
+        opacity={0.5}
       />
     );
   }
 
   const isDark = colorMode === 'dark';
   const IconComponent = isDark ? FiMoon : FiSun;
-  const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  const baseLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+  const label = isFrameEnvironment ? `${baseLabel} (Mini App)` : baseLabel;
 
   // Variant styles - could be extracted to theme if needed
   const variantStyles = {

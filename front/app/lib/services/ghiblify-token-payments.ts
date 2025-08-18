@@ -125,22 +125,26 @@ class GhiblifyTokenPaymentService {
   private activePayments: Map<string, AbortController> = new Map();
 
   /**
-   * Validate payment prerequisites
+   * Validate payment prerequisites with helpful error messages
    */
   private validatePaymentPrerequisites(): void {
     const connection = unifiedWalletService.getConnection();
     
     if (!connection.isConnected || !connection.user) {
-      throw new TokenPaymentError('Wallet not connected');
+      throw new TokenPaymentError('Please connect your wallet to pay with $GHIBLIFY tokens.');
     }
 
     if (!GHIBLIFY_TOKEN_CONFIG.contractAddress) {
-      throw new TokenPaymentError('$GHIBLIFY payment contract not configured');
+      throw new TokenPaymentError('$GHIBLIFY payment system is temporarily unavailable.');
     }
 
-    // Must be on Base network for $GHIBLIFY payments
-    if (connection.user.provider !== 'base' && connection.user.provider !== 'rainbowkit') {
-      throw new TokenPaymentError('$GHIBLIFY payments require Base network connection');
+    // Check network compatibility with helpful guidance
+    const networkCheck = this.requiresNetworkSwitch();
+    if (networkCheck.required) {
+      throw new TokenPaymentError(
+        `For the best experience, please switch to Base network. ` +
+        `Your wallet will handle this automatically when you confirm the transaction.`
+      );
     }
   }
 
@@ -336,14 +340,39 @@ class GhiblifyTokenPaymentService {
 
   /**
    * Check if token payments are available
+   * Now simplified - always available if user has a wallet connected
    */
   isAvailable(): boolean {
     const connection = unifiedWalletService.getConnection();
+    
     return !!(
       GHIBLIFY_TOKEN_CONFIG.contractAddress &&
       connection.isConnected &&
-      (connection.user?.provider === 'base' || connection.user?.provider === 'rainbowkit')
+      connection.user?.address
     );
+  }
+
+  /**
+   * Check if user needs to switch networks for optimal experience
+   */
+  requiresNetworkSwitch(): { required: boolean; currentProvider?: string; recommendedAction?: string } {
+    const connection = unifiedWalletService.getConnection();
+    
+    if (!connection.isConnected || !connection.user) {
+      return { required: false };
+    }
+
+    // Base network is optimal for $GHIBLIFY
+    if (connection.user.provider === 'base') {
+      return { required: false };
+    }
+
+    // Other providers can work but might need network switch
+    return {
+      required: true,
+      currentProvider: connection.user.provider,
+      recommendedAction: 'Switch to Base network for optimal $GHIBLIFY experience'
+    };
   }
 
   /**

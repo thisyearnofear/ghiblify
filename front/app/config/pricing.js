@@ -54,11 +54,12 @@ export const PRICING_CONFIG = {
       discount: 0,
     },
     celo: {
-      name: "Pay with Stablecoin",
+      name: "Pay with cUSD",
       icon: "FiDollarSign",
       colorScheme: "yellow",
       discount: 0.3,
       badge: "30% OFF",
+      description: "Celo USD stablecoin",
     },
     basePay: {
       name: "Base Pay",

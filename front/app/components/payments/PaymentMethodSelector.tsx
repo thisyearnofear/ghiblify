@@ -87,12 +87,12 @@ export default function PaymentMethodSelector({
     if (provider === 'rainbowkit' || provider === 'farcaster') {
       methods.push({
         id: 'celo',
-        name: 'Pay with Stablecoin',
+        name: 'Pay with cUSD',
         icon: FiDollarSign,
         colorScheme: 'yellow',
         discount: 30,
         badge: '30% OFF',
-        description: 'cUSD payments on Celo',
+        description: 'Celo USD stablecoin',
         priority: 3,
       });
     }

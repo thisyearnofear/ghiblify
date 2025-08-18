@@ -636,7 +636,7 @@ export default function Pricing({ onPurchaseComplete }) {
                       leftIcon={<Icon as={FiDollarSign} />}
                       size="md"
                     >
-                      Pay with Stablecoin
+                      Pay with cUSD
                     </Button>
                     <Badge
                       colorScheme="red"

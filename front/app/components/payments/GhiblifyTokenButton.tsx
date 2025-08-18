@@ -40,6 +40,7 @@ export default function GhiblifyTokenButton({
   const [priceDisplay, setPriceDisplay] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(true);
   const [isAvailable, setIsAvailable] = useState(false);
+  const [networkSwitch, setNetworkSwitch] = useState<any>(null);
   
   const { user, provider } = useUnifiedWallet();
   
@@ -96,9 +97,45 @@ export default function GhiblifyTokenButton({
     };
   }, [tier.name, user, provider]);
 
-  // Don't render if not available
+  // Always show the button, but with different states
   if (!isAvailable) {
-    return null;
+    // Show disabled state with helpful messaging
+    return (
+      <Tooltip 
+        label={
+          <VStack spacing={1} align="start">
+            <Text fontSize="sm" fontWeight="bold">$GHIBLIFY Token (50% OFF)</Text>
+            <Text fontSize="xs">💡 Connect your wallet to access this amazing deal!</Text>
+            <Text fontSize="xs" color="green.200">Save 50% + support the project</Text>
+          </VStack>
+        }
+        placement="top"
+        hasArrow
+      >
+        <Button
+          size={size}
+          variant="outline"
+          colorScheme="green"
+          isDisabled
+          opacity={0.7}
+          _hover={{ opacity: 0.8 }}
+        >
+          <VStack spacing={0}>
+            <HStack spacing={2}>
+              <Icon as={FiZap as any} />
+              <Text fontWeight="bold">$GHIBLIFY</Text>
+            </HStack>
+            <Badge 
+              colorScheme="green" 
+              variant="solid" 
+              fontSize="2xs"
+            >
+              50% OFF
+            </Badge>
+          </VStack>
+        </Button>
+      </Tooltip>
+    );
   }
 
   // Show calculating state
