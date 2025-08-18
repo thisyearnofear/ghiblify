@@ -259,18 +259,31 @@ export default function PaymentMethodSelector({
                           {method.badge}
                         </Badge>
                       )}
-                      <Text
-                        fontWeight="bold"
-                        fontSize="md"
-                        color={colors.text.primary}
-                        whiteSpace="nowrap"
-                      >
-                        {pricing.formattedDiscounted}
-                      </Text>
+                      <VStack spacing={0} align="end">
+                        <Text
+                          fontWeight="bold"
+                          fontSize="md"
+                          color={colors.text.primary}
+                          whiteSpace="nowrap"
+                        >
+                          {pricing.formattedDiscounted}
+                        </Text>
+                        {pricing.savings > 0 && (
+                          <Text
+                            fontSize="xs"
+                            textDecoration="line-through"
+                            color={colors.text.muted}
+                            whiteSpace="nowrap"
+                            lineHeight="1"
+                          >
+                            {pricing.formattedOriginal}
+                          </Text>
+                        )}
+                      </VStack>
                     </HStack>
                   ) : (
                     // Mobile layout: Badge above price
-                    <>
+                    <VStack spacing={1} align="end">
                       {method.badge && (
                         <Badge
                           colorScheme="red"
@@ -284,40 +297,29 @@ export default function PaymentMethodSelector({
                           {method.badge}
                         </Badge>
                       )}
-                      <Text
-                        fontWeight="bold"
-                        fontSize="md"
-                        color={colors.text.primary}
-                        whiteSpace="nowrap"
-                      >
-                        {pricing.formattedDiscounted}
-                      </Text>
-                    </>
+                      <VStack spacing={0} align="end">
+                        <Text
+                          fontWeight="bold"
+                          fontSize="md"
+                          color={colors.text.primary}
+                          whiteSpace="nowrap"
+                        >
+                          {pricing.formattedDiscounted}
+                        </Text>
+                        {pricing.savings > 0 && (
+                          <Text
+                            fontSize="xs"
+                            textDecoration="line-through"
+                            color={colors.text.muted}
+                            whiteSpace="nowrap"
+                            lineHeight="1"
+                          >
+                            {pricing.formattedOriginal}
+                          </Text>
+                        )}
+                      </VStack>
+                    </VStack>
                   )}
-
-                  <HStack spacing={2} align="center" justify="end">
-                    {pricing.formattedSavings && (
-                      <Text
-                        fontSize="xs"
-                        color="green.500"
-                        fontWeight="medium"
-                        whiteSpace="nowrap"
-                      >
-                        {pricing.formattedSavings}
-                      </Text>
-                    )}
-
-                    {pricing.savings > 0 && (
-                      <Text
-                        fontSize="xs"
-                        textDecoration="line-through"
-                        color={colors.text.muted}
-                        whiteSpace="nowrap"
-                      >
-                        {pricing.formattedOriginal}
-                      </Text>
-                    )}
-                  </HStack>
                 </VStack>
               </HStack>
             </Button>

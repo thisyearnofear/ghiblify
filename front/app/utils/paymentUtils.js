@@ -1,4 +1,5 @@
 import { PRICING_CONFIG, getTierPrice } from "../config/pricing";
+import { parsePaymentError, getToastConfig } from "./errorHandling";
 
 // Payment method handlers factory
 export const createPaymentHandler = (method, config) => {
@@ -35,12 +36,13 @@ export const createPaymentHandler = (method, config) => {
       }
     } catch (error) {
       console.error(`[${method.toUpperCase()}] Payment error:`, error);
+
+      // Parse error for user-friendly message
+      const parsedError = parsePaymentError(error);
+      const toastConfig = getToastConfig(parsedError);
+
       toast({
-        title: "Payment Failed",
-        description:
-          error.message || "There was an error processing your payment.",
-        status: "error",
-        duration: 5000,
+        ...toastConfig,
         isClosable: true,
       });
     } finally {
@@ -87,8 +89,10 @@ const handleBasePayPayment = async (tier, options) => {
 
   try {
     // Use the modular payment service
-    const { baseAccountPayments } = await import('../lib/services/base-account-payments');
-    
+    const { baseAccountPayments } = await import(
+      "../lib/services/base-account-payments"
+    );
+
     const result = await baseAccountPayments.processPayment(tier.name, {
       onComplete: (result) => {
         toast({
@@ -102,12 +106,12 @@ const handleBasePayPayment = async (tier, options) => {
       },
       onError: (error) => {
         throw error;
-      }
+      },
     });
 
     return result;
   } catch (error) {
-    if (error.message?.includes('authenticated')) {
+    if (error.message?.includes("authenticated")) {
       toast({
         title: "Base Account Required",
         description: "Please sign in with Base Account to use Base Pay",
@@ -124,8 +128,12 @@ const handleBasePayPayment = async (tier, options) => {
 // Base Pay status polling - Deprecated, now handled by modular service
 // This function is kept for backward compatibility but should not be used
 const pollBasePayStatus = async (paymentId, tier, pricing, options) => {
-  console.warn('pollBasePayStatus is deprecated. Use baseAccountPayments service instead.');
-  throw new Error('This function has been deprecated. Please use the modular baseAccountPayments service.');
+  console.warn(
+    "pollBasePayStatus is deprecated. Use baseAccountPayments service instead."
+  );
+  throw new Error(
+    "This function has been deprecated. Please use the modular baseAccountPayments service."
+  );
 };
 
 // $GHIBLIFY Token payment handler
@@ -134,18 +142,20 @@ const handleGhiblifyTokenPayment = async (tier, options) => {
 
   try {
     // Use the modular token payment service
-    const { ghiblifyTokenPayments } = await import('../lib/services/ghiblify-token-payments');
-    
+    const { ghiblifyTokenPayments } = await import(
+      "../lib/services/ghiblify-token-payments"
+    );
+
     const result = await ghiblifyTokenPayments.processPayment(tier.name, {
       onStatusChange: (status) => {
         // Provide user feedback during different stages
         const statusMessages = {
-          calculating: 'Calculating token amount...',
-          approving: 'Approve $GHIBLIFY spending...',
-          purchasing: 'Processing payment...',
-          confirming: 'Confirming transaction...',
+          calculating: "Calculating token amount...",
+          approving: "Approve $GHIBLIFY spending...",
+          purchasing: "Processing payment...",
+          confirming: "Confirming transaction...",
         };
-        
+
         if (statusMessages[status]) {
           toast({
             title: statusMessages[status],
@@ -167,25 +177,27 @@ const handleGhiblifyTokenPayment = async (tier, options) => {
       },
       onError: (error) => {
         throw error;
-      }
+      },
     });
 
     return result;
   } catch (error) {
-    if (error.message?.includes('Base network')) {
+    if (error.message?.includes("Base network")) {
       toast({
         title: "Base Network Required",
-        description: "Please switch to Base network to pay with $GHIBLIFY tokens",
+        description:
+          "Please switch to Base network to pay with $GHIBLIFY tokens",
         status: "warning",
         duration: 8000,
         isClosable: true,
       });
       return;
     }
-    if (error.message?.includes('volatile')) {
+    if (error.message?.includes("volatile")) {
       toast({
         title: "Price Too Volatile",
-        description: "Token price is moving too quickly. Please try again in a few minutes.",
+        description:
+          "Token price is moving too quickly. Please try again in a few minutes.",
         status: "warning",
         duration: 8000,
         isClosable: true,
@@ -202,7 +214,9 @@ const handleCeloPayment = async (tier, options) => {
 
   // This would need to be passed from the component
   // For now, we'll throw an error indicating it needs to be implemented
-  throw new Error("CELO payment handler needs to be implemented with wallet connection");
+  throw new Error(
+    "CELO payment handler needs to be implemented with wallet connection"
+  );
 };
 
 // Validation utilities
@@ -242,15 +256,15 @@ export const validateGhiblifyTokenPayment = (user, provider) => {
   if (!user || !user.address) {
     return { valid: false, error: "Wallet not connected" };
   }
-  
-  if (provider !== 'base' && provider !== 'rainbowkit') {
-    return { 
-      valid: false, 
+
+  if (provider !== "base" && provider !== "rainbowkit") {
+    return {
+      valid: false,
       error: "Base network connection required for $GHIBLIFY payments",
       requiresNetworkSwitch: true,
-      targetNetwork: 'base'
+      targetNetwork: "base",
     };
   }
-  
+
   return { valid: true };
 };

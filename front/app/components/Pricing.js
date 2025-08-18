@@ -30,6 +30,7 @@ import {
 import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import { parsePaymentError, getToastConfig } from "../utils/errorHandling";
 import PaymentMethodSelector from "./payments/PaymentMethodSelector";
 import { ghiblifyTokenPayments } from "../lib/services/ghiblify-token-payments";
 
@@ -254,18 +255,20 @@ export default function Pricing({ onPurchaseComplete }) {
             <Button
               size="sm"
               onClick={() =>
-                window.ethereum?.request({
-                  method: "wallet_switchEthereumChain", 
-                  params: [{ chainId: "0xa4ec" }],
-                }).catch(() => {
-                  // Fallback: suggest manual network switch
-                  toast({
-                    title: "Please Switch Network",
-                    description: "Switch to Celo Mainnet in your wallet",
-                    status: "info",
-                    duration: 5000,
-                  });
-                })
+                window.ethereum
+                  ?.request({
+                    method: "wallet_switchEthereumChain",
+                    params: [{ chainId: "0xa4ec" }],
+                  })
+                  .catch(() => {
+                    // Fallback: suggest manual network switch
+                    toast({
+                      title: "Please Switch Network",
+                      description: "Switch to Celo Mainnet in your wallet",
+                      status: "info",
+                      duration: 5000,
+                    });
+                  })
               }
             >
               Switch Network
@@ -393,12 +396,13 @@ export default function Pricing({ onPurchaseComplete }) {
       handleSuccess(hash);
     } catch (error) {
       console.error("[CELO] Error during purchase:", error);
+
+      // Parse error for user-friendly message
+      const parsedError = parsePaymentError(error);
+      const toastConfig = getToastConfig(parsedError);
+
       toast({
-        title: "Purchase Failed",
-        description:
-          error.message || "There was an error processing your purchase.",
-        status: "error",
-        duration: 5000,
+        ...toastConfig,
         isClosable: true,
       });
     } finally {
@@ -439,7 +443,9 @@ export default function Pricing({ onPurchaseComplete }) {
   // DRY: Modular $GHIBLIFY token payment handler following same pattern as other handlers
   const handleGhiblifyTokenPurchase = async (tier) => {
     if (isGhiblifyProcessing) {
-      console.log('[GHIBLIFY] Purchase already in progress, ignoring duplicate request');
+      console.log(
+        "[GHIBLIFY] Purchase already in progress, ignoring duplicate request"
+      );
       return;
     }
 
@@ -447,7 +453,8 @@ export default function Pricing({ onPurchaseComplete }) {
       if (!userAddress) {
         toast({
           title: "Wallet not connected",
-          description: "Please connect your wallet to pay with $GHIBLIFY tokens",
+          description:
+            "Please connect your wallet to pay with $GHIBLIFY tokens",
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -458,43 +465,44 @@ export default function Pricing({ onPurchaseComplete }) {
       setIsGhiblifyProcessing(true);
       setSelectedTier(tier.name);
 
-      console.log('[GHIBLIFY] Starting token payment for tier:', tier.name);
+      console.log("[GHIBLIFY] Starting token payment for tier:", tier.name);
 
       // Use the modular token payment service with real wagmi functions
       await ghiblifyTokenPayments.processPayment(tier.name, {
         // Pass real wagmi functions for contract interactions
         writeContractAsync: approveAsync, // Use the same wagmi hook as Celo implementation
         publicClient: publicClient, // Use the same public client as Celo implementation
-        
+
         onStatusChange: (status) => {
-          console.log('[GHIBLIFY] Payment status:', status);
-          
+          console.log("[GHIBLIFY] Payment status:", status);
+
           // Provide clear user feedback for each stage
           const statusMessages = {
             calculating: {
               title: "Calculating token amount...",
               description: "Getting current $GHIBLIFY price",
               status: "info",
-              duration: 2000
+              duration: 2000,
             },
             approving: {
               title: "Approve token spending",
-              description: "Please approve $GHIBLIFY token spending in your wallet",
+              description:
+                "Please approve $GHIBLIFY token spending in your wallet",
               status: "info",
-              duration: 5000
+              duration: 5000,
             },
             purchasing: {
               title: "Processing payment...",
               description: "Confirm the transaction in your wallet",
               status: "info",
-              duration: 5000
+              duration: 5000,
             },
             confirming: {
               title: "Confirming transaction...",
               description: "Waiting for blockchain confirmation",
               status: "info",
-              duration: 3000
-            }
+              duration: 3000,
+            },
           };
 
           const message = statusMessages[status];
@@ -506,8 +514,8 @@ export default function Pricing({ onPurchaseComplete }) {
           }
         },
         onComplete: (result) => {
-          console.log('[GHIBLIFY] Payment completed:', result);
-          
+          console.log("[GHIBLIFY] Payment completed:", result);
+
           toast({
             title: "Payment Successful!",
             description: `${result.creditsAdded} credits added to your account`,
@@ -521,26 +529,27 @@ export default function Pricing({ onPurchaseComplete }) {
           onPurchaseComplete?.();
         },
         onError: (error) => {
-          console.error('[GHIBLIFY] Payment error:', error);
-          
+          console.error("[GHIBLIFY] Payment error:", error);
+
+          // Parse error for user-friendly message
+          const parsedError = parsePaymentError(error);
+          const toastConfig = getToastConfig(parsedError);
+
           toast({
-            title: "Payment Failed",
-            description: error.message || "There was an error processing your $GHIBLIFY payment",
-            status: "error",
-            duration: 7000,
+            ...toastConfig,
             isClosable: true,
           });
-        }
+        },
       });
-
     } catch (error) {
-      console.error('[GHIBLIFY] Error during purchase:', error);
-      
+      console.error("[GHIBLIFY] Error during purchase:", error);
+
+      // Parse error for user-friendly message
+      const parsedError = parsePaymentError(error);
+      const toastConfig = getToastConfig(parsedError);
+
       toast({
-        title: "Payment Failed",
-        description: error.message || "There was an error processing your $GHIBLIFY payment",
-        status: "error",
-        duration: 7000,
+        ...toastConfig,
         isClosable: true,
       });
     } finally {
@@ -674,7 +683,12 @@ export default function Pricing({ onPurchaseComplete }) {
   return (
     <Box py={12}>
       <VStack spacing={8}>
-        <Text fontSize="2xl" fontWeight="bold" textAlign="center" color={colors.text.primary}>
+        <Text
+          fontSize="2xl"
+          fontWeight="bold"
+          textAlign="center"
+          color={colors.text.primary}
+        >
           Choose Your Package
         </Text>
         <Text color={colors.text.secondary} textAlign="center">
@@ -706,7 +720,11 @@ export default function Pricing({ onPurchaseComplete }) {
               )}
 
               <VStack spacing={4} align="stretch">
-                <Text fontSize="2xl" fontWeight="bold" color={colors.text.primary}>
+                <Text
+                  fontSize="2xl"
+                  fontWeight="bold"
+                  color={colors.text.primary}
+                >
                   {tier.name === "starter"
                     ? "Starter"
                     : tier.name === "pro"
@@ -714,7 +732,11 @@ export default function Pricing({ onPurchaseComplete }) {
                     : "Unlimited"}
                 </Text>
                 <HStack>
-                  <Text fontSize="4xl" fontWeight="bold" color={colors.text.primary}>
+                  <Text
+                    fontSize="4xl"
+                    fontWeight="bold"
+                    color={colors.text.primary}
+                  >
                     {tier.price}
                   </Text>
                   <Text color={colors.text.secondary}>USD</Text>
@@ -733,24 +755,31 @@ export default function Pricing({ onPurchaseComplete }) {
                 <PaymentMethodSelector
                   tier={{
                     name: tier.name,
-                    displayName: tier.name === "starter" ? "Starter" : tier.name === "pro" ? "Pro" : "Unlimited",
-                    basePrice: parseFloat(tier.price.replace('$', '')),
-                    credits: tier.credits
+                    displayName:
+                      tier.name === "starter"
+                        ? "Starter"
+                        : tier.name === "pro"
+                        ? "Pro"
+                        : "Unlimited",
+                    basePrice: parseFloat(tier.price.replace("$", "")),
+                    credits: tier.credits,
                   }}
                   onMethodSelect={(method) => {
-                    console.log('Pricing: Payment method selected:', method);
+                    console.log("Pricing: Payment method selected:", method);
                     setSelectedTier(tier.name);
-                    if (method === 'stripe') {
+                    if (method === "stripe") {
                       handleStripePurchase(tier);
-                    } else if (method === 'celo') {
+                    } else if (method === "celo") {
                       handleCeloPurchase(tier);
-                    } else if (method === 'basePay') {
+                    } else if (method === "basePay") {
                       handleBasePayPurchase(tier);
-                    } else if (method === 'ghiblifyToken') {
+                    } else if (method === "ghiblifyToken") {
                       handleGhiblifyTokenPurchase(tier);
                     }
                   }}
-                  selectedMethod={selectedTier === tier.name ? 'selected' : undefined}
+                  selectedMethod={
+                    selectedTier === tier.name ? "selected" : undefined
+                  }
                   isProcessing={
                     (isLoading && selectedTier === tier.name) ||
                     (isCeloProcessing && selectedTier === tier.name) ||
