@@ -68,6 +68,16 @@ export const PRICING_CONFIG = {
       requiresAuth: true,
       authBadge: "Base Account Required",
     },
+    ghiblifyToken: {
+      name: "Pay with $GHIBLIFY",
+      icon: "FiZap",
+      colorScheme: "green",
+      discount: 0.5,
+      badge: "50% OFF",
+      requiresBaseNetwork: true,
+      description: "Support the project & save big",
+      priority: 1, // Show first when available
+    },
   },
 };
 

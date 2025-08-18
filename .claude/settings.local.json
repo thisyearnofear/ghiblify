@@ -19,7 +19,18 @@
       "WebSearch",
       "WebFetch(domain:docs.base.org)",
       "WebFetch(domain:github.com)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(npx hardhat:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(npm pkg set:*)",
+      "Bash(echo:*)",
+      "Bash(npm run price:status:*)",
+      "Bash(npm run price:update:*)",
+      "Bash(npm run price:start:*)",
+      "Bash(npm run price:stop:*)",
+      "Bash(npm run health:check:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

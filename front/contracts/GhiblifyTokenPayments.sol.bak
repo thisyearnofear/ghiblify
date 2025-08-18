@@ -1,0 +1,260 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+
+/**
+ * @title GhiblifyTokenPayments
+ * @notice Handles credit purchases using $GHIBLIFY tokens on Base mainnet
+ * @dev Mirrors the existing Celo contract structure for consistency
+ */
+contract GhiblifyTokenPayments is Ownable, ReentrancyGuard, Pausable {
+    IERC20 public immutable ghiblifyToken;
+    
+    // Price storage for different package tiers (in $GHIBLIFY tokens with 18 decimals)
+    mapping(string => uint256) public packagePrices;
+    
+    // Track total volume and statistics
+    uint256 public totalVolume;
+    uint256 public totalTransactions;
+    mapping(address => uint256) public userTransactions;
+    
+    // Events (mirrors existing Celo contract structure)
+    event CreditsPurchased(
+        address indexed buyer,
+        string packageTier,
+        uint256 tokenAmount,
+        uint256 credits,
+        uint256 timestamp
+    );
+    
+    event PriceUpdated(
+        string packageTier,
+        uint256 oldPrice,
+        uint256 newPrice,
+        uint256 timestamp
+    );
+    
+    event Withdrawal(
+        address indexed recipient,
+        uint256 amount
+    );
+    
+    event EmergencyWithdrawal(
+        address indexed token,
+        address indexed recipient,
+        uint256 amount
+    );
+    
+    constructor(address _ghiblifyToken) {
+        require(_ghiblifyToken != address(0), "Invalid token address");
+        ghiblifyToken = IERC20(_ghiblifyToken);
+        
+        // Initialize with reasonable default prices (can be updated)
+        // These will be dynamically adjusted based on token price
+        packagePrices["starter"] = 350 * 10**18;    // 350 tokens for starter
+        packagePrices["pro"] = 3500 * 10**18;       // 3,500 tokens for pro  
+        packagePrices["don"] = 7000 * 10**18;       // 7,000 tokens for unlimited
+    }
+    
+    /**
+     * @notice Purchase credits using $GHIBLIFY tokens
+     * @param packageTier The tier to purchase ("starter", "pro", "don")
+     */
+    function purchaseCreditsWithGhiblify(string calldata packageTier) 
+        external 
+        nonReentrant 
+        whenNotPaused 
+    {
+        uint256 tokenAmount = packagePrices[packageTier];
+        require(tokenAmount > 0, "Invalid package tier");
+        
+        // Check user balance
+        require(
+            ghiblifyToken.balanceOf(msg.sender) >= tokenAmount,
+            "Insufficient GHIBLIFY token balance"
+        );
+        
+        // Check allowance
+        require(
+            ghiblifyToken.allowance(msg.sender, address(this)) >= tokenAmount,
+            "Insufficient GHIBLIFY token allowance"
+        );
+        
+        // Transfer tokens from user to contract
+        require(
+            ghiblifyToken.transferFrom(msg.sender, address(this), tokenAmount),
+            "Token transfer failed"
+        );
+        
+        // Get credits for this tier
+        uint256 credits = getCreditsForTier(packageTier);
+        
+        // Update statistics
+        totalVolume += tokenAmount;
+        totalTransactions++;
+        userTransactions[msg.sender]++;
+        
+        // Emit event (backend listens for this to credit user account)
+        emit CreditsPurchased(
+            msg.sender,
+            packageTier,
+            tokenAmount,
+            credits,
+            block.timestamp
+        );
+    }
+    
+    /**
+     * @notice Get the current price for a package tier in $GHIBLIFY tokens
+     * @param packageTier The tier to check price for
+     * @return The price in $GHIBLIFY tokens (with 18 decimals)
+     */
+    function getTokenPackagePrice(string calldata packageTier) 
+        external 
+        view 
+        returns (uint256) 
+    {
+        return packagePrices[packageTier];
+    }
+    
+    /**
+     * @notice Update package price (owner only, for volatility management)
+     * @param packageTier The tier to update
+     * @param newPrice New price in $GHIBLIFY tokens (with 18 decimals)
+     */
+    function updateTokenPrice(string calldata packageTier, uint256 newPrice) 
+        external 
+        onlyOwner 
+    {
+        require(newPrice > 0, "Price must be greater than 0");
+        
+        uint256 oldPrice = packagePrices[packageTier];
+        packagePrices[packageTier] = newPrice;
+        
+        emit PriceUpdated(packageTier, oldPrice, newPrice, block.timestamp);
+    }
+    
+    /**
+     * @notice Batch update all package prices (gas efficient for volatility adjustments)
+     * @param tiers Array of tier names
+     * @param prices Array of new prices (must match tiers length)
+     */
+    function batchUpdatePrices(
+        string[] calldata tiers, 
+        uint256[] calldata prices
+    ) external onlyOwner {
+        require(tiers.length == prices.length, "Arrays length mismatch");
+        
+        for (uint256 i = 0; i < tiers.length; i++) {
+            require(prices[i] > 0, "Price must be greater than 0");
+            
+            uint256 oldPrice = packagePrices[tiers[i]];
+            packagePrices[tiers[i]] = prices[i];
+            
+            emit PriceUpdated(tiers[i], oldPrice, prices[i], block.timestamp);
+        }
+    }
+    
+    /**
+     * @notice Get credits amount for a given tier
+     * @param packageTier The tier name
+     * @return Number of credits for this tier
+     */
+    function getCreditsForTier(string memory packageTier) 
+        public 
+        pure 
+        returns (uint256) 
+    {
+        bytes32 tierHash = keccak256(abi.encodePacked(packageTier));
+        
+        if (tierHash == keccak256(abi.encodePacked("starter"))) {
+            return 1;
+        } else if (tierHash == keccak256(abi.encodePacked("pro"))) {
+            return 12;
+        } else if (tierHash == keccak256(abi.encodePacked("don"))) {
+            return 30;
+        } else {
+            revert("Invalid package tier");
+        }
+    }
+    
+    /**
+     * @notice Withdraw accumulated $GHIBLIFY tokens (owner only)
+     * @param to Recipient address
+     * @param amount Amount to withdraw (0 = all)
+     */
+    function withdrawTokens(address to, uint256 amount) 
+        external 
+        onlyOwner 
+        nonReentrant 
+    {
+        require(to != address(0), "Invalid recipient");
+        
+        uint256 balance = ghiblifyToken.balanceOf(address(this));
+        require(balance > 0, "No tokens to withdraw");
+        
+        uint256 withdrawAmount = amount == 0 ? balance : amount;
+        require(withdrawAmount <= balance, "Insufficient contract balance");
+        
+        require(
+            ghiblifyToken.transfer(to, withdrawAmount),
+            "Token transfer failed"
+        );
+        
+        emit Withdrawal(to, withdrawAmount);
+    }
+    
+    /**
+     * @notice Emergency function to recover any accidentally sent tokens
+     * @param token Token contract address
+     * @param to Recipient address
+     * @param amount Amount to recover
+     */
+    function emergencyWithdraw(
+        address token, 
+        address to, 
+        uint256 amount
+    ) external onlyOwner {
+        require(to != address(0), "Invalid recipient");
+        require(token != address(ghiblifyToken), "Use withdrawTokens for GHIBLIFY");
+        
+        IERC20(token).transfer(to, amount);
+        emit EmergencyWithdrawal(token, to, amount);
+    }
+    
+    /**
+     * @notice Get contract statistics
+     * @return totalVol Total volume in $GHIBLIFY tokens
+     * @return totalTxs Total number of transactions
+     * @return contractBalance Current contract token balance
+     */
+    function getContractStats() 
+        external 
+        view 
+        returns (uint256 totalVol, uint256 totalTxs, uint256 contractBalance) 
+    {
+        return (
+            totalVolume,
+            totalTransactions,
+            ghiblifyToken.balanceOf(address(this))
+        );
+    }
+    
+    /**
+     * @notice Pause contract (emergency only)
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    /**
+     * @notice Unpause contract
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+}
