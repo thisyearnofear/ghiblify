@@ -6,6 +6,12 @@
 import { api } from '../config/api';
 import { ghiblifyPriceOracle, PricingCalculation } from './ghiblify-price-oracle';
 import { unifiedWalletService } from './unified-wallet-service';
+import { readContract, waitForTransactionReceipt } from '@wagmi/core';
+import { parseUnits, formatUnits } from 'viem';
+import { config } from '../../components/WagmiConfig';
+
+// We'll need to use the wagmi hooks pattern like the existing Celo implementation
+// This service will coordinate with the UI layer that has access to wagmi hooks
 
 export interface TokenPaymentRequest {
   tierName: string;
@@ -25,6 +31,9 @@ export interface TokenPaymentHandlerOptions {
   onStatusChange?: (status: TokenPaymentStatus) => void;
   onComplete?: (result: TokenPaymentCompletionResult) => void;
   onError?: (error: TokenPaymentError) => void;
+  // Add wagmi functions for real contract interactions
+  writeContractAsync?: (config: any) => Promise<string>;
+  publicClient?: any;
 }
 
 export interface TokenPaymentCompletionResult {
@@ -170,18 +179,23 @@ class GhiblifyTokenPaymentService {
   /**
    * Check user's $GHIBLIFY token balance
    */
-  async checkTokenBalance(userAddress: string): Promise<{
+  async checkTokenBalance(userAddress: string, tierName: string = 'starter'): Promise<{
     balance: bigint;
     balanceFormatted: string;
     hasEnough: boolean;
     calculation: PricingCalculation;
   }> {
-    const calculation = await this.calculatePayment('starter'); // Get current price calculation
+    const calculation = await this.calculatePayment(tierName);
     
     try {
-      // This would need to be called with a wagmi/viem client
-      // For now, we'll return a placeholder structure
-      const balance = BigInt(0); // Placeholder - implement with actual contract call
+      // Real contract call to check token balance
+      const balance = await readContract(config, {
+        address: GHIBLIFY_TOKEN_CONFIG.tokenAddress as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress as `0x${string}`],
+        chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+      }) as bigint;
       
       return {
         balance,
@@ -201,7 +215,12 @@ class GhiblifyTokenPaymentService {
     tierName: string,
     options: TokenPaymentHandlerOptions = {}
   ): Promise<TokenPaymentCompletionResult> {
-    const { onStatusChange, onComplete, onError } = options;
+    const { onStatusChange, onComplete, onError, writeContractAsync, publicClient } = options;
+
+    // Validate required wagmi functions
+    if (!writeContractAsync || !publicClient) {
+      throw new TokenPaymentError('Missing required wagmi functions. Please ensure writeContractAsync and publicClient are provided.');
+    }
 
     try {
       // Validate prerequisites
@@ -220,20 +239,28 @@ class GhiblifyTokenPaymentService {
       const connection = unifiedWalletService.getConnection();
       const userAddress = connection.user!.address;
 
+      // Validate user has sufficient token balance
+      const balanceCheck = await this.checkTokenBalance(userAddress, tierName);
+      if (!balanceCheck.hasEnough) {
+        throw new TokenPaymentError(
+          `Insufficient $GHIBLIFY tokens. You need ${calculation.tokenAmountFormatted} but have ${balanceCheck.balanceFormatted}.`
+        );
+      }
+
       onStatusChange?.('approving');
       
       // Check and handle token approval
-      await this.ensureTokenApproval(userAddress, calculation.tokenAmount);
+      await this.ensureTokenApproval(userAddress, calculation.tokenAmount, writeContractAsync, publicClient);
 
       onStatusChange?.('purchasing');
       
       // Execute purchase transaction
-      const result = await this.executePurchase(tierName, calculation);
+      const result = await this.executePurchase(tierName, calculation, writeContractAsync);
 
       onStatusChange?.('confirming');
       
       // Wait for transaction confirmation and process with backend
-      const completionResult = await this.confirmAndProcessPayment(result, calculation, tierName);
+      const completionResult = await this.confirmAndProcessPayment(result, calculation, tierName, publicClient);
 
       onStatusChange?.('completed');
       onComplete?.(completionResult);
@@ -254,34 +281,92 @@ class GhiblifyTokenPaymentService {
   /**
    * Ensure sufficient token approval for payment
    */
-  private async ensureTokenApproval(userAddress: string, tokenAmount: bigint): Promise<void> {
-    // This would use wagmi/viem to check allowance and approve if needed
-    // Placeholder implementation - needs actual contract integration
-    console.log(`[GHIBLIFY Token] Ensuring approval for ${tokenAmount} tokens`);
+  private async ensureTokenApproval(
+    userAddress: string, 
+    tokenAmount: bigint, 
+    writeContractAsync: (config: any) => Promise<string>,
+    publicClient: any
+  ): Promise<void> {
+    console.log(`[GHIBLIFY Token] Checking allowance for ${formatUnits(tokenAmount, 18)} tokens`);
     
-    // The actual implementation would:
-    // 1. Check current allowance
-    // 2. If insufficient, request approval
-    // 3. Wait for approval transaction
+    try {
+      // Check current allowance
+      const currentAllowance = await readContract(config, {
+        address: GHIBLIFY_TOKEN_CONFIG.tokenAddress as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [userAddress as `0x${string}`, GHIBLIFY_TOKEN_CONFIG.contractAddress as `0x${string}`],
+        chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+      }) as bigint;
+
+      console.log(`[GHIBLIFY Token] Current allowance: ${formatUnits(currentAllowance, 18)}`);
+
+      // If allowance is sufficient, no need to approve
+      if (currentAllowance >= tokenAmount) {
+        console.log(`[GHIBLIFY Token] Sufficient allowance already exists`);
+        return;
+      }
+
+      // Request approval for the required amount using real wagmi
+      console.log(`[GHIBLIFY Token] Requesting approval for ${formatUnits(tokenAmount, 18)} tokens`);
+      
+      const hash = await writeContractAsync({
+        address: GHIBLIFY_TOKEN_CONFIG.tokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [GHIBLIFY_TOKEN_CONFIG.contractAddress, tokenAmount],
+      });
+
+      console.log(`[GHIBLIFY Token] Approval transaction submitted: ${hash}`);
+
+      // Wait for approval transaction confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      
+      if (receipt.status !== 'success') {
+        throw new TokenPaymentError('Token approval transaction failed');
+      }
+
+      console.log(`[GHIBLIFY Token] Approval confirmed in block ${receipt.blockNumber}`);
+    } catch (error) {
+      if (error instanceof TokenPaymentError) throw error;
+      throw new TokenPaymentError(`Failed to approve tokens: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
    * Execute the purchase transaction
    */
-  private async executePurchase(tierName: string, calculation: PricingCalculation): Promise<TokenPaymentResult> {
+  private async executePurchase(
+    tierName: string, 
+    calculation: PricingCalculation,
+    writeContractAsync: (config: any) => Promise<string>
+  ): Promise<TokenPaymentResult> {
     // Map frontend tier names to contract tier names (like existing Celo contract)
     const contractTier = tierName === 'unlimited' ? 'don' : tierName;
     
-    // This would use wagmi to call the contract
-    // Placeholder implementation
-    const transactionHash = `0x${Date.now().toString(16)}`; // Placeholder
+    console.log(`[GHIBLIFY Token] Executing purchase for tier: ${contractTier}`);
+    console.log(`[GHIBLIFY Token] Token amount: ${calculation.tokenAmountFormatted}`);
     
-    return {
-      id: transactionHash,
-      status: 'pending',
-      tokenAmount: calculation.tokenAmount.toString(),
-      transactionHash,
-    };
+    try {
+      // Execute real purchase transaction using wagmi
+      const hash = await writeContractAsync({
+        address: GHIBLIFY_TOKEN_CONFIG.contractAddress,
+        abi: GHIBLIFY_PAYMENTS_ABI,
+        functionName: 'purchaseCreditsWithGhiblify',
+        args: [contractTier],
+      });
+
+      console.log(`[GHIBLIFY Token] Purchase transaction submitted: ${hash}`);
+      
+      return {
+        id: hash,
+        status: 'pending',
+        tokenAmount: calculation.tokenAmount.toString(),
+        transactionHash: hash,
+      };
+    } catch (error) {
+      throw new TokenPaymentError(`Failed to execute purchase: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -290,13 +375,27 @@ class GhiblifyTokenPaymentService {
   private async confirmAndProcessPayment(
     paymentResult: TokenPaymentResult,
     calculation: PricingCalculation,
-    tierName: string
+    tierName: string,
+    publicClient: any
   ): Promise<TokenPaymentCompletionResult> {
     try {
       const connection = unifiedWalletService.getConnection();
       const userAddress = connection.user!.address;
 
-      // Process payment with backend (similar to Celo flow)
+      console.log(`[GHIBLIFY Token] Waiting for transaction confirmation: ${paymentResult.transactionHash}`);
+      
+      // Wait for real blockchain confirmation
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash: paymentResult.transactionHash,
+      });
+
+      if (receipt.status !== 'success') {
+        throw new TokenPaymentError('Transaction failed on blockchain');
+      }
+
+      console.log(`[GHIBLIFY Token] Transaction confirmed in block ${receipt.blockNumber}`);
+
+      // Process payment with real backend API
       const response = await api.post('/api/ghiblify-token/process-payment', {
         transactionHash: paymentResult.transactionHash,
         userAddress,
@@ -304,8 +403,11 @@ class GhiblifyTokenPaymentService {
         tokenAmount: calculation.tokenAmount.toString(),
         usdAmount: calculation.usdAmount,
         discount: calculation.discount,
+        blockNumber: receipt.blockNumber.toString(),
         timestamp: new Date().toISOString(),
       });
+
+      console.log(`[GHIBLIFY Token] Backend processing completed:`, response);
 
       // Refresh user credits in unified wallet
       await unifiedWalletService.refreshCredits();
@@ -362,17 +464,10 @@ class GhiblifyTokenPaymentService {
       return { required: false };
     }
 
-    // Base network is optimal for $GHIBLIFY
-    if (connection.user.provider === 'base') {
-      return { required: false };
-    }
-
-    // Other providers can work but might need network switch
-    return {
-      required: true,
-      currentProvider: connection.user.provider,
-      recommendedAction: 'Switch to Base network for optimal $GHIBLIFY experience'
-    };
+    // Check if user is on Base network (chain ID 8453)
+    // This would need to be enhanced with actual chain detection
+    // For now, we'll be permissive and let wagmi handle network switching
+    return { required: false };
   }
 
   /**

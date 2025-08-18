@@ -31,6 +31,7 @@ import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
 import PaymentMethodSelector from "./payments/PaymentMethodSelector";
+import { ghiblifyTokenPayments } from "../lib/services/ghiblify-token-payments";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
@@ -65,6 +66,7 @@ export default function Pricing({ onPurchaseComplete }) {
   const [selectedTier, setSelectedTier] = useState(null);
   const [isCeloProcessing, setIsCeloProcessing] = useState(false);
   const [isBasePayProcessing, setIsBasePayProcessing] = useState(false);
+  const [isGhiblifyProcessing, setIsGhiblifyProcessing] = useState(false);
   const toast = useToast();
   const { address, isConnected } = useAccount();
   const { writeContractAsync: approveAsync } = useWriteContract();
@@ -434,6 +436,118 @@ export default function Pricing({ onPurchaseComplete }) {
     });
   };
 
+  // DRY: Modular $GHIBLIFY token payment handler following same pattern as other handlers
+  const handleGhiblifyTokenPurchase = async (tier) => {
+    if (isGhiblifyProcessing) {
+      console.log('[GHIBLIFY] Purchase already in progress, ignoring duplicate request');
+      return;
+    }
+
+    try {
+      if (!userAddress) {
+        toast({
+          title: "Wallet not connected",
+          description: "Please connect your wallet to pay with $GHIBLIFY tokens",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      setIsGhiblifyProcessing(true);
+      setSelectedTier(tier.name);
+
+      console.log('[GHIBLIFY] Starting token payment for tier:', tier.name);
+
+      // Use the modular token payment service with real wagmi functions
+      await ghiblifyTokenPayments.processPayment(tier.name, {
+        // Pass real wagmi functions for contract interactions
+        writeContractAsync: approveAsync, // Use the same wagmi hook as Celo implementation
+        publicClient: publicClient, // Use the same public client as Celo implementation
+        
+        onStatusChange: (status) => {
+          console.log('[GHIBLIFY] Payment status:', status);
+          
+          // Provide clear user feedback for each stage
+          const statusMessages = {
+            calculating: {
+              title: "Calculating token amount...",
+              description: "Getting current $GHIBLIFY price",
+              status: "info",
+              duration: 2000
+            },
+            approving: {
+              title: "Approve token spending",
+              description: "Please approve $GHIBLIFY token spending in your wallet",
+              status: "info",
+              duration: 5000
+            },
+            purchasing: {
+              title: "Processing payment...",
+              description: "Confirm the transaction in your wallet",
+              status: "info",
+              duration: 5000
+            },
+            confirming: {
+              title: "Confirming transaction...",
+              description: "Waiting for blockchain confirmation",
+              status: "info",
+              duration: 3000
+            }
+          };
+
+          const message = statusMessages[status];
+          if (message) {
+            toast({
+              ...message,
+              isClosable: true,
+            });
+          }
+        },
+        onComplete: (result) => {
+          console.log('[GHIBLIFY] Payment completed:', result);
+          
+          toast({
+            title: "Payment Successful!",
+            description: `${result.creditsAdded} credits added to your account`,
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+
+          // Refresh credits and notify parent (consistent with other handlers)
+          refreshCredits();
+          onPurchaseComplete?.();
+        },
+        onError: (error) => {
+          console.error('[GHIBLIFY] Payment error:', error);
+          
+          toast({
+            title: "Payment Failed",
+            description: error.message || "There was an error processing your $GHIBLIFY payment",
+            status: "error",
+            duration: 7000,
+            isClosable: true,
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error('[GHIBLIFY] Error during purchase:', error);
+      
+      toast({
+        title: "Payment Failed",
+        description: error.message || "There was an error processing your $GHIBLIFY payment",
+        status: "error",
+        duration: 7000,
+        isClosable: true,
+      });
+    } finally {
+      setIsGhiblifyProcessing(false);
+    }
+  };
+
   // Check URL params for successful payment
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -633,16 +747,15 @@ export default function Pricing({ onPurchaseComplete }) {
                     } else if (method === 'basePay') {
                       handleBasePayPurchase(tier);
                     } else if (method === 'ghiblifyToken') {
-                      console.log('Pricing: Starting $GHIBLIFY token payment for tier:', tier.name);
-                      // For now, just show an alert to confirm it's working
-                      alert('$GHIBLIFY token payment selected! This will be implemented with the actual token payment flow.');
+                      handleGhiblifyTokenPurchase(tier);
                     }
                   }}
                   selectedMethod={selectedTier === tier.name ? 'selected' : undefined}
                   isProcessing={
                     (isLoading && selectedTier === tier.name) ||
                     (isCeloProcessing && selectedTier === tier.name) ||
-                    (isBasePayProcessing && selectedTier === tier.name)
+                    (isBasePayProcessing && selectedTier === tier.name) ||
+                    (isGhiblifyProcessing && selectedTier === tier.name)
                   }
                 />
               </VStack>

@@ -177,7 +177,7 @@ class GhiblifyPriceOracle {
    */
   private async fetchFromCoinGecko(): Promise<TokenPriceData> {
     // Note: You'll need to get the CoinGecko ID for your token
-    // For now, using a placeholder approach
+    // Real price fetching from CoinGecko API
     const response = await fetch(
       `https://api.coingecko.com/api/v3/simple/token_price/base?contract_addresses=${this.TOKEN_ADDRESS}&vs_currencies=usd&include_market_cap=true&include_24hr_change=true`
     );
