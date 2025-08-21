@@ -6,19 +6,15 @@
  */
 export async function uploadImageToGrove(imageUrl) {
   try {
-    console.log("Starting Grove upload process");
-
     // Convert data URL or fetch remote URL to blob
     let imageBlob;
     let contentType = "image/png"; // Default content type
 
     if (imageUrl.startsWith("data:")) {
       // Handle data URL
-      console.log("Processing data URL");
       // Extract content type if available
       if (imageUrl.includes(";")) {
         contentType = imageUrl.split(";")[0].split(":")[1];
-        console.log("Detected content type:", contentType);
       }
 
       // Convert data URL to blob directly
@@ -33,23 +29,13 @@ export async function uploadImageToGrove(imageUrl) {
         }
 
         imageBlob = new Blob([ab], { type: mimeString });
-        console.log(
-          "Successfully created blob from data URL, size:",
-          imageBlob.size
-        );
       } catch (e) {
-        console.error("Error converting data URL to blob:", e);
         // Fallback to fetch API if direct conversion fails
         const response = await fetch(imageUrl);
         imageBlob = await response.blob();
-        console.log(
-          "Used fetch API fallback for data URL, blob size:",
-          imageBlob.size
-        );
       }
     } else {
       // Handle remote URL
-      console.log("Fetching remote URL:", imageUrl);
       try {
         const response = await fetch(imageUrl, {
           cache: "no-store", // Avoid caching issues
@@ -62,14 +48,7 @@ export async function uploadImageToGrove(imageUrl) {
 
         contentType = response.headers.get("Content-Type") || contentType;
         imageBlob = await response.blob();
-        console.log(
-          "Successfully fetched remote image, size:",
-          imageBlob.size,
-          "type:",
-          contentType
-        );
       } catch (e) {
-        console.error("Error fetching remote URL:", e);
         throw new Error(`Failed to fetch image: ${e.message}`);
       }
     }
@@ -78,13 +57,6 @@ export async function uploadImageToGrove(imageUrl) {
     if (!imageBlob || imageBlob.size === 0) {
       throw new Error("Invalid image blob: empty or null");
     }
-
-    console.log(
-      "Uploading to Grove, blob size:",
-      imageBlob.size,
-      "type:",
-      contentType
-    );
 
     // Use the simple one-step upload for immutable content on Celo Mainnet
     const uploadResponse = await fetch(
@@ -100,7 +72,6 @@ export async function uploadImageToGrove(imageUrl) {
 
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
-      console.error("Grove API error:", errorText);
       throw new Error(
         `Grove upload failed: ${uploadResponse.status} - ${errorText}`
       );
@@ -110,7 +81,6 @@ export async function uploadImageToGrove(imageUrl) {
 
     // Handle both array and object responses from Grove API
     const groveData = Array.isArray(data) ? data[0] : data;
-    console.log("Grove upload successful:", groveData);
 
     if (
       !groveData ||
@@ -130,7 +100,6 @@ export async function uploadImageToGrove(imageUrl) {
       uri: typeof groveData.uri === "string" ? groveData.uri : "",
     };
   } catch (error) {
-    console.error("Error uploading to Grove:", error);
     return {
       success: false,
       error: error.message,

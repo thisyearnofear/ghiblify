@@ -137,7 +137,7 @@ async def coinbase_webhook(request: Request):
             tier = metadata.get('tier')
             credits = metadata.get('credits')
             
-            # TODO: Update user credits in database
+            # TODO: Implement user credits database update
             logger.info(f"Payment confirmed for tier {tier} - granting {credits} credits")
             
         return JSONResponse(content={"status": "success"})

@@ -270,8 +270,8 @@ export function logError(error, context = {}) {
 
   console.error("[Error Handler]", logData);
 
-  // TODO: Send to analytics service in production
-  // analytics.track('error_occurred', logData);
+  // Send to analytics service in production
+  // TODO: Implement analytics.track('error_occurred', logData);
 }
 
 /**

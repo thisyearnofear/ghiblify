@@ -3,6 +3,7 @@
 import { Box, Text, Button, HStack, useToast, Tooltip } from "@chakra-ui/react";
 import { useState, useEffect, useCallback } from "react";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import { useGhibliTheme } from "../hooks/useGhibliTheme";
 
 /**
  * Unified Credits Display Component
@@ -15,6 +16,9 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
   // Use unified wallet system
   const { isConnected, credits, isLoading, refreshCredits, address, provider } =
     useUnifiedWallet();
+
+  // Use theme system for dark mode support
+  const { colors } = useGhibliTheme();
 
   // Handle credits updates
   useEffect(() => {
@@ -76,11 +80,11 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
         p={4}
         borderWidth={1}
         borderRadius="md"
-        borderColor="gray.200"
-        bg="gray.50"
+        borderColor={colors.border.primary}
+        bg={colors.bg.secondary}
         textAlign="center"
       >
-        <Text fontSize="sm" color="gray.600">
+        <Text fontSize="sm" color={colors.text.secondary}>
           Connect your wallet to view credits
         </Text>
       </Box>
@@ -93,14 +97,14 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       p={3}
       borderWidth={1}
       borderRadius="lg"
-      borderColor={credits > 0 ? "blue.200" : "gray.200"}
-      bg={credits > 0 ? "blue.50" : "gray.50"}
+      borderColor={credits > 0 ? colors.border.accent : colors.border.primary}
+      bg={credits > 0 ? colors.interactive.hover : colors.bg.secondary}
       maxW="400px"
       mx="auto"
     >
       <HStack justify="space-between" align="center">
         <HStack spacing={3}>
-          <Text fontSize="md" fontWeight="bold" color="gray.800">
+          <Text fontSize="md" fontWeight="bold" color={colors.text.primary}>
             {isLoading ? "..." : credits} credits
           </Text>
           {credits === 0 && (
@@ -123,7 +127,7 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
               variant="ghost"
               onClick={handleRefresh}
               isLoading={isLoading}
-              color="gray.600"
+              color={colors.text.secondary}
               p={1}
               minW="auto"
             >
@@ -134,11 +138,11 @@ export default function CreditsDisplay({ onCreditsUpdate, forceRefresh }) {
       </HStack>
 
       {credits > 0 ? (
-        <Text fontSize="xs" color="blue.600" mt={1}>
+        <Text fontSize="xs" color={colors.text.accent} mt={1}>
           Ready to create ✨
         </Text>
       ) : (
-        <Text fontSize="xs" color="gray.600" mt={1}>
+        <Text fontSize="xs" color={colors.text.secondary} mt={1}>
           Add credits to start creating magical art
         </Text>
       )}

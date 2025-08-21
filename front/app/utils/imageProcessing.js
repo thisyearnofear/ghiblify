@@ -95,7 +95,6 @@ export function createProgressTracker() {
       
       // Detect slow network for mobile optimization
       if (progress < 50 && elapsed > 3000) {
-        console.log('Slow network detected, optimizing for mobile...');
         return { progress, isSlowNetwork: true };
       }
       
