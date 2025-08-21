@@ -26,6 +26,7 @@ import { useFarcaster } from "../FarcasterFrameProvider";
 import { useChainId } from "wagmi";
 import { ghiblifyTokenPayments } from "../../lib/services/ghiblify-token-payments";
 import { baseAccountPayments } from "../../lib/services/base-account-payments";
+import { autoConnectionService } from "../../lib/services/auto-connection-service";
 import GhiblifyTokenButton from "./GhiblifyTokenButton";
 
 interface PaymentMethodSelectorProps {
@@ -95,34 +96,19 @@ export default function PaymentMethodSelector({
       });
     }
 
-    // Celo (when on Celo/RainbowKit)
+    // Celo (when on Celo/RainbowKit) - Always show, auto-switch network like $GHIBLIFY
     if (provider === "rainbowkit" || provider === "farcaster") {
-      // Add network validation
-      const isCeloMainnet = chainId === 42220; // Celo mainnet chain ID
-
-      if (!isCeloMainnet && chainId) {
-        methods.push({
-          id: "celo",
-          name: "Network Error",
-          icon: FiAlertTriangle,
-          colorScheme: "red",
-          discount: 0,
-          badge: "Wrong Network",
-          description: "Switch to Celo Mainnet to pay with cUSD",
-          priority: 3,
-        });
-      } else {
-        methods.push({
-          id: "celo",
-          name: "Pay with cUSD",
-          icon: FiDollarSign,
-          colorScheme: "yellow",
-          discount: 30,
-          badge: "30% OFF",
-          description: "Celo USD stablecoin",
-          priority: 3,
-        });
-      }
+      methods.push({
+        id: "celo",
+        name: "Pay with cUSD",
+        icon: FiDollarSign,
+        colorScheme: "yellow",
+        discount: 30,
+        badge: "30% OFF",
+        description: "Celo USD stablecoin",
+        priority: 3,
+        requiresNetworkSwitch: chainId !== 42220, // Auto-switch if not on Celo mainnet
+      });
     }
 
     // Stripe (always available as fallback)
@@ -221,7 +207,23 @@ export default function PaymentMethodSelector({
               h="auto"
               minH="72px"
               p={4}
-              onClick={() => onMethodSelect(method.id)}
+              onClick={async () => {
+                // Handle CELO network switching automatically like $GHIBLIFY
+                if (method.id === "celo" && method.requiresNetworkSwitch) {
+                  console.log("Switching to CELO network for cUSD payment");
+                  const success = await autoConnectionService.switchNetwork(
+                    user.address,
+                    "rainbowkit" // Switch to RainbowKit for CELO network
+                  );
+                  if (!success) {
+                    console.error(
+                      "Failed to switch to CELO network for cUSD payment"
+                    );
+                    // Still proceed - let the payment handler show the error
+                  }
+                }
+                onMethodSelect(method.id);
+              }}
               isLoading={isProcessing && isSelected}
               loadingText="Processing..."
               _hover={{
