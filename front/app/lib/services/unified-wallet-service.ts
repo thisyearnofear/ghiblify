@@ -181,10 +181,12 @@ class UnifiedWalletService {
     }
 
     try {
-      const response = await api.post('/api/wallet/credits/add', {
-        address: this.currentConnection.user.address,
-        amount: amount,
-      });
+      // Create form data for the request
+      const formData = new FormData();
+      formData.append('address', this.currentConnection.user.address);
+      formData.append('amount', amount.toString());
+
+      const response = await api.postForm('/api/wallet/credits/add', formData);
 
       const newCredits = response.credits;
 
