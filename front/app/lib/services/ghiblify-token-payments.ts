@@ -158,22 +158,49 @@ class GhiblifyTokenPaymentService {
   }
 
   /**
-   * Calculate token requirements for a tier
+   * Get current token price from contract (set by automation service)
+   */
+  async getContractPrice(tierName: string): Promise<bigint> {
+    const contractTier = tierName === 'unlimited' ? 'don' : tierName;
+    
+    try {
+      const tokenAmount = await readContract(config, {
+        address: GHIBLIFY_TOKEN_CONFIG.contractAddress as `0x${string}`,
+        abi: GHIBLIFY_PAYMENTS_ABI,
+        functionName: 'getTokenPackagePrice',
+        args: [contractTier],
+        chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+      }) as bigint;
+      
+      return tokenAmount;
+    } catch (error) {
+      throw new TokenPaymentError(`Failed to get contract price for ${tierName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Calculate token requirements for a tier (now using contract prices)
    */
   async calculatePayment(tierName: string): Promise<PricingCalculation> {
-    // Get base USD price for tier
-    const tierPrices = {
-      starter: 0.35,
-      pro: 3.50,
-      unlimited: 7.00, // Map 'unlimited' to 'don' in contract calls
-    };
-
-    const usdAmount = tierPrices[tierName as keyof typeof tierPrices];
-    if (!usdAmount) {
-      throw new TokenPaymentError(`Invalid tier: ${tierName}`);
+    try {
+      // Get token amount from contract (updated by automation service)
+      const tokenAmount = await this.getContractPrice(tierName);
+      
+      // Get current price for display purposes
+      const priceData = await ghiblifyPriceOracle.getTokenPrice();
+      const usdValue = Number(formatUnits(tokenAmount, 18)) * priceData.priceUSD;
+      
+      return {
+        usdAmount: usdValue,
+        tokenAmount,
+        tokenAmountFormatted: this.formatTokenAmount(tokenAmount),
+        pricePerToken: priceData.priceUSD,
+        discount: 0.5, // 50% discount for using $GHIBLIFY
+        savings: usdValue, // The amount saved vs regular pricing
+      };
+    } catch (error) {
+      throw new TokenPaymentError(`Failed to calculate payment for ${tierName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    return await ghiblifyPriceOracle.calculateTokenAmount(usdAmount, tierName);
   }
 
   /**

@@ -116,6 +116,7 @@ class GhiblifyPriceOracle {
    */
   private async fetchAndValidatePrice(): Promise<TokenPriceData> {
     const sources = [
+      () => this.fetchFromMoralis(),
       () => this.fetchFromDexScreener(),
       () => this.fetchFromCoinGecko(),
     ];
@@ -141,7 +142,41 @@ class GhiblifyPriceOracle {
   }
 
   /**
-   * Fetch price from DexScreener (primary source)
+   * Fetch price from Moralis (primary source for Base tokens)
+   */
+  private async fetchFromMoralis(): Promise<TokenPriceData> {
+    const response = await fetch(
+      `https://deep-index.moralis.io/api/v2.2/erc20/${this.TOKEN_ADDRESS}/price?chain=base&include=percent_change`,
+      { 
+        method: 'GET',
+        headers: { 
+          'Accept': 'application/json',
+          'X-API-Key': process.env.NEXT_PUBLIC_MORALIS_API_KEY!
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Moralis API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.usdPrice || data.usdPrice <= 0) {
+      throw new Error('No price data from Moralis');
+    }
+
+    return {
+      priceUSD: parseFloat(data.usdPrice),
+      timestamp: Date.now(),
+      source: 'moralis',
+      marketCap: parseFloat(data.pairTotalLiquidityUsd || '0'),
+      change24h: parseFloat(data['24hrPercentChange'] || '0'),
+    };
+  }
+
+  /**
+   * Fetch price from DexScreener (fallback source)
    */
   private async fetchFromDexScreener(): Promise<TokenPriceData> {
     const response = await fetch(

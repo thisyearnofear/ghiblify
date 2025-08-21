@@ -17,14 +17,14 @@ const CONFIG = {
   contractAddress: '0x41f2fA6E60A34c26BD2C467d21EcB0a2f9087B03',
   tokenAddress: '0xc2B2EA7f6218CC37debBAFE71361C088329AE090',
   
-  // Update thresholds
-  priceChangeThreshold: 0.25, // 25% change triggers update
-  minimumUpdateInterval: 3600000, // 1 hour minimum
-  maxDailyUpdates: 6,
-  volumeThreshold: 100, // $100 daily volume minimum
+  // Update thresholds (optimized for hourly updates)
+  priceChangeThreshold: 0.15, // 15% change triggers update (more sensitive)
+  minimumUpdateInterval: 3600000, // 1 hour minimum (perfect for hourly max)
+  maxDailyUpdates: 24, // Allow up to 24 updates per day (1 per hour max)
+  volumeThreshold: 50, // $50 daily volume minimum (lower threshold)
   
-  // API settings
-  checkInterval: 1800000, // 30 minutes
+  // API settings (optimized for efficiency)
+  checkInterval: 3600000, // 1 hour checks (exactly what you wanted)
   priceApiTimeout: 10000, // 10 second timeout
   
   // Base mainnet
@@ -66,6 +66,10 @@ class GhiblifyPriceAutomation {
   setupWallet() {
     if (!process.env.PRIVATE_KEY) {
       throw new Error('PRIVATE_KEY environment variable required');
+    }
+    
+    if (!process.env.MORALIS_API_KEY) {
+      throw new Error('MORALIS_API_KEY environment variable required for price fetching');
     }
 
     let privateKey = process.env.PRIVATE_KEY;
@@ -179,11 +183,11 @@ class GhiblifyPriceAutomation {
     try {
       console.log(`🔄 Executing price update: ${reason}`);
 
-      // Calculate new token prices for each tier
+      // Calculate new token prices for each tier (50% discount already applied)
       const tierUSDPrices = {
-        starter: 0.35 * 0.5,  // 50% discount
-        pro: 3.50 * 0.5,
-        don: 7.00 * 0.5,      // 'unlimited' maps to 'don'
+        starter: 0.25,  // $0.50 regular -> $0.25 with $GHIBLIFY (50% discount)
+        pro: 3.00,      // $6.00 regular -> $3.00 with $GHIBLIFY (50% discount)
+        don: 7.50,      // $15.00 regular -> $7.50 with $GHIBLIFY (50% discount)
       };
 
       const updates = Object.entries(tierUSDPrices).map(([tier, usdPrice]) => {
@@ -226,29 +230,58 @@ class GhiblifyPriceAutomation {
    * Fetch current token price from API
    */
   async fetchTokenPrice() {
+    // Try Moralis first (most reliable for Base network tokens)
     try {
-      // Try DexScreener first
       const response = await fetch(
-        `https://api.dexscreener.com/latest/dex/tokens/${CONFIG.tokenAddress}`,
-        { timeout: CONFIG.priceApiTimeout }
+        `https://deep-index.moralis.io/api/v2.2/erc20/${CONFIG.tokenAddress}/price?chain=base&include=percent_change`,
+        { 
+          timeout: CONFIG.priceApiTimeout,
+          headers: {
+            'accept': 'application/json',
+            'X-API-Key': process.env.MORALIS_API_KEY
+          }
+        }
       );
 
       if (!response.ok) {
-        throw new Error(`DexScreener API error: ${response.status}`);
+        throw new Error(`Moralis API error: ${response.status}`);
       }
 
       const data = await response.json();
-      const pair = data.pairs?.[0];
-
-      if (!pair?.priceUsd) {
-        throw new Error('No price data available');
+      
+      if (!data.usdPrice || data.usdPrice <= 0) {
+        throw new Error('Invalid price data from Moralis');
       }
 
-      return parseFloat(pair.priceUsd);
+      console.log(`📊 Moralis data: $${data.usdPrice} (${data.tokenSymbol}), 24h: ${data['24hrPercentChange'] || 0}%`);
+      return parseFloat(data.usdPrice);
+      
     } catch (error) {
-      console.warn('DexScreener failed, trying fallback...', error.message);
-      // Could add CoinGecko fallback here
-      return null;
+      console.warn('Moralis failed, trying DexScreener fallback...', error.message);
+      
+      // Fallback to DexScreener
+      try {
+        const response = await fetch(
+          `https://api.dexscreener.com/latest/dex/tokens/${CONFIG.tokenAddress}`,
+          { timeout: CONFIG.priceApiTimeout }
+        );
+
+        if (!response.ok) {
+          throw new Error(`DexScreener API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const pair = data.pairs?.[0];
+
+        if (!pair?.priceUsd) {
+          throw new Error('No price data available');
+        }
+
+        return parseFloat(pair.priceUsd);
+      } catch (fallbackError) {
+        console.warn('DexScreener fallback also failed:', fallbackError.message);
+        return null;
+      }
     }
   }
 
