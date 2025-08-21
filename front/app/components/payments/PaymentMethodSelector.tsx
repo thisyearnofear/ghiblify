@@ -219,7 +219,7 @@ export default function PaymentMethodSelector({
                   console.log("Switching to CELO network for cUSD payment");
                   const success = await autoConnectionService.switchNetwork(
                     user.address,
-                    "rainbowkit" // Switch to RainbowKit for CELO network
+                    "celo" // Switch to CELO network
                   );
                   if (!success) {
                     console.error(
