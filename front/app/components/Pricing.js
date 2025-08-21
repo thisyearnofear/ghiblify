@@ -832,11 +832,11 @@ export default function Pricing({ onPurchaseComplete }) {
 
         {/* Single tip message for all cards - more mobile-friendly */}
         <Box
-          bg={colors.background.accent}
+          bg={colors.bg.secondary}
           p={isInFrame ? 3 : 4}
           borderRadius="lg"
           border="1px solid"
-          borderColor={colors.border.secondary}
+          borderColor={colors.border.subtle}
           maxW="600px"
           mx="auto"
         >
