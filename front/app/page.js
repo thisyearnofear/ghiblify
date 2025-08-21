@@ -94,6 +94,10 @@ import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
 import ImageReadyBoundary from "./components/ImageReadyBoundary";
+import { 
+  retrySpendCredits, 
+  getContextOptimizedRetryOptions 
+} from "./lib/utils/credit-retry-helper";
 import {
   Slider,
   SliderTrack,
@@ -398,7 +402,8 @@ export default function Home() {
 
       // Use unified credit system
       try {
-        await spendCredits(1);
+        const retryOptions = getContextOptimizedRetryOptions();
+        await retrySpendCredits(spendCredits, refreshCredits, retryOptions);
       } catch (creditError) {
         if (
           creditError.message.includes("need credits") ||
