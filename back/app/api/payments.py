@@ -8,6 +8,7 @@ import hmac
 import hashlib
 import json
 from typing import Optional
+from ..services.redis_service import redis_service
 
 load_dotenv()
 
@@ -42,18 +43,27 @@ PRICING_TIERS = {
     }
 }
 
-async def create_coinbase_charge(tier: str) -> dict:
+async def create_coinbase_charge(tier: str, wallet_address: str = None) -> dict:
     """Create a new charge on Coinbase Commerce"""
     if tier not in PRICING_TIERS:
         raise ValueError(f"Invalid tier: {tier}")
-    
+
     tier_info = PRICING_TIERS[tier]
-    
+
     headers = {
         "X-CC-Api-Key": COINBASE_API_KEY,
         "Content-Type": "application/json"
     }
-    
+
+    # Build metadata with wallet address if provided
+    metadata = {
+        "tier": tier,
+        "credits": tier_info["credits"]
+    }
+
+    if wallet_address:
+        metadata["wallet_address"] = wallet_address.lower()
+
     payload = {
         "name": f"Ghiblify {tier.capitalize()} Package",
         "description": tier_info["description"],
@@ -62,10 +72,7 @@ async def create_coinbase_charge(tier: str) -> dict:
             "amount": tier_info["amount"],
             "currency": "USD"
         },
-        "metadata": {
-            "tier": tier,
-            "credits": tier_info["credits"]
-        }
+        "metadata": metadata
     }
     
     async with httpx.AsyncClient() as client:
@@ -98,10 +105,13 @@ def verify_coinbase_webhook_signature(request_body: bytes, signature: str) -> bo
         return False
 
 @payments_router.post("/create-charge/{tier}")
-async def create_charge(tier: str):
+async def create_charge(tier: str, request: Request):
     """Create a new charge for the specified tier"""
     try:
-        charge = await create_coinbase_charge(tier)
+        # Get wallet address from request header (similar to other endpoints)
+        wallet_address = request.headers.get("X-Wallet-Address")
+
+        charge = await create_coinbase_charge(tier, wallet_address)
         return JSONResponse(content={
             "hosted_url": charge["data"]["hosted_url"],
             "charge_id": charge["data"]["id"]
@@ -136,9 +146,49 @@ async def coinbase_webhook(request: Request):
             metadata = event_data['metadata']
             tier = metadata.get('tier')
             credits = metadata.get('credits')
-            
-            # TODO: Implement user credits database update
-            logger.info(f"Payment confirmed for tier {tier} - granting {credits} credits")
+            wallet_address = metadata.get('wallet_address')
+            charge_id = event_data.get('id')
+
+            if not wallet_address:
+                logger.error(f"No wallet address found in metadata for charge {charge_id}")
+                return JSONResponse(content={"status": "error", "message": "No wallet address provided"})
+
+            if not credits:
+                logger.error(f"No credits found in metadata for charge {charge_id}")
+                return JSONResponse(content={"status": "error", "message": "No credits specified"})
+
+            try:
+                # Check if this payment has already been processed
+                processed_key = f"coinbase_processed:{charge_id}"
+                if redis_service.exists(processed_key):
+                    logger.info(f"Payment {charge_id} already processed, skipping")
+                    return JSONResponse(content={"status": "already_processed"})
+
+                # Add credits to user account using the modern Redis service
+                credits_to_add = int(credits)
+                new_credits = redis_service.add_credits(wallet_address.lower(), credits_to_add)
+
+                # Mark payment as processed to prevent double-crediting
+                redis_service.set(processed_key, "processed", ex=86400)  # 24 hour expiry
+
+                # Store payment history
+                payment_data = {
+                    "charge_id": charge_id,
+                    "tier": tier,
+                    "payment_method": "coinbase",
+                    "credits": credits_to_add,
+                    "amount": event_data.get('pricing', {}).get('local', {}).get('amount'),
+                    "currency": event_data.get('pricing', {}).get('local', {}).get('currency'),
+                    "status": "completed"
+                }
+
+                redis_service.add_payment_history(wallet_address.lower(), payment_data, "coinbase")
+
+                logger.info(f"Coinbase payment confirmed: Added {credits_to_add} credits to {wallet_address}. New balance: {new_credits}")
+
+            except Exception as e:
+                logger.error(f"Error processing Coinbase payment {charge_id}: {str(e)}")
+                return JSONResponse(content={"status": "error", "message": "Failed to process payment"})
             
         return JSONResponse(content={"status": "success"})
         

@@ -2,7 +2,7 @@ import { PRICING_CONFIG, getTierPrice } from "../config/pricing";
 import { parsePaymentError, getToastConfig } from "./errorHandling";
 
 // Payment method handlers factory
-export const createPaymentHandler = (method, config) => {
+export const createPaymentHandler = (method, config = {}) => {
   return async (tier, options = {}) => {
     const { address, toast, setLoading, setSelectedTier, onComplete, apiUrl } =
       options;
@@ -22,15 +22,21 @@ export const createPaymentHandler = (method, config) => {
     setSelectedTier(tier.name.toLowerCase());
 
     try {
+      // Merge config into options for methods that need additional configuration
+      const enhancedOptions = {
+        ...options,
+        ...config, // This allows passing wagmi functions through config
+      };
+
       switch (method) {
         case "stripe":
-          return await handleStripePayment(tier, options);
+          return await handleStripePayment(tier, enhancedOptions);
         case "celo":
-          return await handleCeloPayment(tier, options);
+          return await handleCeloPayment(tier, enhancedOptions);
         case "basePay":
-          return await handleBasePayPayment(tier, options);
+          return await handleBasePayPayment(tier, enhancedOptions);
         case "ghiblifyToken":
-          return await handleGhiblifyTokenPayment(tier, options);
+          return await handleGhiblifyTokenPayment(tier, enhancedOptions);
         default:
           throw new Error(`Unknown payment method: ${method}`);
       }
@@ -138,15 +144,26 @@ const pollBasePayStatus = async (paymentId, tier, pricing, options) => {
 
 // $GHIBLIFY Token payment handler
 const handleGhiblifyTokenPayment = async (tier, options) => {
-  const { toast, onComplete } = options;
+  const { toast, onComplete, writeContractAsync, publicClient } = options;
 
   try {
+    // Validate required wagmi functions
+    if (!writeContractAsync || !publicClient) {
+      throw new Error(
+        "Missing required wagmi functions. Please ensure writeContractAsync and publicClient are provided in options."
+      );
+    }
+
     // Use the modular token payment service
     const { ghiblifyTokenPayments } = await import(
       "../lib/services/ghiblify-token-payments"
     );
 
     const result = await ghiblifyTokenPayments.processPayment(tier.name, {
+      // Pass required wagmi functions for contract interactions
+      writeContractAsync,
+      publicClient,
+
       onStatusChange: (status) => {
         // Provide user feedback during different stages
         const statusMessages = {
@@ -193,6 +210,19 @@ const handleGhiblifyTokenPayment = async (tier, options) => {
       });
       return;
     }
+
+    if (error.message?.includes("Missing required wagmi functions")) {
+      toast({
+        title: "Configuration Error",
+        description:
+          "Payment system not properly configured. Please try refreshing the page.",
+        status: "error",
+        duration: 8000,
+        isClosable: true,
+      });
+      return;
+    }
+
     if (error.message?.includes("volatile")) {
       toast({
         title: "Price Too Volatile",
@@ -267,4 +297,16 @@ export const validateGhiblifyTokenPayment = (user, provider) => {
   }
 
   return { valid: true };
+};
+
+// Helper function to create a $GHIBLIFY token payment handler with wagmi functions
+export const createGhiblifyTokenPaymentHandler = (
+  writeContractAsync,
+  publicClient
+) => {
+  return createPaymentHandler("ghiblifyToken", {
+    // Pre-configure with wagmi functions
+    writeContractAsync,
+    publicClient,
+  });
 };
