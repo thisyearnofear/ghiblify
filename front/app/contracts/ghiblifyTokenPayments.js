@@ -118,21 +118,18 @@ export const GHIBLIFY_TOKEN_PAYMENTS_ABI = [
   },
 ];
 
-// Token package pricing (in tokens, dynamically updated by oracle)
+// Token package configuration (no hardcoded prices - all fetched from contract)
 export const TOKEN_PACKAGES = {
   starter: {
     credits: 1,
-    baseTokenAmount: "350000000000000000000", // 350 tokens (18 decimals)
     contractTier: "starter",
   },
   pro: {
     credits: 12,
-    baseTokenAmount: "3500000000000000000000", // 3,500 tokens
     contractTier: "pro",
   },
   unlimited: {
     credits: 30,
-    baseTokenAmount: "7000000000000000000000", // 7,000 tokens
     contractTier: "don",
   },
 };
