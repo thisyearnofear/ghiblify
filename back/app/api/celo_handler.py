@@ -7,7 +7,8 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional, List
-from ..services.redis_service import redis_service, get_credits, set_credits
+from ..services.redis_service import redis_service
+from .admin_credit_manager import admin_credit_manager
 import json
 from datetime import datetime
 from eth_utils import event_abi_to_log_topic
@@ -148,57 +149,35 @@ async def check_payment_status(tx_hash: str):
 
             credits_to_add = PACKAGES[mapped_tier]['credits']
 
-            # Use Redis transaction to ensure atomicity
-            with redis_service.pipeline() as pipe:
-                while True:
-                    try:
-                        # Watch both keys
-                        credit_key = f'credits:{buyer.lower()}'
-                        pipe.watch(credit_key, processed_key)
+            # Check if already processed
+            if redis_service.get(processed_key):
+                logger.info(f"[CELO] Transaction {tx_hash} already processed")
+                return PaymentStatus(status="processed")
 
-                        # Check if already processed
-                        if redis_service.get(processed_key):
-                            logger.info(f"[CELO] Transaction {tx_hash} already processed")
-                            return PaymentStatus(status="processed")
+            # Add credits using AdminCreditManager
+            result = admin_credit_manager.admin_add_credits(
+                buyer.lower(),
+                credits_to_add,
+                "CELO Payment"
+            )
 
-                        # Get current credits
-                        current_credits = int(pipe.get(credit_key) or 0)
-                        new_credits = current_credits + credits_to_add
+            # Mark as processed
+            redis_service.set(processed_key, '1')
 
-                        # Start transaction
-                        pipe.multi()
+            # Store transaction in history
+            history_key = f'celo_history:{buyer.lower()}'
+            transaction_data = {
+                'tx_hash': tx_hash,
+                'package': mapped_tier,
+                'credits': credits_to_add,
+                'timestamp': datetime.now().isoformat(),
+                'price': PACKAGES[mapped_tier]['price']
+            }
+            redis_service.lpush(history_key, json.dumps(transaction_data))
+            # Keep only last 50 transactions
+            redis_service.ltrim(history_key, 0, 49)
 
-                        # Update credits and mark as processed
-                        pipe.set(credit_key, new_credits)
-                        pipe.set(processed_key, '1')
-
-                        # Store transaction in history
-                        history_key = f'celo_history:{buyer.lower()}'
-                        transaction_data = {
-                            'tx_hash': tx_hash,
-                            'package': mapped_tier,
-                            'credits': credits_to_add,
-                            'timestamp': datetime.now().isoformat(),
-                            'price': PACKAGES[mapped_tier]['price']
-                        }
-                        pipe.lpush(history_key, json.dumps(transaction_data))
-                        # Keep only last 50 transactions
-                        pipe.ltrim(history_key, 0, 49)
-
-                        # Execute transaction
-                        pipe.execute()
-                        logger.info(f"[CELO] Successfully credited {credits_to_add} to {buyer}")
-                        break
-
-                    except Exception as watch_error:
-                        if "WatchError" in str(type(watch_error)):
-                            logger.warning(f"[CELO] Concurrent modification detected for {buyer}, retrying...")
-                            continue
-                        else:
-                            raise watch_error
-                    except Exception as e:
-                        logger.error(f"[CELO] Redis error: {str(e)}")
-                        return PaymentStatus(status="error", reason="redis_error")
+            logger.info(f"[CELO] Successfully credited {credits_to_add} to {buyer}. New balance: {result['new_balance']}")
 
             return PaymentStatus(status="processed")
 
@@ -289,48 +268,34 @@ async def process_pending_events():
 
                 credits_to_add = PACKAGES[mapped_tier]['credits']
 
-                # Use Redis transaction to ensure atomicity
-                with redis_service.pipeline() as pipe:
-                    while True:
-                        try:
-                            credit_key = f'credits:{buyer.lower()}'
-                            pipe.watch(credit_key, processed_key)
+                # Check if already processed
+                if redis_service.get(processed_key):
+                    continue
 
-                            if redis_service.get(processed_key):
-                                break
+                # Add credits using AdminCreditManager
+                result = admin_credit_manager.admin_add_credits(
+                    buyer.lower(),
+                    credits_to_add,
+                    "CELO Payment"
+                )
 
-                            current_credits = int(pipe.get(credit_key) or 0)
-                            new_credits = current_credits + credits_to_add
+                # Mark as processed
+                redis_service.set(processed_key, '1')
 
-                            pipe.multi()
-                            pipe.set(credit_key, new_credits)
-                            pipe.set(processed_key, '1')
+                # Store in history
+                history_key = f'celo_history:{buyer.lower()}'
+                transaction_data = {
+                    'tx_hash': tx_hash,
+                    'package': mapped_tier,
+                    'credits': credits_to_add,
+                    'timestamp': datetime.now().isoformat(),
+                    'price': PACKAGES[mapped_tier]['price']
+                }
+                redis_service.lpush(history_key, json.dumps(transaction_data))
+                redis_service.ltrim(history_key, 0, 49)
 
-                            # Store in history
-                            history_key = f'celo_history:{buyer.lower()}'
-                            transaction_data = {
-                                'tx_hash': tx_hash,
-                                'package': mapped_tier,
-                                'credits': credits_to_add,
-                                'timestamp': datetime.now().isoformat(),
-                                'price': PACKAGES[mapped_tier]['price']
-                            }
-                            pipe.lpush(history_key, json.dumps(transaction_data))
-                            pipe.ltrim(history_key, 0, 49)
-
-                            pipe.execute()
-                            processed_count += 1
-                            logger.info(f"[CELO] Processed event: credited {credits_to_add} to {buyer}")
-                            break
-
-                        except Exception as watch_error:
-                            if "WatchError" in str(type(watch_error)):
-                                continue
-                            else:
-                                raise watch_error
-                        except Exception as e:
-                            logger.error(f"[CELO] Error processing transaction {tx_hash}: {str(e)}")
-                            break
+                processed_count += 1
+                logger.info(f"[CELO] Processed event: credited {credits_to_add} to {buyer}. New balance: {result['new_balance']}")
 
             except ValueError as ve:
                 logger.error(f"[CELO] Address validation error: {str(ve)}")
@@ -357,4 +322,4 @@ async def process_pending_events():
         )
 
 # Export the router
-__all__ = ['celo_router'] 
+__all__ = ['celo_router']

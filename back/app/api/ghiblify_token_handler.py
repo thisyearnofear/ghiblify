@@ -7,6 +7,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from web3 import Web3
 from ..services.redis_service import redis_service
+from .admin_credit_manager import admin_credit_manager
 from ..config.pricing import get_tier_pricing, validate_payment_amount, BASE_PRICING
 
 load_dotenv()
@@ -151,13 +152,17 @@ async def process_ghiblify_token_payment(request: Request):
             
             # Add credits to user account
             credits_to_add = int(event_credits)
-            
-            # Use the modern Redis service to add credits
-            new_credits = redis_service.add_credits(user_address.lower(), credits_to_add)
-            
+
+            # Add credits using AdminCreditManager
+            result = admin_credit_manager.admin_add_credits(
+                user_address.lower(),
+                credits_to_add,
+                "GHIBLIFY Token Payment"
+            )
+
             # Mark payment as processed
             redis_service.set(processed_key, "processed", ex=86400)  # 24 hour expiry
-            
+
             # Store transaction history
             transaction_data = {
                 "transaction_hash": transaction_hash,
@@ -171,16 +176,16 @@ async def process_ghiblify_token_payment(request: Request):
                 "timestamp": timestamp,
                 "status": "completed"
             }
-            
+
             # Add to payment history
             redis_service.add_payment_history(user_address.lower(), transaction_data, "ghiblify_token")
-            
-            logger.info(f"[GHIBLIFY Token] Added {credits_to_add} credits to {user_address}. New balance: {new_credits}")
-            
+
+            logger.info(f"[GHIBLIFY Token] Added {credits_to_add} credits to {user_address}. New balance: {result['new_balance']}")
+
             return JSONResponse(content={
                 "status": "success",
                 "credits_added": credits_to_add,
-                "new_balance": new_credits,
+                "new_balance": result["new_balance"],
                 "transaction_hash": transaction_hash
             })
             
@@ -206,8 +211,8 @@ async def check_ghiblify_token_payment(transaction_hash: str, address: Optional[
             # Get user's current credits if address provided
             credits = None
             if address:
-                credits = redis_service.get_credits(address.lower())
-            
+                credits = admin_credit_manager.admin_get_credits(address.lower())["credits"]
+
             return JSONResponse(content={
                 "status": "completed",
                 "credits": credits

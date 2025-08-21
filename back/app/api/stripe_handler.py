@@ -5,7 +5,8 @@ import os
 from dotenv import load_dotenv
 import logging
 from typing import Optional
-from ..services.redis_service import redis_service, get_credits, set_credits
+from ..services.redis_service import redis_service
+from .admin_credit_manager import admin_credit_manager
 
 load_dotenv()
 
@@ -103,7 +104,7 @@ def get_customer_id_from_address(address: str) -> Optional[str]:
     """Get Stripe customer ID from web3 address"""
     try:
         # Get customer ID from Redis using web3 address as key
-        customer_id = redis_get(f'stripe_customer:{address.lower()}')
+        customer_id = redis_service.get(f'stripe_customer:{address.lower()}')
         return customer_id
     except:
         return None
@@ -167,22 +168,22 @@ async def stripe_webhook(request: Request):
             try:
                 # Check if credits were already added (idempotency)
                 session_key = f'credited:session:{session.id}'
-                if redis_get(session_key):
+                if redis_service.get(session_key):
                     logger.info(f"[Stripe] Credits already added for session {session.id}")
                     return JSONResponse(content={"status": "already_credited"})
-                
-                # Get current credits and add new ones
-                current_credits = get_credits(wallet_address)
-                new_credits = current_credits + int(credits)
-                
-                # Update credits using the existing function (which handles fallback)
-                set_credits(wallet_address, new_credits)
-                
+
+                # Add credits using AdminCreditManager
+                result = admin_credit_manager.admin_add_credits(
+                    wallet_address,
+                    int(credits),
+                    "Stripe Payment"
+                )
+
                 # Mark session as processed
-                redis_set(session_key, '1', ex=86400)  # 24h expiry
-                
-                # Verify the update
-                actual_credits = get_credits(wallet_address)
+                redis_service.set(session_key, '1', ex=86400)  # 24h expiry
+
+                # Use the result from AdminCreditManager
+                actual_credits = result["new_balance"]
                 logger.info(f"[Stripe] Successfully credited {credits} to {wallet_address}. New balance: {actual_credits}")
                 
             except Exception as e:
@@ -247,9 +248,9 @@ async def check_session_status(session_id: str, address: str):
 
         # Check if credits were already added for this session
         credit_key = f'credited:session:{session_id}'
-        if redis_get(credit_key):
+        if redis_service.get(credit_key):
             logger.info(f"[Stripe] Credits already added for session {session_id}")
-            current_credits = get_credits(address)
+            current_credits = admin_credit_manager.admin_get_credits(address)["credits"]
             return JSONResponse(content={
                 "status": "success",
                 "credits": current_credits,
@@ -270,19 +271,21 @@ async def check_session_status(session_id: str, address: str):
                     logger.error(f"[Stripe] No credits found in metadata for session {session_id}")
                     raise HTTPException(status_code=400, detail="No credits specified in session")
 
-                # Add credits to the wallet
-                current_credits = get_credits(address)
-                new_credits = current_credits + int(credits)
-                set_credits(address, new_credits)
+                # Add credits using AdminCreditManager
+                result = admin_credit_manager.admin_add_credits(
+                    address,
+                    int(credits),
+                    "Stripe Payment"
+                )
 
                 # Mark session as credited
-                redis_set(credit_key, '1', ex=86400)  # 24h expiry
+                redis_service.set(credit_key, '1', ex=86400)  # 24h expiry
 
-                logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {new_credits}")
+                logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {result['new_balance']}")
 
                 return JSONResponse(content={
                     "status": "success",
-                    "credits": new_credits
+                    "credits": result["new_balance"]
                 })
 
             except Exception as e:
@@ -377,4 +380,4 @@ async def link_customer_to_wallet(wallet_address: str, customer_id: str):
         })
     except Exception as e:
         logger.error(f"[Stripe] Error linking customer: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
