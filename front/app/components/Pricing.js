@@ -30,6 +30,7 @@ import {
 import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import { useFarcaster } from "./FarcasterFrameProvider";
 import { parsePaymentError, getToastConfig } from "../utils/errorHandling";
 import PaymentMethodSelector from "./payments/PaymentMethodSelector";
 import { ghiblifyTokenPayments } from "../lib/services/ghiblify-token-payments";
@@ -679,28 +680,42 @@ export default function Pricing({ onPurchaseComplete }) {
 
   // DRY: Use centralized theme instead of duplicated color definitions
   const { colors, patterns, utils } = useGhibliTheme();
+  const { isInFrame } = useFarcaster();
+
+  // Mobile-optimized spacing for Farcaster mini app
+  const containerSpacing = isInFrame ? 4 : 8;
+  const cardSpacing = isInFrame ? 4 : 8;
+  const containerPadding = isInFrame ? { base: 6, md: 12 } : 12;
 
   return (
-    <Box py={12}>
-      <VStack spacing={8}>
+    <Box py={containerPadding}>
+      <VStack spacing={containerSpacing}>
         <Text
-          fontSize="2xl"
+          fontSize={{ base: "xl", md: "2xl" }}
           fontWeight="bold"
           textAlign="center"
           color={colors.text.primary}
         >
           Choose Your Package
         </Text>
-        <Text color={colors.text.secondary} textAlign="center">
+        <Text
+          color={colors.text.secondary}
+          textAlign="center"
+          fontSize={{ base: "sm", md: "md" }}
+        >
           Transform your photos into Studio Ghibli style artwork
         </Text>
 
-        <Flex direction={{ base: "column", md: "row" }} gap={8} px={4}>
+        <Flex
+          direction={{ base: "column", md: "row" }}
+          gap={cardSpacing}
+          px={isInFrame ? 2 : 4}
+        >
           {tiers.map((tier) => (
             <Box
               key={tier.name}
               {...patterns.card}
-              p={6}
+              p={isInFrame ? 4 : 6}
               width={{ base: "full", md: "320px" }}
               position="relative"
               {...utils.getElevationStyle(2)}
@@ -719,9 +734,9 @@ export default function Pricing({ onPurchaseComplete }) {
                 </Badge>
               )}
 
-              <VStack spacing={4} align="stretch">
+              <VStack spacing={isInFrame ? 3 : 4} align="stretch">
                 <Text
-                  fontSize="2xl"
+                  fontSize={{ base: "lg", md: "2xl" }}
                   fontWeight="bold"
                   color={colors.text.primary}
                 >
@@ -733,21 +748,44 @@ export default function Pricing({ onPurchaseComplete }) {
                 </Text>
                 <HStack>
                   <Text
-                    fontSize="4xl"
+                    fontSize={{ base: "2xl", md: "4xl" }}
                     fontWeight="bold"
                     color={colors.text.primary}
                   >
                     {tier.price}
                   </Text>
-                  <Text color={colors.text.secondary}>USD</Text>
+                  <Text
+                    color={colors.text.secondary}
+                    fontSize={{ base: "sm", md: "md" }}
+                  >
+                    USD
+                  </Text>
                 </HStack>
-                <Text color={colors.text.secondary}>{tier.description}</Text>
+                <Text
+                  color={colors.text.secondary}
+                  fontSize={{ base: "sm", md: "md" }}
+                >
+                  {tier.description}
+                </Text>
 
-                <VStack align="stretch" spacing={3} mt={4}>
+                <VStack
+                  align="stretch"
+                  spacing={isInFrame ? 2 : 3}
+                  mt={isInFrame ? 2 : 4}
+                >
                   {tier.features.map((feature) => (
-                    <HStack key={feature}>
-                      <Icon as={FiCheck} color="green.500" />
-                      <Text color={colors.text.primary}>{feature}</Text>
+                    <HStack key={feature} spacing={2}>
+                      <Icon
+                        as={FiCheck}
+                        color="green.500"
+                        boxSize={isInFrame ? 3 : 4}
+                      />
+                      <Text
+                        color={colors.text.primary}
+                        fontSize={{ base: "xs", md: "sm" }}
+                      >
+                        {feature}
+                      </Text>
                     </HStack>
                   ))}
                 </VStack>
@@ -791,6 +829,33 @@ export default function Pricing({ onPurchaseComplete }) {
             </Box>
           ))}
         </Flex>
+
+        {/* Single tip message for all cards - more mobile-friendly */}
+        <Box
+          bg={colors.background.accent}
+          p={isInFrame ? 3 : 4}
+          borderRadius="lg"
+          border="1px solid"
+          borderColor={colors.border.secondary}
+          maxW="600px"
+          mx="auto"
+        >
+          <HStack spacing={2} justify="center">
+            <Icon
+              as={FiDollarSign}
+              color={colors.text.accent}
+              boxSize={isInFrame ? 4 : 5}
+            />
+            <Text
+              fontSize={isInFrame ? "xs" : "sm"}
+              color={colors.text.secondary}
+              textAlign="center"
+            >
+              💡 Tip: $GHIBLIFY tokens offer the biggest savings and help grow
+              the project!
+            </Text>
+          </HStack>
+        </Box>
       </VStack>
     </Box>
   );

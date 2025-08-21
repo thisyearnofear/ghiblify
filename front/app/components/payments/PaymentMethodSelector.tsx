@@ -54,13 +54,15 @@ export default function PaymentMethodSelector({
   // DRY: Use centralized theme instead of scattered useColorModeValue calls
   const { colors, patterns, utils } = useGhibliTheme();
 
-  // Responsive layout values
-  const buttonSpacing = useBreakpointValue({ base: 3, md: 4 });
+  // Responsive layout values - optimized for Farcaster mini app
+  const buttonSpacing = useBreakpointValue({ base: isInFrame ? 2 : 3, md: 4 });
   const badgePadding = useBreakpointValue({ base: 1, md: 2 });
   const priceLayout = useBreakpointValue({
     base: "vertical", // Stack vertically on mobile
     md: "horizontal", // Side by side on desktop
   });
+  const buttonHeight = isInFrame ? "60px" : "72px";
+  const buttonPadding = isInFrame ? 3 : 4;
 
   // Determine available payment methods based on context
   const getAvailablePaymentMethods = () => {
@@ -153,19 +155,23 @@ export default function PaymentMethodSelector({
   }
 
   return (
-    <VStack spacing={3} align="stretch">
+    <VStack spacing={isInFrame ? 2 : 3} align="stretch">
       <HStack justify="space-between" align="center">
-        <Text fontSize="md" fontWeight="semibold" color={colors.text.primary}>
+        <Text
+          fontSize={isInFrame ? "sm" : "md"}
+          fontWeight="semibold"
+          color={colors.text.primary}
+        >
           Choose Payment Method
         </Text>
         {isInFrame && (
           <Tooltip label="Optimized for Farcaster mini app">
-            <Icon as={FiInfo as any} color={colors.text.accent} boxSize={4} />
+            <Icon as={FiInfo as any} color={colors.text.accent} boxSize={3} />
           </Tooltip>
         )}
       </HStack>
 
-      <VStack spacing={2} align="stretch">
+      <VStack spacing={isInFrame ? 1.5 : 2} align="stretch">
         {availableMethods.map((method) => {
           const pricing = calculatePrice(tier.basePrice, method.discount);
           const isSelected = selectedMethod === method.id;
@@ -203,10 +209,10 @@ export default function PaymentMethodSelector({
               key={method.id}
               variant={isSelected ? "solid" : "outline"}
               colorScheme={method.colorScheme}
-              size="lg"
+              size={isInFrame ? "md" : "lg"}
               h="auto"
-              minH="72px"
-              p={4}
+              minH={buttonHeight}
+              p={buttonPadding}
               onClick={async () => {
                 // Handle CELO network switching automatically like $GHIBLIFY
                 if (method.id === "celo" && method.requiresNetworkSwitch) {
@@ -240,24 +246,30 @@ export default function PaymentMethodSelector({
                 align="center"
                 spacing={buttonSpacing}
               >
-                <HStack spacing={3} flex="1" minW="0">
-                  <Icon as={method.icon as any} boxSize={5} flexShrink={0} />
+                <HStack spacing={isInFrame ? 2 : 3} flex="1" minW="0">
+                  <Icon
+                    as={method.icon as any}
+                    boxSize={isInFrame ? 4 : 5}
+                    flexShrink={0}
+                  />
                   <VStack align="start" spacing={0} minW="0" flex="1">
                     <Text
                       fontWeight="semibold"
-                      fontSize="sm"
+                      fontSize={isInFrame ? "xs" : "sm"}
                       color={colors.text.primary}
                       noOfLines={1}
                     >
                       {method.name}
                     </Text>
-                    <Text
-                      fontSize="xs"
-                      color={colors.text.secondary}
-                      noOfLines={1}
-                    >
-                      {method.description}
-                    </Text>
+                    {!isInFrame && (
+                      <Text
+                        fontSize="xs"
+                        color={colors.text.secondary}
+                        noOfLines={1}
+                      >
+                        {method.description}
+                      </Text>
+                    )}
                   </VStack>
                 </HStack>
 
