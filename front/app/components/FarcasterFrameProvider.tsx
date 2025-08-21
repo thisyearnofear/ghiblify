@@ -69,6 +69,18 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
         // Notify frame we're ready - using config timeout
         const readyDelay = inFrame ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
         setTimeout(() => {
+          // Enhanced mobile debugging
+          if (FARCASTER_CONFIG.sdk.enableMobileConsole && inFrame) {
+            console.log("[Farcaster] Frame ready in mobile environment");
+            console.log("[Farcaster] Context:", frameContext);
+            console.log("[Farcaster] User agent:", navigator.userAgent);
+            console.log("[Farcaster] Viewport:", {
+              width: window.innerWidth,
+              height: window.innerHeight,
+              devicePixelRatio: window.devicePixelRatio,
+            });
+          }
+
           sdk.actions.ready();
           setIsReady(true);
         }, readyDelay);
@@ -105,7 +117,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
 
     // Test network after initialization
     setTimeout(testNetworkSwitching, 1000);
-  }, []);
+  }, [isInFrame, context?.user?.address]);
 
   // Send notifications when transformations complete
   const sendNotification = async (type: string = "transformComplete") => {

@@ -40,6 +40,9 @@ export const FARCASTER_CONFIG = {
       perMinute: 2,
       perDay: 100,
     },
+    // Enhanced mobile debugging
+    debug: process.env.NODE_ENV === "development",
+    enableMobileConsole: true, // Enable mobile console logging
   },
 
   // Notification templates

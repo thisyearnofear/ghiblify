@@ -238,15 +238,59 @@ const handleGhiblifyTokenPayment = async (tier, options) => {
   }
 };
 
-// CELO payment handler
+// CELO payment handler - Enhanced to use existing auto-connection service
 const handleCeloPayment = async (tier, options) => {
   const { address, toast, apiUrl, onComplete } = options;
 
-  // This would need to be passed from the component
-  // For now, we'll throw an error indicating it needs to be implemented
-  throw new Error(
-    "CELO payment handler needs to be implemented with wallet connection"
-  );
+  try {
+    // Import auto-connection service to handle network switching
+    const { autoConnectionService } = await import(
+      "../lib/services/auto-connection-service"
+    );
+
+    // Switch to CELO network using existing infrastructure
+    console.log("[Payment] Switching to CELO network for $CUSD payment");
+    const switched = await autoConnectionService.switchNetwork(address, "celo");
+
+    if (!switched) {
+      toast({
+        title: "Network Switch Failed",
+        description: "Please manually switch to CELO network to pay with $CUSD",
+        status: "warning",
+        duration: 8000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // TODO: Implement CELO/CUSD token payment logic here
+    // This would follow a similar pattern to the GHIBLIFY token payment
+    // but use CELO network and CUSD token contract
+
+    toast({
+      title: "CELO Payment Coming Soon",
+      description:
+        "CUSD payments will be available soon. Please use Base Pay for now.",
+      status: "info",
+      duration: 8000,
+      isClosable: true,
+    });
+  } catch (error) {
+    console.error("[Payment] CELO payment error:", error);
+
+    if (error.message?.includes("CELO network")) {
+      toast({
+        title: "CELO Network Required",
+        description: "Please switch to CELO network to pay with $CUSD",
+        status: "warning",
+        duration: 8000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    throw error;
+  }
 };
 
 // Validation utilities

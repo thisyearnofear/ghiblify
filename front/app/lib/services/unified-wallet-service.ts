@@ -68,6 +68,7 @@ class UnifiedWalletService {
    * Connect with RainbowKit wallet
    */
   async connectRainbowKit(address: string): Promise<UnifiedWalletUser> {
+    console.log('[Unified Wallet] Debouncing connection attempt for rainbowkit');
     return this.connectWallet(address, 'rainbowkit');
   }
 
@@ -75,6 +76,7 @@ class UnifiedWalletService {
    * Connect with Base Account
    */
   async connectBase(address: string): Promise<UnifiedWalletUser> {
+    console.log('[Unified Wallet] Debouncing connection attempt for base');
     return this.connectWallet(address, 'base');
   }
 
@@ -82,6 +84,7 @@ class UnifiedWalletService {
    * Connect with Farcaster Frame
    */
   async connectFarcaster(address: string): Promise<UnifiedWalletUser> {
+    console.log('[Unified Wallet] Debouncing connection attempt for farcaster');
     return this.connectWallet(address, 'farcaster');
   }
 
@@ -242,10 +245,12 @@ class UnifiedWalletService {
   // ===== PRIVATE METHODS =====
 
   private async connectWallet(address: string, provider: WalletProvider): Promise<UnifiedWalletUser> {
-    // Debounce connection attempts to prevent rapid switching
+    // Enhanced debouncing for mobile/Farcaster environments
     const now = Date.now();
-    if (now - this.lastConnectionAttempt < 500) {
-      console.log(`[Unified Wallet] Debouncing connection attempt for ${provider}`);
+    const debounceTime = 2000; // Increased to 2 seconds for mobile stability
+
+    if (now - this.lastConnectionAttempt < debounceTime) {
+      console.log(`[Unified Wallet] Debouncing connection attempt for ${provider} (${debounceTime - (now - this.lastConnectionAttempt)}ms remaining)`);
       throw new Error('Connection attempt too soon, please wait');
     }
     this.lastConnectionAttempt = now;
@@ -316,18 +321,41 @@ class UnifiedWalletService {
 
   private async initializeUser(address: string): Promise<void> {
     try {
+      console.log(`[Unified Wallet] Initializing user: ${address}`);
       await api.post(`/api/wallet/connect`, `address=${address}&provider=unified`);
+      console.log(`[Unified Wallet] Successfully initialized user: ${address}`);
     } catch (error) {
-      console.warn('Failed to initialize user, continuing...', error);
+      console.error('[Unified Wallet] Failed to initialize user:', error);
+      // Continue without throwing - this is not critical for wallet connection
+      // The user can still use the app with localStorage fallbacks
     }
   }
 
   private async fetchCredits(address: string): Promise<number> {
     try {
+      console.log(`[Unified Wallet] Fetching credits for ${address}`);
       const response = await api.get(`/api/wallet/credits/${address}`);
-      return response.credits || 0;
+      const credits = response.credits || 0;
+      console.log(`[Unified Wallet] Successfully fetched ${credits} credits for ${address}`);
+      return credits;
     } catch (error) {
-      console.warn('Failed to fetch credits from backend, using 0 as fallback');
+      console.error('[Unified Wallet] Failed to fetch credits from backend:', error);
+
+      // Enhanced fallback for mobile environments
+      if (typeof window !== 'undefined') {
+        try {
+          const fallbackCredits = localStorage.getItem(`credits_${address.toLowerCase()}`);
+          if (fallbackCredits) {
+            const credits = parseInt(fallbackCredits, 10);
+            console.log(`[Unified Wallet] Using localStorage fallback: ${credits} credits for ${address}`);
+            return credits;
+          }
+        } catch (storageError) {
+          console.warn('[Unified Wallet] localStorage fallback failed:', storageError);
+        }
+      }
+
+      console.warn('[Unified Wallet] Using 0 credits as final fallback');
       return 0;
     }
   }

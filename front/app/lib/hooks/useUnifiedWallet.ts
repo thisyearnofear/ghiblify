@@ -61,26 +61,43 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
     return unsubscribe;
   }, []);
 
-  // Auto-connect when external wallets connect with proper cleanup
+  // Auto-connect when external wallets connect with proper cleanup and debouncing
   useEffect(() => {
     let isConnecting = false;
     let timeoutId: NodeJS.Timeout;
+    let lastConnectionAttempt = 0;
+    const CONNECTION_DEBOUNCE_MS = 2000; // 2 second debounce
 
     const autoConnect = async () => {
+      const now = Date.now();
+
+      // Debounce connection attempts
+      if (now - lastConnectionAttempt < CONNECTION_DEBOUNCE_MS) {
+        console.log('[Unified Wallet] Debouncing connection attempt');
+        return;
+      }
+
       // Prevent concurrent connection attempts
-      if (isConnecting || connection.isLoading) return;
+      if (isConnecting || connection.isLoading) {
+        console.log('[Unified Wallet] Connection already in progress');
+        return;
+      }
 
       try {
+        lastConnectionAttempt = now;
+
         // In Farcaster frame, prioritize stability over switching
         if (isInFrame) {
           // If already connected, avoid switching to prevent connection issues
           if (connection.isConnected && connection.user) {
+            console.log('[Unified Wallet] Already connected in frame, skipping auto-connect');
             return;
           }
 
           // Priority 1: RainbowKit connection (most stable in Farcaster)
           if (isRainbowKitConnected && rainbowKitAddress) {
             if (!connection.isConnected) {
+              console.log('[Unified Wallet] Connecting via RainbowKit in frame');
               isConnecting = true;
               await unifiedWalletService.connectRainbowKit(rainbowKitAddress);
               isConnecting = false;
@@ -91,6 +108,7 @@ export function useUnifiedWallet(): UseUnifiedWalletReturn {
           // Priority 2: Base Account (only if RainbowKit not available)
           if (!isRainbowKitConnected && isBaseAuthenticated && baseUser?.address) {
             if (!connection.isConnected) {
+              console.log('[Unified Wallet] Connecting via Base Account in frame');
               isConnecting = true;
               await unifiedWalletService.connectBase(baseUser.address);
               isConnecting = false;

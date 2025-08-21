@@ -4,6 +4,7 @@ import themeConfig from "./theme/config";
 import { Web3Provider } from "./providers/Web3Provider";
 import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
 import Navigation from "./components/Navigation";
+import MobileErrorBoundary from "./components/MobileErrorBoundary";
 
 export const metadata = {
   metadataBase: new URL("https://ghiblify-it.vercel.app"),
@@ -50,7 +51,7 @@ export default function RootLayout({ children }) {
         <meta charSet="utf-8" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -61,8 +62,10 @@ export default function RootLayout({ children }) {
         <ChakraProvider theme={theme}>
           <Web3Provider>
             <FarcasterFrameProvider>
-              <Navigation />
-              {children}
+              <MobileErrorBoundary>
+                <Navigation />
+                {children}
+              </MobileErrorBoundary>
             </FarcasterFrameProvider>
           </Web3Provider>
         </ChakraProvider>

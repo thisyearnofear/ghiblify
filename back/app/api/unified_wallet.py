@@ -18,6 +18,7 @@ import logging
 import time
 from .credit_manager import credit_manager
 from .admin_credit_manager import admin_credit_manager
+from .web3_auth import get_credits, set_credits
 from ..services.redis_service import redis_service
 
 # Configure logging
@@ -69,30 +70,50 @@ async def connect_wallet(
     Works for RainbowKit, Base Account, Farcaster, etc.
     """
     try:
+        logger.info(f"[Wallet] Connection attempt: address={address}, provider={provider}")
+
         # Validate and normalize address
         validated_address = validate_address(address)
-        
-        # Initialize user if new
-        current_credits = get_credits(validated_address)
-        if current_credits == 0:
-            # New user - could give welcome credits here
-            set_credits(validated_address, 0)
-            logger.info(f"[Wallet] New user initialized: {validated_address}")
-        
-        # Log connection
-        logger.info(f"[Wallet] Connected: {validated_address} via {provider or 'unknown'}")
-        
+        logger.info(f"[Wallet] Address validated: {validated_address}")
+
+        # Initialize user if new - with better error handling
+        try:
+            current_credits = get_credits(validated_address)
+            logger.info(f"[Wallet] Current credits for {validated_address}: {current_credits}")
+
+            if current_credits == 0:
+                # New user - ensure they exist in storage
+                set_credits(validated_address, 0)
+                logger.info(f"[Wallet] New user initialized: {validated_address}")
+        except Exception as credit_error:
+            logger.error(f"[Wallet] Credit initialization error for {validated_address}: {str(credit_error)}")
+            # Continue with connection even if credits fail
+            current_credits = 0
+
+        # Get final credits using admin manager for consistency
+        try:
+            final_credits = admin_credit_manager.admin_get_credits(validated_address)["credits"]
+        except Exception as admin_error:
+            logger.error(f"[Wallet] Admin credit fetch error: {str(admin_error)}")
+            final_credits = current_credits
+
+        # Log successful connection
+        logger.info(f"[Wallet] Successfully connected: {validated_address} via {provider or 'unknown'} with {final_credits} credits")
+
         return JSONResponse(content={
             "address": validated_address,
-            "credits": admin_credit_manager.admin_get_credits(validated_address)["credits"],
+            "credits": final_credits,
             "provider": provider,
             "status": "connected"
         })
-        
-    except HTTPException:
+
+    except HTTPException as http_error:
+        logger.error(f"[Wallet] HTTP error during connection: {str(http_error)}")
         raise
     except Exception as e:
-        logger.error(f"[Wallet] Connection error: {str(e)}")
+        logger.error(f"[Wallet] Unexpected connection error: {str(e)}")
+        import traceback
+        logger.error(f"[Wallet] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Connection failed: {str(e)}")
 
 @unified_wallet_router.get("/status/{address}")
@@ -120,20 +141,38 @@ async def get_wallet_status(address: str) -> JSONResponse:
 async def get_credits_balance(address: str) -> JSONResponse:
     """Get credit balance for an address"""
     try:
+        logger.info(f"[Credits] Balance check request for: {address}")
+
         validated_address = validate_address(address)
-        credits = get_credits(validated_address)
-        
-        logger.info(f"[Credits] Balance check for {validated_address}: {credits}")
-        
+        logger.info(f"[Credits] Address validated: {validated_address}")
+
+        # Try to get credits with fallback handling
+        try:
+            credits = get_credits(validated_address)
+            logger.info(f"[Credits] Retrieved credits for {validated_address}: {credits}")
+        except Exception as credit_error:
+            logger.error(f"[Credits] Error getting credits for {validated_address}: {str(credit_error)}")
+            # Fallback to 0 credits for new users
+            credits = 0
+            # Try to initialize the user
+            try:
+                set_credits(validated_address, 0)
+                logger.info(f"[Credits] Initialized new user {validated_address} with 0 credits")
+            except Exception as init_error:
+                logger.error(f"[Credits] Failed to initialize user {validated_address}: {str(init_error)}")
+
         return JSONResponse(content={
             "address": validated_address,
             "credits": credits
         })
-        
-    except HTTPException:
+
+    except HTTPException as http_error:
+        logger.error(f"[Credits] HTTP error during balance check: {str(http_error)}")
         raise
     except Exception as e:
-        logger.error(f"[Credits] Balance check error: {str(e)}")
+        logger.error(f"[Credits] Unexpected balance check error: {str(e)}")
+        import traceback
+        logger.error(f"[Credits] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Balance check failed: {str(e)}")
 
 @unified_wallet_router.post("/credits/add")
@@ -215,13 +254,13 @@ async def admin_set_credits(
             
         validated_address = validate_address(address)
         result = admin_credit_manager.admin_set_credits(validated_address, amount, "Admin Set Credits")
-        
+
         logger.info(f"[Admin] Set credits for {validated_address}: {result['old_balance']} -> {result['new_balance']}")
-        
+
         return JSONResponse(content={
             "address": validated_address,
             "credits": amount,
-            "previous": old_credits
+            "previous": result['old_balance']
         })
         
     except HTTPException:
