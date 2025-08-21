@@ -8,7 +8,7 @@ import requests
 import logging
 import os
 from dotenv import load_dotenv
-from .web3_auth import get_credits, set_credits
+from .credit_manager import credit_manager
 import httpx
 import asyncio
 import json
@@ -467,16 +467,8 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
     if not address:
         raise HTTPException(status_code=400, detail="Wallet address is required")
 
-    # Validate user has sufficient credits
-    current_credits = get_credits(address.lower())
-    logger.info(f"Credit check for {address}: {current_credits} credits available")
-    if current_credits < 1:
-        logger.warning(f"Insufficient credits for {address}: {current_credits} < 1")
-        raise HTTPException(status_code=402, detail="You need credits to create magical art ✨ Add credits to continue transforming your images!")
-
-    # Spend the credit now that we've validated it's available
-    set_credits(address.lower(), current_credits - 1)
-    logger.info(f"Spent 1 credit for {address}. New balance: {current_credits - 1}")
+    # Validate and spend credit using unified credit manager
+    credit_manager.validate_and_spend_credit(address, "ComfyUI")
 
     try:
         # Read the uploaded file into memory
@@ -525,32 +517,9 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         logger.error(f"Error details: {error_str}")
         logger.error(f"Traceback: {traceback.format_exc()}")
 
-        # Refund credit since processing failed
-        # Note: We deducted the credit at the start, so we need to add it back
-        try:
-            current_credits = get_credits(address.lower())
-            set_credits(address.lower(), current_credits + 1)
-            logger.info(f"Refunded 1 credit to {address} due to processing failure. New balance: {current_credits + 1}")
-        except Exception as refund_error:
-            logger.error(f"Failed to refund credit to {address}: {str(refund_error)}")
-            # Don't fail the main error response due to refund issues
-
-        # Provide user-friendly error messages
-        user_message = "We're experiencing technical difficulties. Your credit has been refunded and you can try again in a few moments."
-
-        # Check for specific error types to provide more targeted messages
-        if "timeout" in error_str.lower() or "timed out" in error_str.lower():
-            user_message = "The request took too long to process. Your credit has been refunded - please try again."
-        elif "network" in error_str.lower() or "connection" in error_str.lower():
-            user_message = "We're having connectivity issues. Your credit has been refunded - please try again shortly."
-        elif "imgbb" in error_str.lower():
-            user_message = "There was an issue uploading your image. Your credit has been refunded - please try again."
-        elif "api key" in error_str.lower() or "unauthorized" in error_str.lower():
-            user_message = "Our image processing service is temporarily unavailable. Your credit has been refunded - please try again later."
-        elif "invalid" in error_str.lower() and "image" in error_str.lower():
-            user_message = "There was an issue with your image format. Your credit has been refunded - please try uploading a different image."
-        elif "workflow" in error_str.lower():
-            user_message = "Our processing pipeline is experiencing issues. Your credit has been refunded - please try again in a few minutes."
+        # Refund credit and get user-friendly error message using unified credit manager
+        credit_manager.refund_credit(address, "ComfyUI")
+        user_message = credit_manager.get_user_friendly_error_message(error_str, "ComfyUI")
 
         raise HTTPException(
             status_code=500,
