@@ -492,10 +492,12 @@ class GhiblifyTokenPaymentService {
     }
 
     // Check if user is on Base network (chain ID 8453)
-    if (connection.chain?.id !== GHIBLIFY_TOKEN_CONFIG.chainId) {
-      return { 
+    // For $GHIBLIFY token payments, we require Base network
+    // If user is connected with a non-Base provider, they need to switch
+    if (connection.user.provider !== 'base') {
+      return {
         required: true,
-        currentProvider: connection.chain?.name || 'Unknown',
+        currentProvider: connection.user.provider,
         recommendedAction: 'Switch to Base network for $GHIBLIFY token payments'
       };
     }
