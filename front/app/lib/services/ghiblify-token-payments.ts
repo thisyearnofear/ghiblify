@@ -492,8 +492,14 @@ class GhiblifyTokenPaymentService {
     }
 
     // Check if user is on Base network (chain ID 8453)
-    // This would need to be enhanced with actual chain detection
-    // For now, we'll be permissive and let wagmi handle network switching
+    if (connection.chain?.id !== GHIBLIFY_TOKEN_CONFIG.chainId) {
+      return { 
+        required: true,
+        currentProvider: connection.chain?.name || 'Unknown',
+        recommendedAction: 'Switch to Base network for $GHIBLIFY token payments'
+      };
+    }
+
     return { required: false };
   }
 

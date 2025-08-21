@@ -31,9 +31,14 @@ export const config = createConfig({
   chains: [celoMainnet, mainnet, polygon, base],
   connectors: [farcasterFrame()],
   client({ chain }) {
+    // Use Alchemy RPC for Base if available, otherwise fallback to default
+    const rpcUrl = chain.id === base.id && process.env.NEXT_PUBLIC_BASE_RPC_URL
+      ? process.env.NEXT_PUBLIC_BASE_RPC_URL
+      : chain.rpcUrls.default.http[0];
+      
     return createClient({
       chain,
-      transport: http(chain.rpcUrls.default.http[0]),
+      transport: http(rpcUrl),
     });
   },
 });
