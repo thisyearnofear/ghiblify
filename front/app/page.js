@@ -402,8 +402,19 @@ export default function Home() {
 
       // Use unified credit system
       try {
+        // Check credits are available with retry logic - don't spend yet
         const retryOptions = getContextOptimizedRetryOptions();
-        await retrySpendCredits(spendCredits, refreshCredits, retryOptions);
+        await retrySpendCredits(
+          async () => {
+            await refreshCredits();
+            if (credits < 1) {
+              throw new Error("You need credits to create magical art");
+            }
+            return credits;
+          }, 
+          refreshCredits, 
+          { ...retryOptions, amount: 0 }
+        );
       } catch (creditError) {
         if (
           creditError.message.includes("need credits") ||
@@ -485,13 +496,9 @@ export default function Home() {
       setError(error.message);
       setIsLoading(false);
 
-      // Refund credit if the API call failed after spending
-      try {
-        await refundCredits(1);
-        setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
-      } catch (refundError) {
-        // Don't show refund error to user, but silently handle it
-      }
+      // Credits will be handled by the ComfyUI handler
+      // Refresh credits display to show current state
+      setCreditsRefreshKey((prev) => prev + 1);
     }
   };
 

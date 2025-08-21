@@ -474,6 +474,10 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         logger.warning(f"Insufficient credits for {address}: {current_credits} < 1")
         raise HTTPException(status_code=402, detail="You need credits to create magical art ✨ Add credits to continue transforming your images!")
 
+    # Spend the credit now that we've validated it's available
+    set_credits(address.lower(), current_credits - 1)
+    logger.info(f"Spent 1 credit for {address}. New balance: {current_credits - 1}")
+
     try:
         # Read the uploaded file into memory
         contents = await file.read()
@@ -522,7 +526,7 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Refund credit since processing failed
-        # Note: Frontend already deducted the credit, so we need to add it back
+        # Note: We deducted the credit at the start, so we need to add it back
         try:
             current_credits = get_credits(address.lower())
             set_credits(address.lower(), current_credits + 1)
