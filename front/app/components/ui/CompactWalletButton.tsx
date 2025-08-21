@@ -188,8 +188,8 @@ export default function CompactWalletButton() {
                 </VStack>
               </MagicalButton>
 
-              {/* Network switcher - disabled in frames to prevent connection issues */}
-              {!isInFrame && <NetworkSwitcher />}
+              {/* Network switcher - enabled in frames for better network handling */}
+              <NetworkSwitcher />
             </HStack>
           );
         }

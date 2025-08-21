@@ -135,8 +135,52 @@ class AutoConnectionService {
    */
   canUseCeloPayments(): boolean {
     const connection = unifiedWalletService.getConnection();
-    return connection.isConnected && 
+    return connection.isConnected &&
            (connection.user?.provider === 'rainbowkit' || connection.user?.provider === 'farcaster');
+  }
+
+  /**
+   * Validate that we're on the correct network for the provider
+   */
+  async validateNetwork(provider: WalletProvider): Promise<boolean> {
+    if (typeof window === 'undefined') return true;
+    
+    try {
+      if (provider === 'rainbowkit') {
+        // For RainbowKit (Celo), check if we're on Celo mainnet
+        const chainId = await this.getCurrentChainId();
+        return chainId === 42220; // Celo mainnet
+      } else if (provider === 'base') {
+        // For Base, check if we're on Base mainnet
+        const chainId = await this.getCurrentChainId();
+        return chainId === 8453; // Base mainnet
+      }
+      return true; // Farcaster or other providers
+    } catch (error) {
+      console.warn('[AutoConnection] Network validation failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get current chain ID from window.ethereum if available
+   */
+  private async getCurrentChainId(): Promise<number | null> {
+    if (typeof window === 'undefined' || !window.ethereum) return null;
+    
+    try {
+      // Try to get chain ID directly
+      if (window.ethereum.chainId) {
+        return parseInt(window.ethereum.chainId, 16);
+      }
+      
+      // Fallback to request
+      const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+      return parseInt(chainIdHex, 16);
+    } catch (error) {
+      console.warn('[AutoConnection] Failed to get chain ID:', error);
+      return null;
+    }
   }
 
   /**

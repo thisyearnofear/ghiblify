@@ -29,6 +29,14 @@ class FarcasterWalletService {
    */
   setPreferredEcosystem(ecosystem: 'base' | 'celo'): void {
     this.config.preferredEcosystem = ecosystem;
+    // Also update auto-connection service
+    import('./auto-connection-service').then(({ autoConnectionService }) => {
+      autoConnectionService.updateConfig({
+        preferredNetwork: ecosystem,
+        enableFallback: true,
+        skipAutoConnect: false
+      });
+    }).catch(console.warn);
     this.saveConfig();
   }
 

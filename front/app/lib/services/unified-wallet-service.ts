@@ -250,6 +250,13 @@ class UnifiedWalletService {
     }
     this.lastConnectionAttempt = now;
 
+    // Validate network compatibility for provider
+    if (provider === 'rainbowkit') {
+      // For RainbowKit (Celo), ensure we're on the right network
+      // This is a simplified check - actual validation happens in UI components
+      console.log('[Unified Wallet] Connected with RainbowKit - ensure Celo network');
+    }
+
     console.log(`[Unified Wallet] Connecting ${provider} wallet:`, address);
 
     // Clear any pending connection timeout

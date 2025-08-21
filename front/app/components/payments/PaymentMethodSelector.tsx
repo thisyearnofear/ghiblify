@@ -13,10 +13,17 @@ import {
   useBreakpointValue,
 } from "@chakra-ui/react";
 import { useGhibliTheme } from "../../hooks/useGhibliTheme";
-import { FiCreditCard, FiDollarSign, FiZap, FiInfo } from "react-icons/fi";
+import {
+  FiCreditCard,
+  FiDollarSign,
+  FiZap,
+  FiInfo,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import { useState } from "react";
 import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
 import { useFarcaster } from "../FarcasterFrameProvider";
+import { useChainId } from "wagmi";
 import { ghiblifyTokenPayments } from "../../lib/services/ghiblify-token-payments";
 import { baseAccountPayments } from "../../lib/services/base-account-payments";
 import GhiblifyTokenButton from "./GhiblifyTokenButton";
@@ -41,6 +48,7 @@ export default function PaymentMethodSelector({
 }: PaymentMethodSelectorProps) {
   const { user, provider, isConnected } = useUnifiedWallet();
   const { isInFrame } = useFarcaster();
+  const chainId = useChainId();
 
   // DRY: Use centralized theme instead of scattered useColorModeValue calls
   const { colors, patterns, utils } = useGhibliTheme();
@@ -89,16 +97,32 @@ export default function PaymentMethodSelector({
 
     // Celo (when on Celo/RainbowKit)
     if (provider === "rainbowkit" || provider === "farcaster") {
-      methods.push({
-        id: "celo",
-        name: "Pay with cUSD",
-        icon: FiDollarSign,
-        colorScheme: "yellow",
-        discount: 30,
-        badge: "30% OFF",
-        description: "Celo USD stablecoin",
-        priority: 3,
-      });
+      // Add network validation
+      const isCeloMainnet = chainId === 42220; // Celo mainnet chain ID
+
+      if (!isCeloMainnet && chainId) {
+        methods.push({
+          id: "celo",
+          name: "Network Error",
+          icon: FiAlertTriangle,
+          colorScheme: "red",
+          discount: 0,
+          badge: "Wrong Network",
+          description: "Switch to Celo Mainnet to pay with cUSD",
+          priority: 3,
+        });
+      } else {
+        methods.push({
+          id: "celo",
+          name: "Pay with cUSD",
+          icon: FiDollarSign,
+          colorScheme: "yellow",
+          discount: 30,
+          badge: "30% OFF",
+          description: "Celo USD stablecoin",
+          priority: 3,
+        });
+      }
     }
 
     // Stripe (always available as fallback)

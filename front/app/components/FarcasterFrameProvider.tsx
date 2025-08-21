@@ -5,7 +5,11 @@ import { sdk } from "@farcaster/miniapp-sdk";
 import farcasterFrame from "@farcaster/frame-wagmi-connector";
 import { connect } from "@wagmi/core";
 import { config } from "./WagmiConfig";
-import { FARCASTER_CONFIG, isFarcasterEnvironment, createNotificationId } from "../config/farcaster";
+import {
+  FARCASTER_CONFIG,
+  isFarcasterEnvironment,
+  createNotificationId,
+} from "../config/farcaster";
 
 interface FarcasterContextType {
   isInFrame: boolean;
@@ -39,12 +43,14 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
       try {
         const frameContext = await sdk.context;
         setContext(frameContext);
-        
+
         // Check if we're running in a Mini App environment using config
-        const inFrame = !!(frameContext?.client?.clientFid || isFarcasterEnvironment());
-        
+        const inFrame = !!(
+          frameContext?.client?.clientFid || isFarcasterEnvironment()
+        );
+
         setIsInFrame(inFrame);
-        
+
         if (frameContext?.user) {
           setUser(frameContext.user);
         }
@@ -54,54 +60,78 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
           try {
             await connect(config, { connector: farcasterFrame() });
           } catch (error) {
-            console.error('Failed to connect Farcaster wallet:', error);
+            console.error("Failed to connect Farcaster wallet:", error);
           }
         }
 
         setIsLoading(false);
-        
+
         // Notify frame we're ready - using config timeout
         const readyDelay = inFrame ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
         setTimeout(() => {
           sdk.actions.ready();
           setIsReady(true);
         }, readyDelay);
-
       } catch (error) {
-        console.error('Failed to initialize Farcaster Frame SDK:', error);
+        console.error("Failed to initialize Farcaster Frame SDK:", error);
         setIsLoading(false);
         // Not in frame environment, continue normally
       }
     };
 
+    // Test network switching in Farcaster context
+    const testNetworkSwitching = async () => {
+      if (isInFrame && context?.user?.address) {
+        try {
+          // Validate current network
+          const { autoConnectionService } = await import(
+            "../lib/services/auto-connection-service"
+          );
+          const isValid = await autoConnectionService.validateNetwork(
+            "rainbowkit"
+          );
+          if (!isValid) {
+            console.warn(
+              "[Farcaster] Connected to wrong network, should be Celo mainnet"
+            );
+          }
+        } catch (error) {
+          console.warn("[Farcaster] Network validation failed:", error);
+        }
+      }
+    };
+
     init();
+
+    // Test network after initialization
+    setTimeout(testNetworkSwitching, 1000);
   }, []);
 
   // Send notifications when transformations complete
-  const sendNotification = async (type: string = 'transformComplete') => {
+  const sendNotification = async (type: string = "transformComplete") => {
     if (!isInFrame) return;
-    
+
     try {
       const notificationConfig = FARCASTER_CONFIG.notifications[type];
       if (!notificationConfig) return;
-      
+
       // Check if notify method is available (may not be in all SDK versions)
-      if ('notify' in sdk.actions) {
+      if ("notify" in sdk.actions) {
         await (sdk.actions as any).notify({
           notificationId: createNotificationId(),
           title: notificationConfig.title,
           body: notificationConfig.body,
-          targetUrl: FARCASTER_CONFIG.manifest.homeUrl
+          targetUrl: FARCASTER_CONFIG.manifest.homeUrl,
         });
       } else {
-        console.log('Notification would be sent:', {
+        console.log("Notification would be sent:", {
           type,
           title: notificationConfig.title,
-          body: notificationConfig.body
+          body: notificationConfig.body,
         });
       }
     } catch (error) {
-      console.error('Failed to send notification:', error);
+      console.error("Failed to send notification:", error);
     }
   };
 

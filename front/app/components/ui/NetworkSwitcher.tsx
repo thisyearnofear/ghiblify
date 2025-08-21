@@ -3,7 +3,10 @@
 import { Box, Button, HStack, Text, Tooltip } from "@chakra-ui/react";
 import { useState } from "react";
 import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
-import { autoConnectionService, NetworkPreference } from "../../lib/services/auto-connection-service";
+import {
+  autoConnectionService,
+  NetworkPreference,
+} from "../../lib/services/auto-connection-service";
 import { COLORS, INTERACTIONS } from "../../theme";
 
 interface NetworkSwitcherProps {
@@ -11,28 +14,52 @@ interface NetworkSwitcherProps {
   showLabel?: boolean;
 }
 
-export default function NetworkSwitcher({ size = "sm", showLabel = false }: NetworkSwitcherProps) {
+export default function NetworkSwitcher({
+  size = "sm",
+  showLabel = false,
+}: NetworkSwitcherProps) {
   const { user, address } = useUnifiedWallet();
   const [isLoading, setIsLoading] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
 
   if (!user || !address) {
     return null;
   }
 
-  const currentNetwork = user.provider === 'base' ? 'base' : 'celo';
-  const otherNetwork: NetworkPreference = currentNetwork === 'base' ? 'celo' : 'base';
+  const currentNetwork = user.provider === "base" ? "base" : "celo";
+  const otherNetwork: NetworkPreference =
+    currentNetwork === "base" ? "celo" : "base";
 
   const handleNetworkSwitch = async () => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
+    setNetworkError(null);
     try {
-      const success = await autoConnectionService.switchNetwork(address, otherNetwork);
+      // Validate network before switching
+      const isValid = await autoConnectionService.validateNetwork(
+        otherNetwork === "base" ? "base" : "rainbowkit"
+      );
+
+      if (!isValid) {
+        setNetworkError(
+          `Please switch to ${otherNetwork} network in your wallet`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const success = await autoConnectionService.switchNetwork(
+        address,
+        otherNetwork
+      );
       if (!success) {
-        console.error('Network switch failed');
+        console.error("Network switch failed");
+        setNetworkError("Network switch failed. Please try again.");
       }
     } catch (error) {
-      console.error('Error switching networks:', error);
+      console.error("Error switching networks:", error);
+      setNetworkError("Error switching networks. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -40,18 +67,18 @@ export default function NetworkSwitcher({ size = "sm", showLabel = false }: Netw
 
   const getCurrentNetworkIcon = () => {
     switch (currentNetwork) {
-      case 'base':
-        return '🔵';
-      case 'celo':
-        return '🌿';
+      case "base":
+        return "🔵";
+      case "celo":
+        return "🌿";
       default:
-        return '🔗';
+        return "🔗";
     }
   };
 
   const getNetworkDisplayName = (network: NetworkPreference) => {
     return autoConnectionService.getNetworkDisplayName(
-      network === 'base' ? 'base' : 'rainbowkit'
+      network === "base" ? "base" : "rainbowkit"
     );
   };
 
@@ -62,8 +89,14 @@ export default function NetworkSwitcher({ size = "sm", showLabel = false }: Netw
           Network:
         </Text>
       )}
-      
-      <Tooltip 
+
+      {networkError && (
+        <Text fontSize="xs" color="red.300" maxWidth="150px">
+          {networkError}
+        </Text>
+      )}
+
+      <Tooltip
         label={`Switch to ${getNetworkDisplayName(otherNetwork)}`}
         placement="bottom"
       >

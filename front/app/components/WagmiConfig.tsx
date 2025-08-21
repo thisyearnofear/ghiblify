@@ -18,8 +18,12 @@ const celoMainnet = {
     symbol: "CELO",
   },
   rpcUrls: {
-    default: { http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"] },
-    public: { http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"] },
+    default: {
+      http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"],
+    },
+    public: {
+      http: [process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org"],
+    },
   },
   blockExplorers: {
     default: { name: "CeloScan", url: "https://celoscan.io" },
@@ -31,11 +35,18 @@ export const config = createConfig({
   chains: [celoMainnet, mainnet, polygon, base],
   connectors: [farcasterFrame()],
   client({ chain }) {
-    // Use Alchemy RPC for Base if available, otherwise fallback to default
-    const rpcUrl = chain.id === base.id && process.env.NEXT_PUBLIC_BASE_RPC_URL
-      ? process.env.NEXT_PUBLIC_BASE_RPC_URL
-      : chain.rpcUrls.default.http[0];
-      
+    // Use Alchemy RPC for Base/Celo if available, otherwise fallback to default
+    let rpcUrl = chain.rpcUrls.default.http[0];
+
+    if (chain.id === base.id && process.env.NEXT_PUBLIC_BASE_RPC_URL) {
+      rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL;
+    } else if (
+      chain.id === celoMainnet.id &&
+      process.env.NEXT_PUBLIC_CELO_RPC_URL
+    ) {
+      rpcUrl = process.env.NEXT_PUBLIC_CELO_RPC_URL;
+    }
+
     return createClient({
       chain,
       transport: http(rpcUrl),
