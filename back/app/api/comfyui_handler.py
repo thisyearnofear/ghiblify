@@ -469,7 +469,9 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
 
     # Validate user has sufficient credits
     current_credits = get_credits(address.lower())
+    logger.info(f"Credit check for {address}: {current_credits} credits available")
     if current_credits < 1:
+        logger.warning(f"Insufficient credits for {address}: {current_credits} < 1")
         raise HTTPException(status_code=402, detail="You need credits to create magical art ✨ Add credits to continue transforming your images!")
 
     try:
