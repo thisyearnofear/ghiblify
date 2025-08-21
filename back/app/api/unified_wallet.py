@@ -16,7 +16,8 @@ from pydantic import BaseModel
 from typing import Optional
 import logging
 import time
-from .web3_auth import get_credits, set_credits
+from .credit_manager import credit_manager
+from .admin_credit_manager import admin_credit_manager
 from ..services.redis_service import redis_service
 
 # Configure logging
@@ -83,7 +84,7 @@ async def connect_wallet(
         
         return JSONResponse(content={
             "address": validated_address,
-            "credits": get_credits(validated_address),
+            "credits": admin_credit_manager.admin_get_credits(validated_address)["credits"],
             "provider": provider,
             "status": "connected"
         })
@@ -146,12 +147,9 @@ async def add_credits(
             raise HTTPException(status_code=400, detail="Amount must be positive")
             
         validated_address = validate_address(address)
-        current_credits = get_credits(validated_address)
-        new_credits = current_credits + amount
+        result = admin_credit_manager.admin_add_credits(validated_address, amount, "API Add Credits")
         
-        set_credits(validated_address, new_credits)
-        
-        logger.info(f"[Credits] Added {amount} credits to {validated_address}: {current_credits} -> {new_credits}")
+        logger.info(f"[Credits] Added {amount} credits to {validated_address}: {result['old_balance']} -> {result['new_balance']}")
         
         return JSONResponse(content={
             "address": validated_address,
@@ -176,18 +174,18 @@ async def use_credits(
             raise HTTPException(status_code=400, detail="Amount must be positive")
             
         validated_address = validate_address(address)
-        current_credits = get_credits(validated_address)
-        
-        if current_credits < amount:
-            raise HTTPException(
-                status_code=402, 
-                detail=f"Insufficient credits. Required: {amount}, Available: {current_credits}"
-            )
-        
-        new_credits = current_credits - amount
-        set_credits(validated_address, new_credits)
-        
-        logger.info(f"[Credits] Used {amount} credits from {validated_address}: {current_credits} -> {new_credits}")
+        # Use the core credit manager for spending (not admin manager)
+        try:
+            new_balance = credit_manager.validate_and_spend_credit(validated_address, "API Use Credits")
+            logger.info(f"[Credits] Used {amount} credits from {validated_address}. New balance: {new_balance}")
+        except Exception as e:
+            if "need credits" in str(e) or "Insufficient" in str(e):
+                current_credits = admin_credit_manager.admin_get_credits(validated_address)["credits"]
+                raise HTTPException(
+                    status_code=402, 
+                    detail=f"Insufficient credits. Required: {amount}, Available: {current_credits}"
+                )
+            raise e
         
         return JSONResponse(content={
             "address": validated_address,
@@ -216,11 +214,9 @@ async def admin_set_credits(
             raise HTTPException(status_code=403, detail="Admin access required")
             
         validated_address = validate_address(address)
-        old_credits = get_credits(validated_address)
+        result = admin_credit_manager.admin_set_credits(validated_address, amount, "Admin Set Credits")
         
-        set_credits(validated_address, amount)
-        
-        logger.info(f"[Admin] Set credits for {validated_address}: {old_credits} -> {amount}")
+        logger.info(f"[Admin] Set credits for {validated_address}: {result['old_balance']} -> {result['new_balance']}")
         
         return JSONResponse(content={
             "address": validated_address,
@@ -242,7 +238,7 @@ async def wallet_health_check() -> JSONResponse:
     try:
         # Test Redis connection
         test_address = "0x0000000000000000000000000000000000000000"
-        test_credits = get_credits(test_address)
+        test_credits = admin_credit_manager.admin_get_credits(test_address)["credits"]
         
         return JSONResponse(content={
             "status": "healthy",

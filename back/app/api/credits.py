@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import logging
 from typing import Optional
 from fastapi import status
-from .web3_auth import get_credits, set_credits
+from .credit_manager import credit_manager
 
 load_dotenv()
 
@@ -31,6 +31,8 @@ async def get_wallet_address(request: Request) -> str:
 async def add_credits(credits: int, request: Request) -> JSONResponse:
     """Add credits to a wallet address"""
     address = await get_wallet_address(request)
+    # Use direct Redis operations for admin credit management
+    from .web3_auth import get_credits, set_credits
     current_credits = get_credits(address)
     new_credits = current_credits + credits
     set_credits(address, new_credits)
@@ -44,6 +46,7 @@ async def add_credits(credits: int, request: Request) -> JSONResponse:
 async def check_credits(request: Request) -> JSONResponse:
     """Check remaining credits"""
     address = await get_wallet_address(request)
+    from .web3_auth import get_credits
     credits = get_credits(address)
     
     return JSONResponse(content={
@@ -55,6 +58,7 @@ async def check_credits(request: Request) -> JSONResponse:
 async def use_credit(request: Request) -> JSONResponse:
     """Use one credit and return updated count"""
     address = await get_wallet_address(request)
+    from .web3_auth import get_credits, set_credits
     current_credits = get_credits(address)
     
     if current_credits <= 0:
