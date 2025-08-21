@@ -13,7 +13,7 @@ export interface FarcasterWalletConfig {
 
 class FarcasterWalletService {
   private config: FarcasterWalletConfig = {
-    preferredEcosystem: 'base',
+    preferredEcosystem: 'celo', // Changed to prioritize RainbowKit/Celo for stability
     autoConnect: true,
     preventSwitching: true,
   };
@@ -59,6 +59,14 @@ class FarcasterWalletService {
    */
   getConnectionStrategy(): 'base' | 'rainbowkit' {
     return this.config.preferredEcosystem === 'base' ? 'base' : 'rainbowkit';
+  }
+
+  /**
+   * Check if disconnection should be allowed in Farcaster environment
+   */
+  shouldAllowDisconnection(): boolean {
+    // In Farcaster frames, prevent disconnection to avoid connection issues
+    return false;
   }
 
   private loadConfig(): void {

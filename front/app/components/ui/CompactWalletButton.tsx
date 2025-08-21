@@ -3,7 +3,15 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
-import { Box, Button, HStack, Text, VStack, useDisclosure, Tooltip } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  HStack,
+  Text,
+  VStack,
+  useDisclosure,
+  Tooltip,
+} from "@chakra-ui/react";
 import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
 import { useFarcaster } from "../FarcasterFrameProvider";
 import { useBaseAccountAuth } from "../../lib/hooks/useBaseAccountAuth";
@@ -13,12 +21,7 @@ import SignInWithBase from "../SignInWithBase";
 import NetworkSwitcher from "./NetworkSwitcher";
 import MagicalButton from "./MagicalButton";
 import MagicalModal from "./MagicalModal";
-import {
-  COLORS,
-  PATTERNS,
-  INTERACTIONS,
-  ANIMATION_PRESETS,
-} from "../../theme";
+import { COLORS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../../theme";
 
 export default function CompactWalletButton() {
   const { address, isConnected } = useAccount();
@@ -37,7 +40,11 @@ export default function CompactWalletButton() {
     disconnect: unifiedDisconnect,
   } = useUnifiedWallet();
 
-  const { isOpen: isBaseAuthOpen, onOpen: openBaseAuth, onClose: closeBaseAuth } = useDisclosure();
+  const {
+    isOpen: isBaseAuthOpen,
+    onOpen: openBaseAuth,
+    onClose: closeBaseAuth,
+  } = useDisclosure();
   const [mounted, setMounted] = useState(false);
   const { isAutoConnecting } = useAutoConnection();
 
@@ -83,17 +90,17 @@ export default function CompactWalletButton() {
   };
 
   const getNetworkIcon = () => {
-    if (unifiedUser?.provider === 'base' || isBaseAuthenticated) return '🔵';
-    if (unifiedUser?.provider === 'rainbowkit') return '🌿';
-    return '🔗';
+    if (unifiedUser?.provider === "base" || isBaseAuthenticated) return "🔵";
+    if (unifiedUser?.provider === "rainbowkit") return "🌿";
+    return "🔗";
   };
 
   if (!mounted) {
     return (
-      <MagicalButton 
-        size="sm" 
-        variant="glass" 
-        px={4} 
+      <MagicalButton
+        size="sm"
+        variant="glass"
+        px={4}
         isLoading
         leftIcon={null}
         rightIcon={null}
@@ -105,7 +112,14 @@ export default function CompactWalletButton() {
 
   return (
     <ConnectButton.Custom>
-      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted: rbMounted }) => {
+      {({
+        account,
+        chain,
+        openAccountModal,
+        openChainModal,
+        openConnectModal,
+        mounted: rbMounted,
+      }) => {
         const ready = rbMounted && mounted;
         if (!ready) return null;
 
@@ -126,7 +140,8 @@ export default function CompactWalletButton() {
         }
 
         // Connected state - unified display
-        const hasConnection = account || isBaseAuthenticated || unifiedConnected;
+        const hasConnection =
+          account || isBaseAuthenticated || unifiedConnected;
         const displayAddress = getDisplayAddress();
         const displayCredits = getDisplayCredits();
 
@@ -139,10 +154,17 @@ export default function CompactWalletButton() {
                   if (account) {
                     openAccountModal();
                   } else {
-                    // Handle Base or unified wallet menu
-                    const shouldDisconnect = window.confirm("Disconnect wallet?");
-                    if (shouldDisconnect) {
-                      handleDisconnect();
+                    // In Farcaster frames, restrict disconnection to prevent connection issues
+                    if (isInFrame) {
+                      // Show wallet info only, no disconnect option
+                      return;
+                    } else {
+                      // Handle Base or unified wallet menu for web app
+                      const shouldDisconnect =
+                        window.confirm("Disconnect wallet?");
+                      if (shouldDisconnect) {
+                        handleDisconnect();
+                      }
                     }
                   }
                 }}
@@ -151,6 +173,7 @@ export default function CompactWalletButton() {
                 px={3}
                 leftIcon={<Web3Avatar address={displayAddress} size={18} />}
                 rightIcon={null}
+                cursor={isInFrame && !account ? "default" : "pointer"}
               >
                 <VStack spacing={0} align="flex-start">
                   <HStack spacing={1}>
@@ -165,8 +188,8 @@ export default function CompactWalletButton() {
                 </VStack>
               </MagicalButton>
 
-              {/* Network switcher - only show in frames for simplicity */}
-              {isInFrame && <NetworkSwitcher />}
+              {/* Network switcher - disabled in frames to prevent connection issues */}
+              {!isInFrame && <NetworkSwitcher />}
             </HStack>
           );
         }
