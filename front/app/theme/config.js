@@ -7,7 +7,7 @@
 
 export const themeConfig = {
   initialColorMode: 'light',
-  useSystemColorMode: true,
+  useSystemColorMode: false, // Disable to prevent hydration mismatches
   disableTransitionOnChange: false,
 };
 

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, createContext, useContext } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-import farcasterFrame from "@farcaster/frame-wagmi-connector";
 import { connect } from "@wagmi/core";
 import { config } from "./WagmiConfig";
 import {
@@ -55,10 +54,19 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
           setUser(frameContext.user);
         }
 
-        // Autoconnect if running in a frame
+        // Autoconnect if running in a frame using the injected connector
         if (frameContext?.client?.clientFid) {
           try {
-            await connect(config, { connector: farcasterFrame() });
+            // Use the injected connector which will detect the Farcaster provider
+            const injectedConnector = config.connectors.find(
+              (connector) => connector.id === 'injected'
+            );
+            
+            if (injectedConnector) {
+              await connect(config, { connector: injectedConnector });
+            } else {
+              console.warn('Injected connector not found in config');
+            }
           } catch (error) {
             console.error("Failed to connect Farcaster wallet:", error);
           }

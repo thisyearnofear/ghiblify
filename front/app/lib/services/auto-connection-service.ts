@@ -8,6 +8,7 @@
  */
 
 import { unifiedWalletService, WalletProvider } from './unified-wallet-service';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 export type NetworkPreference = 'base' | 'celo' | 'auto';
 
@@ -99,8 +100,31 @@ class AutoConnectionService {
     }
 
     try {
+      // Get the appropriate provider for network switching
+      let provider;
+      
+      // Check if we're in Farcaster environment and use SDK provider
+      try {
+        const farcasterProvider = sdk.wallet.getEthereumProvider();
+        if (farcasterProvider) {
+          provider = farcasterProvider;
+          console.log('[AutoConnection] Using Farcaster SDK provider for network switch');
+        }
+      } catch (error) {
+        console.log('[AutoConnection] Farcaster provider not available, falling back to window.ethereum');
+      }
+      
+      // Fallback to window.ethereum if Farcaster provider not available
+      if (!provider && typeof window !== 'undefined' && window.ethereum) {
+        provider = window.ethereum;
+      }
+      
+      if (!provider) {
+        throw new Error('No Ethereum provider available for network switching');
+      }
+
       // First, try to switch the actual Ethereum network
-      const networkSwitched = await this.switchEthereumNetwork(network);
+      const networkSwitched = await this.switchEthereumNetwork(network, provider);
       if (!networkSwitched) {
         console.error(`[AutoConnection] Failed to switch Ethereum network to ${network}`);
         return false;
@@ -123,9 +147,9 @@ class AutoConnectionService {
   /**
    * Switch the actual Ethereum network in the user's wallet
    */
-  private async switchEthereumNetwork(network: NetworkPreference): Promise<boolean> {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      console.warn('[AutoConnection] window.ethereum not available for network switching');
+  private async switchEthereumNetwork(network: NetworkPreference, provider: any): Promise<boolean> {
+    if (!provider) {
+      console.warn('[AutoConnection] Ethereum provider not available for network switching');
       return false;
     }
 
@@ -165,7 +189,7 @@ class AutoConnectionService {
 
       // Try to switch to the network
       try {
-        await window.ethereum.request({
+        await provider.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId }],
         });
@@ -175,7 +199,7 @@ class AutoConnectionService {
         // If the network doesn't exist, try to add it
         if (switchError.code === 4902) {
           try {
-            await window.ethereum.request({
+            await provider.request({
               method: 'wallet_addEthereumChain',
               params: [chainConfig],
             });

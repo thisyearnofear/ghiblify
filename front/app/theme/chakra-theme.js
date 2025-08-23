@@ -262,7 +262,7 @@ const components = {
 // Configuration for color mode
 const config = {
   initialColorMode: 'light',
-  useSystemColorMode: true, // Respect user's system preference
+  useSystemColorMode: false, // Disable to prevent hydration mismatches
   disableTransitionOnChange: false, // Keep smooth transitions
 };
 
