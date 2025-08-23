@@ -242,40 +242,20 @@ export default function Pricing({ onPurchaseComplete }) {
 
       setIsCeloProcessing(true);
 
-      // Check if we're on the correct chain (use wagmi for better Farcaster compatibility)
+      // Network switching is now handled in PaymentMethodSelector
+      // We'll verify the network but with a more user-friendly approach
       const chainId = await publicClient.getChainId();
       if (chainId !== 42220) {
-        // Celo Mainnet chain ID
+        // Celo Mainnet chain ID - this should rarely happen now
+        console.warn("[CELO] Not on Celo network, chainId:", chainId);
         toast({
-          title: "Wrong Network",
-          description: "Please switch to Celo Mainnet to make a purchase",
+          title: "Network Issue",
+          description: "Please ensure you're on the Celo network and try again",
           status: "warning",
-          duration: 10000,
+          duration: 5000,
           isClosable: true,
-          action: (
-            <Button
-              size="sm"
-              onClick={() =>
-                window.ethereum
-                  ?.request({
-                    method: "wallet_switchEthereumChain",
-                    params: [{ chainId: "0xa4ec" }],
-                  })
-                  .catch(() => {
-                    // Fallback: suggest manual network switch
-                    toast({
-                      title: "Please Switch Network",
-                      description: "Switch to Celo Mainnet in your wallet",
-                      status: "info",
-                      duration: 5000,
-                    });
-                  })
-              }
-            >
-              Switch Network
-            </Button>
-          ),
         });
+        setIsCeloProcessing(false);
         return;
       }
 

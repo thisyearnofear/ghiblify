@@ -11,6 +11,7 @@ import {
   Divider,
   Tooltip,
   useBreakpointValue,
+  useToast,
 } from "@chakra-ui/react";
 import { useGhibliTheme } from "../../hooks/useGhibliTheme";
 import {
@@ -50,6 +51,7 @@ export default function PaymentMethodSelector({
   const { user, provider, isConnected } = useUnifiedWallet();
   const { isInFrame } = useFarcaster();
   const chainId = useChainId();
+  const toast = useToast();
 
   // DRY: Use centralized theme instead of scattered useColorModeValue calls
   const { colors, patterns, utils } = useGhibliTheme();
@@ -217,15 +219,63 @@ export default function PaymentMethodSelector({
                 // Handle CELO network switching automatically like $GHIBLIFY
                 if (method.id === "celo" && method.requiresNetworkSwitch) {
                   console.log("Switching to CELO network for cUSD payment");
-                  const success = await autoConnectionService.switchNetwork(
-                    user.address,
-                    "celo" // Switch to CELO network
-                  );
-                  if (!success) {
-                    console.error(
-                      "Failed to switch to CELO network for cUSD payment"
+                  
+                  // Show loading state while switching networks
+                  const switchingToast = toast({
+                    title: "Switching Network",
+                    description: "Please approve the network switch to Celo in your wallet",
+                    status: "info",
+                    duration: null, // Keep open until we close it
+                    isClosable: false,
+                  });
+
+                  try {
+                    const success = await autoConnectionService.switchNetwork(
+                      user.address,
+                      "celo" // Switch to CELO network
                     );
-                    // Still proceed - let the payment handler show the error
+                    
+                    // Close the switching toast
+                    if (switchingToast) {
+                      toast.close(switchingToast);
+                    }
+                    
+                    if (!success) {
+                      console.error(
+                        "Failed to switch to CELO network for cUSD payment"
+                      );
+                      toast({
+                        title: "Network Switch Failed",
+                        description: "Unable to switch to Celo network. Please switch manually in your wallet and try again.",
+                        status: "error",
+                        duration: 8000,
+                        isClosable: true,
+                      });
+                      return; // Don't proceed with payment
+                    }
+                    
+                    toast({
+                      title: "Network Switched",
+                      description: "Successfully switched to Celo network",
+                      status: "success",
+                      duration: 3000,
+                      isClosable: true,
+                    });
+                  } catch (error) {
+                    // Close the switching toast
+                    if (switchingToast) {
+                      toast.close(switchingToast);
+                    }
+                    
+                    console.error("Error during network switch:", error);
+                    toast({
+                      title: "Network Switch Error",
+                      description: "An error occurred while switching networks. Please try again.",
+                      status: "error",
+                      duration: 8000,
+                      isClosable: true,
+                    });
+                    return; // Don't proceed with payment
                   }
                 }
                 onMethodSelect(method.id);

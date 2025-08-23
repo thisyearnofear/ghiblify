@@ -99,17 +99,15 @@ class AutoConnectionService {
     }
 
     try {
-      // Disconnect current connection first for clean switch
-      unifiedWalletService.disconnect();
-      
-      // Small delay to allow state to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (network === 'base') {
-        await unifiedWalletService.connectBase(address);
-      } else {
-        await unifiedWalletService.connectRainbowKit(address);
+      // First, try to switch the actual Ethereum network
+      const networkSwitched = await this.switchEthereumNetwork(network);
+      if (!networkSwitched) {
+        console.error(`[AutoConnection] Failed to switch Ethereum network to ${network}`);
+        return false;
       }
+
+      // Small delay to allow network switch to settle
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // Update preference for future connections
       this.config.preferredNetwork = network;
@@ -118,6 +116,82 @@ class AutoConnectionService {
       return true;
     } catch (error) {
       console.error(`[AutoConnection] Failed to switch to ${network}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Switch the actual Ethereum network in the user's wallet
+   */
+  private async switchEthereumNetwork(network: NetworkPreference): Promise<boolean> {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      console.warn('[AutoConnection] window.ethereum not available for network switching');
+      return false;
+    }
+
+    try {
+      let chainId: string;
+      let chainConfig: any;
+
+      if (network === 'celo') {
+        chainId = '0xa4ec'; // Celo Mainnet (42220)
+        chainConfig = {
+          chainId: '0xa4ec',
+          chainName: 'Celo Mainnet',
+          nativeCurrency: {
+            name: 'CELO',
+            symbol: 'CELO',
+            decimals: 18,
+          },
+          rpcUrls: ['https://forno.celo.org'],
+          blockExplorerUrls: ['https://celoscan.io/'],
+        };
+      } else if (network === 'base') {
+        chainId = '0x2105'; // Base Mainnet (8453)
+        chainConfig = {
+          chainId: '0x2105',
+          chainName: 'Base',
+          nativeCurrency: {
+            name: 'ETH',
+            symbol: 'ETH',
+            decimals: 18,
+          },
+          rpcUrls: ['https://mainnet.base.org'],
+          blockExplorerUrls: ['https://basescan.org/'],
+        };
+      } else {
+        return false;
+      }
+
+      // Try to switch to the network
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId }],
+        });
+        console.log(`[AutoConnection] Successfully switched to ${network} network`);
+        return true;
+      } catch (switchError: any) {
+        // If the network doesn't exist, try to add it
+        if (switchError.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [chainConfig],
+            });
+            console.log(`[AutoConnection] Successfully added and switched to ${network} network`);
+            return true;
+          } catch (addError) {
+            console.error(`[AutoConnection] Failed to add ${network} network:`, addError);
+            return false;
+          }
+        } else {
+          console.error(`[AutoConnection] Failed to switch to ${network} network:`, switchError);
+          return false;
+        }
+      }
+    } catch (error) {
+      console.error(`[AutoConnection] Error switching Ethereum network to ${network}:`, error);
       return false;
     }
   }
