@@ -3,7 +3,7 @@
 import React, { useEffect, useState, createContext, useContext } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { connect } from "@wagmi/core";
-import { config } from "./WagmiConfig";
+import { config } from "../providers/Web3Provider";
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
@@ -99,32 +99,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
       }
     };
 
-    // Test network switching in Farcaster context
-    const testNetworkSwitching = async () => {
-      if (isInFrame && context?.user?.address) {
-        try {
-          // Validate current network
-          const { autoConnectionService } = await import(
-            "../lib/services/auto-connection-service"
-          );
-          const isValid = await autoConnectionService.validateNetwork(
-            "rainbowkit"
-          );
-          if (!isValid) {
-            console.warn(
-              "[Farcaster] Connected to wrong network, should be Celo mainnet"
-            );
-          }
-        } catch (error) {
-          console.warn("[Farcaster] Network validation failed:", error);
-        }
-      }
-    };
-
     init();
-
-    // Test network after initialization
-    setTimeout(testNetworkSwitching, 1000);
   }, [isInFrame, context?.user?.address]);
 
   // Send notifications when transformations complete

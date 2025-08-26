@@ -5,10 +5,10 @@
 
 import { api } from '../config/api';
 import { ghiblifyPriceOracle, PricingCalculation } from './ghiblify-price-oracle';
-import { unifiedWalletService } from './unified-wallet-service';
+import { walletService } from './unified-wallet-service';
 import { readContract, waitForTransactionReceipt } from '@wagmi/core';
 import { parseUnits, formatUnits } from 'viem';
-import { config } from '../../components/WagmiConfig';
+import { config } from '../../providers/Web3Provider';
 
 // We'll need to use the wagmi hooks pattern like the existing Celo implementation
 // This service will coordinate with the UI layer that has access to wagmi hooks
@@ -137,9 +137,9 @@ class GhiblifyTokenPaymentService {
    * Validate payment prerequisites with helpful error messages
    */
   private validatePaymentPrerequisites(): void {
-    const connection = unifiedWalletService.getConnection();
-    
-    if (!connection.isConnected || !connection.user) {
+    const state = walletService.getState();
+
+    if (!state.isConnected || !state.user) {
       throw new TokenPaymentError('Please connect your wallet to pay with $GHIBLIFY tokens.');
     }
 
@@ -263,8 +263,8 @@ class GhiblifyTokenPaymentService {
         throw new TokenPaymentError('Token price too volatile for payment. Please try again later.');
       }
 
-      const connection = unifiedWalletService.getConnection();
-      const userAddress = connection.user!.address;
+      const state = walletService.getState();
+      const userAddress = state.user!.address;
 
       // Validate user has sufficient token balance
       const balanceCheck = await this.checkTokenBalance(userAddress, tierName);
@@ -406,8 +406,8 @@ class GhiblifyTokenPaymentService {
     publicClient: any
   ): Promise<TokenPaymentCompletionResult> {
     try {
-      const connection = unifiedWalletService.getConnection();
-      const userAddress = connection.user!.address;
+      const state = walletService.getState();
+      const userAddress = state.user!.address;
 
       console.log(`[GHIBLIFY Token] Waiting for transaction confirmation: ${paymentResult.transactionHash}`);
       
@@ -437,7 +437,7 @@ class GhiblifyTokenPaymentService {
       console.log(`[GHIBLIFY Token] Backend processing completed:`, response);
 
       // Refresh user credits in unified wallet
-      await unifiedWalletService.refreshCredits();
+      await walletService.refreshCredits();
 
       return {
         transactionHash: paymentResult.transactionHash!,
@@ -472,12 +472,12 @@ class GhiblifyTokenPaymentService {
    * Now simplified - always available if user has a wallet connected
    */
   isAvailable(): boolean {
-    const connection = unifiedWalletService.getConnection();
-    
+    const state = walletService.getState();
+
     return !!(
       GHIBLIFY_TOKEN_CONFIG.contractAddress &&
-      connection.isConnected &&
-      connection.user?.address
+      state.isConnected &&
+      state.user?.address
     );
   }
 
@@ -485,19 +485,19 @@ class GhiblifyTokenPaymentService {
    * Check if user needs to switch networks for optimal experience
    */
   requiresNetworkSwitch(): { required: boolean; currentProvider?: string; recommendedAction?: string } {
-    const connection = unifiedWalletService.getConnection();
-    
-    if (!connection.isConnected || !connection.user) {
+    const state = walletService.getState();
+
+    if (!state.isConnected || !state.user) {
       return { required: false };
     }
 
     // Check if user is on Base network (chain ID 8453)
     // For $GHIBLIFY token payments, we require Base network
     // If user is connected with a non-Base provider, they need to switch
-    if (connection.user.provider !== 'base') {
+    if (state.user.provider !== 'base') {
       return {
         required: true,
-        currentProvider: connection.user.provider,
+        currentProvider: state.user.provider,
         recommendedAction: 'Switch to Base network for $GHIBLIFY token payments'
       };
     }

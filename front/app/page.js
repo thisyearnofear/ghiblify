@@ -35,7 +35,7 @@ import {
   RadioGroup,
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useUnifiedWallet } from "./lib/hooks/useUnifiedWallet";
+import { useWallet } from "./lib/hooks/useWallet";
 import { useGhibliTheme } from "./hooks/useGhibliTheme";
 import dynamic from "next/dynamic";
 import CreditsDisplay from "./components/CreditsDisplay";
@@ -94,9 +94,9 @@ import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
 import ImageReadyBoundary from "./components/ImageReadyBoundary";
-import { 
-  retrySpendCredits, 
-  getContextOptimizedRetryOptions 
+import {
+  retrySpendCredits,
+  getContextOptimizedRetryOptions,
 } from "./lib/utils/credit-retry-helper";
 import {
   Slider,
@@ -110,16 +110,15 @@ import {
 export default function Home() {
   const DEFAULT_PROMPT_STRENGTH = 0.8;
 
-  // Use unified wallet system instead of fragmented approaches
+  // Use simplified wallet system
   const {
     address,
     isConnected,
     credits,
-    spendCredits,
-    refundCredits,
+    useCredits,
     refreshCredits,
     isLoading: walletLoading,
-  } = useUnifiedWallet();
+  } = useWallet();
 
   // Use theme system for dark mode support
   const { colors } = useGhibliTheme();
@@ -315,13 +314,9 @@ export default function Home() {
           setError(errorMessage);
           setIsLoading(false);
 
-          // Refund credit for failed processing
-          try {
-            await refundCredits(1);
-            setCreditsRefreshKey((prev) => prev + 1); // Refresh credits display
-          } catch (refundError) {
-            // Don't show refund error to user, but silently handle it
-          }
+          // Note: Credit refund functionality not implemented yet
+          // Refresh credits display to show current state
+          setCreditsRefreshKey((prev) => prev + 1);
 
           return true;
         } else if (data.status === "PROCESSING") {
@@ -343,7 +338,6 @@ export default function Home() {
       setGeneratedImageURL,
       setError,
       setIsLoading,
-      refundCredits,
       setCreditsRefreshKey,
     ]
   );
@@ -411,8 +405,8 @@ export default function Home() {
               throw new Error("You need credits to create magical art");
             }
             return credits;
-          }, 
-          refreshCredits, 
+          },
+          refreshCredits,
           { ...retryOptions, amount: 0 }
         );
       } catch (creditError) {
@@ -530,7 +524,12 @@ export default function Home() {
 
         {/* Controls for style and API choice shared by both tabs */}
         <Box w="100%" maxW="400px" mb={6} mx="auto">
-          <Text fontSize="lg" mb={3} textAlign="center" color={colors.text.primary}>
+          <Text
+            fontSize="lg"
+            mb={3}
+            textAlign="center"
+            color={colors.text.primary}
+          >
             Choose Your Ghibli Style
           </Text>
           <RadioGroup
@@ -547,12 +546,16 @@ export default function Home() {
               borderRadius="lg"
               cursor="pointer"
               onClick={() => setApiChoice("comfy")}
-              bg={apiChoice === "comfy" ? colors.interactive.hover : "transparent"}
+              bg={
+                apiChoice === "comfy" ? colors.interactive.hover : "transparent"
+              }
               _hover={{ bg: colors.interactive.hover }}
             >
               <Radio value="comfy" size="lg">
                 <Box ml={3}>
-                  <Text fontWeight="bold" color={colors.text.primary}>Slow Ghibli</Text>
+                  <Text fontWeight="bold" color={colors.text.primary}>
+                    Slow Ghibli
+                  </Text>
                   <Text fontSize="sm" color={colors.text.secondary}>
                     Best for closeups, higher quality
                   </Text>
@@ -567,12 +570,18 @@ export default function Home() {
               borderRadius="lg"
               cursor="pointer"
               onClick={() => setApiChoice("replicate")}
-              bg={apiChoice === "replicate" ? colors.interactive.hover : "transparent"}
+              bg={
+                apiChoice === "replicate"
+                  ? colors.interactive.hover
+                  : "transparent"
+              }
               _hover={{ bg: colors.interactive.hover }}
             >
               <Radio value="replicate" size="lg">
                 <Box ml={3}>
-                  <Text fontWeight="bold" color={colors.text.primary}>Faster Ghibli</Text>
+                  <Text fontWeight="bold" color={colors.text.primary}>
+                    Faster Ghibli
+                  </Text>
                   <Text fontSize="sm" color={colors.text.secondary}>
                     Best for Medium/Long range
                   </Text>
@@ -582,7 +591,11 @@ export default function Home() {
           </RadioGroup>
         </Box>
         <Box w="100%" maxW="400px" mx="auto" mb={8}>
-          <FormLabel htmlFor="intensity-slider" mb={1} color={colors.text.primary}>
+          <FormLabel
+            htmlFor="intensity-slider"
+            mb={1}
+            color={colors.text.primary}
+          >
             Ghibli Intensity
           </FormLabel>
           <HStack spacing={4}>
@@ -602,7 +615,12 @@ export default function Home() {
               </SliderTrack>
               <SliderThumb />
             </Slider>
-            <Box minW="48px" textAlign="right" fontSize="sm" color={colors.text.primary}>
+            <Box
+              minW="48px"
+              textAlign="right"
+              fontSize="sm"
+              color={colors.text.primary}
+            >
               {Math.round(promptStrength * 100)}%
             </Box>
           </HStack>
@@ -693,7 +711,12 @@ export default function Home() {
                       ? "Estimated time: 1-2 minutes with low load, 2-5 minutes with medium load"
                       : "Estimated time: 30-60 seconds"}
                   </Text>
-                  <Text fontSize="sm" color={colors.text.primary} maxW="400px" mx="auto">
+                  <Text
+                    fontSize="sm"
+                    color={colors.text.primary}
+                    maxW="400px"
+                    mx="auto"
+                  >
                     Did you know?{" "}
                     {ghibliFacts[currentFact] ||
                       "Studio Ghibli creates magical animated films!"}
@@ -732,7 +755,9 @@ export default function Home() {
                       })()
                     ) : (
                       <Box textAlign="center" p={4}>
-                        <Text color={colors.text.secondary}>Loading comparison view...</Text>
+                        <Text color={colors.text.secondary}>
+                          Loading comparison view...
+                        </Text>
                       </Box>
                     )}
                     <Box mt={4} textAlign="center">
@@ -765,7 +790,11 @@ export default function Home() {
                       flex={{ base: "1", md: "1" }}
                       maxW={{ base: "100%", md: "50%" }}
                     >
-                      <Text textAlign="center" mb={2} color={colors.text.primary}>
+                      <Text
+                        textAlign="center"
+                        mb={2}
+                        color={colors.text.primary}
+                      >
                         Original Image
                       </Text>
                       <Image
@@ -786,7 +815,11 @@ export default function Home() {
                         flex={{ base: "1", md: "1" }}
                         maxW={{ base: "100%", md: "50%" }}
                       >
-                        <Text textAlign="center" mb={2} color={colors.text.primary}>
+                        <Text
+                          textAlign="center"
+                          mb={2}
+                          color={colors.text.primary}
+                        >
                           Ghibli Style
                         </Text>
                         <Image
@@ -819,7 +852,12 @@ export default function Home() {
         </Box>
 
         <Box mt={8} mb={12}>
-          <Text textAlign="center" fontSize="md" mb={6} color={colors.text.secondary}>
+          <Text
+            textAlign="center"
+            fontSize="md"
+            mb={6}
+            color={colors.text.secondary}
+          >
             Examples
           </Text>
           <Wrap justify="center" spacing={4}>

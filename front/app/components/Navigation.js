@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
-import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import { useWallet } from "../lib/hooks/useWallet";
 import CompactWalletButton from "./ui/CompactWalletButton";
 import { DarkModeToggle } from "./ui/SimpleDarkModeToggle";
 import { useGhibliTheme } from "../hooks/useGhibliTheme";
@@ -29,7 +29,7 @@ const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
 
 export default function Navigation() {
   const router = useRouter();
-  const { isConnected } = useUnifiedWallet();
+  const { isConnected } = useWallet();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

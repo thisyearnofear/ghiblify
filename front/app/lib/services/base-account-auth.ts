@@ -25,6 +25,7 @@ class BaseAccountAuthService {
   private currentUser: BaseAccountUser | null = null;
   private authStatus: AuthenticationStatus = 'idle';
   private statusCallbacks: Set<(status: AuthenticationStatus) => void> = new Set();
+  private provider: any = null;
 
   constructor(config: BaseAccountConfig = BASE_ACCOUNT_CONFIG) {
     this.config = config;
@@ -50,14 +51,31 @@ class BaseAccountAuthService {
   // Updated Base Account authentication - debug and fallback approach
   private async authenticateWithBaseAccount(): Promise<AuthenticationResult> {
     try {
-      // Create the SDK instance with minimal configuration
-      const sdk = createBaseAccountSDK({
-        appName: this.config.appName,
-      });
+      // Check if we're in a browser environment
+      if (typeof window === 'undefined') {
+        throw new BaseAccountError('Base Account authentication requires browser environment');
+      }
 
-      // Get the provider for signing
-      const provider = sdk.getProvider();
-      
+      // Create the SDK instance with minimal configuration and error handling
+      let sdk;
+      let provider;
+
+      try {
+        sdk = createBaseAccountSDK({
+          appName: this.config.appName,
+        });
+        provider = sdk.getProvider();
+
+        if (!provider) {
+          throw new BaseAccountError('Failed to get Base Account provider');
+        }
+
+        this.provider = provider;
+      } catch (sdkError) {
+        console.warn('[Base Account] SDK initialization failed:', sdkError);
+        throw new BaseAccountError('Failed to initialize Base Account SDK');
+      }
+
       console.log('[Base Account] Starting authentication...');
       
       try {
@@ -129,18 +147,32 @@ class BaseAccountAuthService {
   private async fallbackAuthentication(): Promise<AuthenticationResult> {
     try {
       console.log('[Base Account] Using fallback authentication method');
-      
-      // Create the SDK instance
-      const sdk = createBaseAccountSDK({
-        appName: this.config.appName,
-      });
 
-      const provider = sdk.getProvider();
-      
+      // Check if we're in a supported environment
+      if (typeof window === 'undefined') {
+        throw new BaseAccountError('Base Account not available in server environment');
+      }
+
+      // Try to use existing provider first
+      let provider = this.provider;
+
+      if (!provider) {
+        // Create the SDK instance
+        const sdk = createBaseAccountSDK({
+          appName: this.config.appName,
+        });
+        provider = sdk.getProvider();
+        this.provider = provider;
+      }
+
+      if (!provider || typeof provider.request !== 'function') {
+        throw new BaseAccountError('Base Account provider not available or invalid');
+      }
+
       // Get account access
       const accounts = await provider.request({ method: 'eth_requestAccounts' });
       const address = accounts[0];
-      
+
       if (!address) {
         throw new BaseAccountError('No address returned from Base Account');
       }

@@ -2,11 +2,11 @@
 
 import { Box, Button, HStack, Text, Tooltip } from "@chakra-ui/react";
 import { useState } from "react";
-import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
-import {
-  autoConnectionService,
-  NetworkPreference,
-} from "../../lib/services/auto-connection-service";
+import { useWallet } from "../../lib/hooks/useWallet";
+import { useSwitchChain, useChainId } from "wagmi";
+import { base } from "wagmi/chains";
+import { celoMainnet } from "../../providers/Web3Provider";
+import { useFarcaster } from "../FarcasterFrameProvider";
 import { COLORS, INTERACTIONS } from "../../theme";
 
 interface NetworkSwitcherProps {
@@ -18,112 +18,72 @@ export default function NetworkSwitcher({
   size = "sm",
   showLabel = false,
 }: NetworkSwitcherProps) {
-  const { user, address } = useUnifiedWallet();
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, address } = useWallet();
+  const { isInFrame } = useFarcaster();
+  const chainId = useChainId();
+  const { switchChain, isPending } = useSwitchChain();
   const [networkError, setNetworkError] = useState<string | null>(null);
 
   if (!user || !address) {
     return null;
   }
 
-  const currentNetwork = user.provider === "base" ? "base" : "celo";
-  const otherNetwork: NetworkPreference =
-    currentNetwork === "base" ? "celo" : "base";
+  // Determine current and target networks
+  const isOnBase = chainId === base.id;
+  const isOnCelo = chainId === celoMainnet.id;
+  const currentNetwork = isOnBase ? "Base" : isOnCelo ? "Celo" : "Unknown";
+  const targetChain = isOnBase ? celoMainnet : base;
+  const targetNetwork = isOnBase ? "Celo" : "Base";
 
   const handleNetworkSwitch = async () => {
-    if (isLoading) return;
+    if (isPending) return;
 
-    setIsLoading(true);
     setNetworkError(null);
     try {
-      // Validate network before switching
-      const isValid = await autoConnectionService.validateNetwork(
-        otherNetwork === "base" ? "base" : "rainbowkit"
-      );
-
-      if (!isValid) {
-        setNetworkError(
-          `Please switch to ${otherNetwork} network in your wallet`
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      const success = await autoConnectionService.switchNetwork(
-        address,
-        otherNetwork
-      );
-      if (!success) {
-        console.error("Network switch failed");
-        setNetworkError("Network switch failed. Please try again.");
-      }
+      await switchChain({ chainId: targetChain.id });
     } catch (error) {
       console.error("Error switching networks:", error);
-      setNetworkError("Error switching networks. Please try again.");
-    } finally {
-      setIsLoading(false);
+      setNetworkError(
+        `Failed to switch to ${targetNetwork}. Please try again.`
+      );
     }
   };
 
-  const getCurrentNetworkIcon = () => {
-    switch (currentNetwork) {
-      case "base":
-        return "🔵";
-      case "celo":
-        return "🌿";
-      default:
-        return "🔗";
-    }
-  };
-
-  const getNetworkDisplayName = (network: NetworkPreference) => {
-    return autoConnectionService.getNetworkDisplayName(
-      network === "base" ? "base" : "rainbowkit"
-    );
-  };
+  // Only show in Farcaster frames where chain switching makes sense
+  if (!isInFrame) {
+    return null;
+  }
 
   return (
-    <HStack spacing={2}>
-      {showLabel && (
-        <Text fontSize="xs" color="whiteAlpha.800">
-          Network:
-        </Text>
-      )}
-
+    <Box>
       {networkError && (
-        <Text fontSize="xs" color="red.300" maxWidth="150px">
+        <Text fontSize="xs" color="red.300" mb={2}>
           {networkError}
         </Text>
       )}
 
       <Tooltip
-        label={`Switch to ${getNetworkDisplayName(otherNetwork)}`}
+        label={`Switch to ${targetNetwork} network`}
+        hasArrow
         placement="bottom"
       >
         <Button
           size={size}
-          variant="ghost"
+          variant="outline"
+          colorScheme={isOnBase ? "blue" : "green"}
           onClick={handleNetworkSwitch}
-          isLoading={isLoading}
-          px={3}
-          py={1}
-          minH="auto"
-          h="auto"
-          color="whiteAlpha.900"
-          _hover={{
-            ...INTERACTIONS.scaleHover,
-            bg: "whiteAlpha.200",
-          }}
-          transition="all 0.2s ease"
+          isLoading={isPending}
+          loadingText="Switching..."
+          leftIcon={<Text fontSize="xs">{isOnBase ? "🔵" : "🟢"}</Text>}
         >
-          <HStack spacing={1}>
-            <Text fontSize="sm">{getCurrentNetworkIcon()}</Text>
-            <Text fontSize="xs" fontWeight="medium">
-              {getNetworkDisplayName(currentNetwork)}
+          {showLabel && (
+            <Text fontSize="xs" mr={1}>
+              {currentNetwork}
             </Text>
-          </HStack>
+          )}
+          <Text fontSize="xs">→ {targetNetwork}</Text>
         </Button>
       </Tooltip>
-    </HStack>
+    </Box>
   );
 }

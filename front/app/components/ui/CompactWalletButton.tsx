@@ -12,13 +12,13 @@ import {
   useDisclosure,
   Tooltip,
 } from "@chakra-ui/react";
-import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
+import { useWallet } from "../../lib/hooks/useWallet";
 import { useFarcaster } from "../FarcasterFrameProvider";
 import { useBaseAccountAuth } from "../../lib/hooks/useBaseAccountAuth";
-import { useAutoConnection } from "../../lib/hooks/useAutoConnection";
 import Web3Avatar from "../Web3Avatar";
 import SignInWithBase from "../SignInWithBase";
 import NetworkSwitcher from "./NetworkSwitcher";
+import WalletSelector from "./WalletSelector";
 import MagicalButton from "./MagicalButton";
 import MagicalModal from "./MagicalModal";
 import { COLORS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../../theme";
@@ -26,19 +26,15 @@ import { COLORS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../../theme";
 export default function CompactWalletButton() {
   const { address, isConnected } = useAccount();
   const { isInFrame } = useFarcaster();
+  const { signOut: baseSignOut, isAuthenticated: isBaseAuthenticated } =
+    useBaseAccountAuth();
   const {
-    user: baseUser,
-    isAuthenticated: isBaseAuthenticated,
-    signOut: baseSignOut,
-  } = useBaseAccountAuth();
-
-  const {
-    isConnected: unifiedConnected,
-    address: unifiedAddress,
-    credits: unifiedCredits,
-    user: unifiedUser,
-    disconnect: unifiedDisconnect,
-  } = useUnifiedWallet();
+    isConnected: walletConnected,
+    address: walletAddress,
+    credits,
+    disconnect,
+    user,
+  } = useWallet();
 
   const {
     isOpen: isBaseAuthOpen,
@@ -46,7 +42,6 @@ export default function CompactWalletButton() {
     onClose: closeBaseAuth,
   } = useDisclosure();
   const [mounted, setMounted] = useState(false);
-  const { isAutoConnecting } = useAutoConnection();
 
   useEffect(() => {
     setMounted(true);
@@ -62,36 +57,17 @@ export default function CompactWalletButton() {
     closeBaseAuth();
   };
 
-  const handleManualConnect = () => {
-    // In frames, prioritize Base connection
-    if (isInFrame) {
-      openBaseAuth();
-    } else {
-      // For web app, could show options or default to RainbowKit
-      openBaseAuth();
-    }
-  };
-
   const handleDisconnect = () => {
-    if (baseUser && isBaseAuthenticated) {
-      baseSignOut();
-    }
-    if (unifiedConnected) {
-      unifiedDisconnect();
-    }
+    baseSignOut();
+    disconnect();
   };
 
-  const getDisplayCredits = () => {
-    return unifiedCredits ?? baseUser?.credits ?? 0;
-  };
-
-  const getDisplayAddress = () => {
-    return unifiedAddress ?? baseUser?.address ?? address;
-  };
+  const displayAddress = walletAddress || address;
+  const displayCredits = credits;
 
   const getNetworkIcon = () => {
-    if (unifiedUser?.provider === "base" || isBaseAuthenticated) return "🔵";
-    if (unifiedUser?.provider === "rainbowkit") return "🌿";
+    if (user?.provider === "base" || isBaseAuthenticated) return "🔵";
+    if (user?.provider === "rainbowkit") return "🌿";
     return "🔗";
   };
 
@@ -139,11 +115,8 @@ export default function CompactWalletButton() {
           );
         }
 
-        // Connected state - unified display
-        const hasConnection =
-          account || isBaseAuthenticated || unifiedConnected;
-        const displayAddress = getDisplayAddress();
-        const displayCredits = getDisplayCredits();
+        // Connected state
+        const hasConnection = account || walletConnected;
 
         if (hasConnection && displayAddress) {
           return (
@@ -153,18 +126,11 @@ export default function CompactWalletButton() {
                 onClick={() => {
                   if (account) {
                     openAccountModal();
-                  } else {
-                    // In Farcaster frames, restrict disconnection to prevent connection issues
-                    if (isInFrame) {
-                      // Show wallet info only, no disconnect option
-                      return;
-                    } else {
-                      // Handle Base or unified wallet menu for web app
-                      const shouldDisconnect =
-                        window.confirm("Disconnect wallet?");
-                      if (shouldDisconnect) {
-                        handleDisconnect();
-                      }
+                  } else if (!isInFrame) {
+                    const shouldDisconnect =
+                      window.confirm("Disconnect wallet?");
+                    if (shouldDisconnect) {
+                      handleDisconnect();
                     }
                   }
                 }}
@@ -194,18 +160,17 @@ export default function CompactWalletButton() {
           );
         }
 
-        // Not connected state
+        // Not connected state - use environment-aware wallet selector
         return (
           <Box position="relative">
-            <MagicalButton
-              onClick={handleManualConnect}
-              variant="primary"
-              size="sm"
-              isAnimated={true}
-              isLoading={isAutoConnecting}
-              loadingText="Connecting..."
-              leftIcon={
-                !isAutoConnecting ? (
+            {isInFrame ? (
+              // In Farcaster frames, show Base Account auth directly
+              <MagicalButton
+                onClick={openBaseAuth}
+                variant="primary"
+                size="sm"
+                isAnimated={true}
+                leftIcon={
                   <Box
                     w="3px"
                     h="3px"
@@ -213,12 +178,15 @@ export default function CompactWalletButton() {
                     borderRadius="full"
                     animation={ANIMATION_PRESETS.pulseDefault}
                   />
-                ) : null
-              }
-              rightIcon={null}
-            >
-              {isAutoConnecting ? "Auto-connecting..." : "Connect ✨"}
-            </MagicalButton>
+                }
+                rightIcon={null}
+              >
+                Connect ✨
+              </MagicalButton>
+            ) : (
+              // In web app, show wallet selection
+              <WalletSelector size="sm" />
+            )}
 
             {/* Base Auth Modal */}
             <MagicalModal
