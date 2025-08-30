@@ -171,7 +171,7 @@ class BaseAccountPaymentService {
 
           if (status === 'completed') {
             try {
-              const result = await this.processCompletedPayment(paymentId, tier);
+              const result = await this.processCompletedPayment(paymentId, tier, statusResult);
               this.activePayments.delete(paymentId);
               resolve(result);
             } catch (error) {
@@ -209,7 +209,7 @@ class BaseAccountPaymentService {
   }
 
   // Process completed payment with backend
-  private async processCompletedPayment(paymentId: string, tier: TierPricing): Promise<PaymentCompletionResult> {
+  private async processCompletedPayment(paymentId: string, tier: TierPricing, transactionResult?: any): Promise<PaymentCompletionResult> {
     try {
       const user = baseAccountAuth.getCurrentUser();
       if (!user) {
@@ -226,6 +226,8 @@ class BaseAccountPaymentService {
         from: user.address,
         tier: tier.name.toLowerCase(),
         timestamp: new Date().toISOString(),
+        // Include transaction hash if available from Base SDK result
+        transactionHash: transactionResult?.transactionHash || transactionResult?.txHash,
       });
 
       // Refresh user credits

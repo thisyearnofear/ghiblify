@@ -63,25 +63,20 @@ export default function NetworkSwitcher({
       )}
 
       <Tooltip
-        label={`Switch to ${targetNetwork} network`}
+        label={`Connected to ${currentNetwork}. Click to switch to ${targetNetwork}`}
         hasArrow
         placement="bottom"
       >
         <Button
           size={size}
           variant="outline"
-          colorScheme={isOnBase ? "blue" : "green"}
+          colorScheme={isOnBase ? "blue" : "yellow"}
           onClick={handleNetworkSwitch}
           isLoading={isPending}
           loadingText="Switching..."
-          leftIcon={<Text fontSize="xs">{isOnBase ? "🔵" : "🟢"}</Text>}
+          leftIcon={<Text fontSize="xs">{isOnBase ? "🔵" : "🟡"}</Text>}
         >
-          {showLabel && (
-            <Text fontSize="xs" mr={1}>
-              {currentNetwork}
-            </Text>
-          )}
-          <Text fontSize="xs">→ {targetNetwork}</Text>
+          <Text fontSize="xs">{currentNetwork}</Text>
         </Button>
       </Tooltip>
     </Box>
