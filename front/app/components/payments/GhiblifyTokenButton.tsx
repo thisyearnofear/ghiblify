@@ -227,21 +227,38 @@ export default function GhiblifyTokenButton({
           );
 
           // Check if we need to switch to Base network for $GHIBLIFY payments
-          const networkCheck = ghiblifyTokenPayments.requiresNetworkSwitch();
+          const networkCheck =
+            await ghiblifyTokenPayments.requiresNetworkSwitch();
           if (networkCheck.required) {
             console.log("Switching to Base network for $GHIBLIFY payment");
-            // Auto-switch to Base network
-            const success = await autoConnectionService.switchNetwork(
+
+            // Use enhanced network switching with retry and stabilization
+            const success = await autoConnectionService.switchNetworkWithRetry(
               user.address,
-              "base"
+              "base",
+              {
+                maxRetries: 3,
+                stabilizationDelay: 3000, // 3 seconds for stabilization
+                onProgress: (step) => {
+                  console.log(`Network switch progress: ${step}`);
+                  // Could update UI state here if needed
+                },
+                onError: (error, attempt) => {
+                  console.warn(
+                    `Network switch attempt ${attempt} failed:`,
+                    error
+                  );
+                },
+              }
             );
+
             if (!success) {
               console.error(
                 "Failed to switch to Base network for $GHIBLIFY payment"
               );
               // Show user-friendly error message
               alert(
-                "Please switch to Base network to pay with $GHIBLIFY tokens"
+                "Please switch to Base network to pay with $GHIBLIFY tokens. You may need to add Base to your wallet first."
               );
               return;
             }

@@ -9,12 +9,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { useBaseAccountAuth } from './useBaseAccountAuth';
-import { 
-  walletService, 
-  WalletState, 
+import {
+  walletService,
+  WalletState,
   WalletUser,
-  WalletProvider 
+  WalletProvider
 } from '../services/unified-wallet-service';
+import {
+  shouldAttemptAutoConnect,
+  getConnectionPriority,
+  getConnectionDetails,
+  WalletConnectionState
+} from '../utils/auth-utils';
 
 interface UseWalletReturn {
   // State
@@ -46,26 +52,34 @@ export function useWallet(): UseWalletReturn {
     return unsubscribe;
   }, []);
 
-  // Auto-connect logic
+  // Auto-connect logic using shared utilities
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
 
     const autoConnect = async () => {
-      // Skip if already connected or loading
-      if (state.isConnected || state.isLoading) return;
+      const connectionState: WalletConnectionState = {
+        isConnected: state.isConnected,
+        isLoading: state.isLoading,
+        rainbowKitAddress,
+        isRainbowKitConnected,
+        baseUser,
+        isBaseAuthenticated,
+      };
+
+      // Check if we should attempt auto-connection
+      if (!shouldAttemptAutoConnect(connectionState)) return;
 
       try {
-        // Priority 1: RainbowKit connection
-        if (isRainbowKitConnected && rainbowKitAddress) {
-          await walletService.connect(rainbowKitAddress, 'rainbowkit');
-          return;
-        }
+        // Determine which connection should take priority
+        const priority = getConnectionPriority(connectionState);
+        if (!priority) return;
 
-        // Priority 2: Base Account connection
-        if (isBaseAuthenticated && baseUser?.address) {
-          await walletService.connect(baseUser.address, 'base');
-          return;
-        }
+        // Get connection details for the prioritized method
+        const connectionDetails = getConnectionDetails(priority, connectionState);
+        if (!connectionDetails) return;
+
+        // Attempt connection
+        await walletService.connect(connectionDetails.address, connectionDetails.provider);
       } catch (error) {
         console.warn('Auto-connect failed:', error);
       }

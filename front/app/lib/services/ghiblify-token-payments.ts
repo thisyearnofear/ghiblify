@@ -6,7 +6,7 @@
 import { api } from '../config/api';
 import { ghiblifyPriceOracle, PricingCalculation } from './ghiblify-price-oracle';
 import { walletService } from './unified-wallet-service';
-import { readContract, waitForTransactionReceipt } from '@wagmi/core';
+import { readContract, waitForTransactionReceipt, getChainId } from '@wagmi/core';
 import { parseUnits, formatUnits } from 'viem';
 import { config } from '../../providers/Web3Provider';
 
@@ -136,7 +136,7 @@ class GhiblifyTokenPaymentService {
   /**
    * Validate payment prerequisites with helpful error messages
    */
-  private validatePaymentPrerequisites(): void {
+  private async validatePaymentPrerequisites(): Promise<void> {
     const state = walletService.getState();
 
     if (!state.isConnected || !state.user) {
@@ -148,7 +148,7 @@ class GhiblifyTokenPaymentService {
     }
 
     // Check network compatibility with helpful guidance
-    const networkCheck = this.requiresNetworkSwitch();
+    const networkCheck = await this.requiresNetworkSwitch();
     if (networkCheck.required) {
       throw new TokenPaymentError(
         `For the best experience, please switch to Base network. ` +
@@ -251,7 +251,7 @@ class GhiblifyTokenPaymentService {
 
     try {
       // Validate prerequisites
-      this.validatePaymentPrerequisites();
+      await this.validatePaymentPrerequisites();
       
       onStatusChange?.('calculating');
       
@@ -482,27 +482,43 @@ class GhiblifyTokenPaymentService {
   }
 
   /**
-   * Check if user needs to switch networks for optimal experience
+   * Check current network chain ID
    */
-  requiresNetworkSwitch(): { required: boolean; currentProvider?: string; recommendedAction?: string } {
+  private async getCurrentChainId(): Promise<number | null> {
+    try {
+      return getChainId(config);
+    } catch (error) {
+      console.warn('[GHIBLIFY Token] Failed to get current chain ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if user needs to switch networks for optimal experience
+   * Enhanced to properly handle Base Account users who may be on different networks
+   */
+  async requiresNetworkSwitch(): Promise<{ required: boolean; currentProvider?: string; recommendedAction?: string; currentChainId?: number }> {
     const state = walletService.getState();
 
     if (!state.isConnected || !state.user) {
       return { required: false };
     }
 
-    // Check if user is on Base network (chain ID 8453)
-    // For $GHIBLIFY token payments, we require Base network
-    // If user is connected with a non-Base provider, they need to switch
-    if (state.user.provider !== 'base') {
+    // For $GHIBLIFY token payments, we require Base network (chain ID 8453)
+    // This applies to ALL users regardless of their authentication provider
+    const currentChainId = await this.getCurrentChainId();
+    const isOnBaseNetwork = currentChainId === GHIBLIFY_TOKEN_CONFIG.chainId;
+
+    if (!isOnBaseNetwork) {
       return {
         required: true,
         currentProvider: state.user.provider,
-        recommendedAction: 'Switch to Base network for $GHIBLIFY token payments'
+        currentChainId,
+        recommendedAction: `Switch to Base network (chain ${GHIBLIFY_TOKEN_CONFIG.chainId}) for $GHIBLIFY token payments`
       };
     }
 
-    return { required: false };
+    return { required: false, currentChainId };
   }
 
   /**

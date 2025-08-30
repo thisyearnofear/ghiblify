@@ -35,6 +35,48 @@ export default function Web3Button() {
     disconnect: unifiedDisconnect,
   } = useUnifiedWallet();
 
+  // Determine active authentication method and priority
+  const getActiveAuthInfo = () => {
+    const hasRainbowKit = isConnected && address;
+    const hasBaseAuth = isBaseAuthenticated && baseUser;
+
+    if (hasRainbowKit && hasBaseAuth) {
+      return {
+        primary: "rainbowkit",
+        secondary: "base",
+        status: "Both Connected",
+        color: COLORS.ghibli.green,
+        icon: "🌈",
+      };
+    } else if (hasRainbowKit) {
+      return {
+        primary: "rainbowkit",
+        secondary: null,
+        status: "RainbowKit Active",
+        color: COLORS.ghibli.green,
+        icon: "🌈",
+      };
+    } else if (hasBaseAuth) {
+      return {
+        primary: "base",
+        secondary: null,
+        status: "Base Account Active",
+        color: COLORS.ghibli.blue,
+        icon: "🔵",
+      };
+    }
+
+    return {
+      primary: null,
+      secondary: null,
+      status: "Not Connected",
+      color: COLORS.primary,
+      icon: "✨",
+    };
+  };
+
+  const authInfo = getActiveAuthInfo();
+
   const [isConnectionOpen, setIsConnectionOpen] = useState(false);
   const [isBaseAuthOpen, setIsBaseAuthOpen] = useState(false);
 
@@ -121,9 +163,27 @@ export default function Web3Button() {
                 isOpen={isConnectionOpen}
                 onClose={() => setIsConnectionOpen(false)}
                 title="Choose Your Magic Portal ✨"
-                borderColor={COLORS.ghibli.green}
+                borderColor={authInfo.color}
               >
                 <VStack spacing={4}>
+                  {/* Current Status Indicator */}
+                  <Box w="full" textAlign="center" mb={2}>
+                    <Badge
+                      colorScheme={
+                        authInfo.primary === "rainbowkit" ? "green" : "blue"
+                      }
+                      borderRadius="full"
+                      px={4}
+                      py={2}
+                      bg={authInfo.color}
+                      color="white"
+                      fontWeight="bold"
+                      fontSize="sm"
+                    >
+                      {authInfo.icon} {authInfo.status}
+                    </Badge>
+                  </Box>
+
                   {/* RainbowKit Option */}
                   <Button
                     onClick={() => {
@@ -133,9 +193,17 @@ export default function Web3Button() {
                     w="full"
                     h="60px"
                     borderRadius="xl"
-                    bg="gray.50"
+                    bg={
+                      authInfo.primary === "rainbowkit"
+                        ? `${COLORS.ghibli.green}20`
+                        : "gray.50"
+                    }
                     border="2px solid"
-                    borderColor="gray.200"
+                    borderColor={
+                      authInfo.primary === "rainbowkit"
+                        ? COLORS.ghibli.green
+                        : "gray.200"
+                    }
                     _hover={{
                       borderColor: COLORS.ghibli.green,
                       bg: "gray.100",
@@ -144,23 +212,35 @@ export default function Web3Button() {
                     }}
                     transition="all 0.3s ease"
                   >
-                    <HStack spacing={4} w="full" justify="flex-start">
-                      <Box
-                        w="40px"
-                        h="40px"
-                        borderRadius="full"
-                        bgGradient="linear(to-r, purple.500, pink.500)"
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Text color="white" fontSize="lg">
-                          🌈
-                        </Text>
-                      </Box>
-                      <Text fontWeight="bold" color={COLORS.primary}>
-                        RainbowKit Wallet
-                      </Text>
+                    <HStack spacing={4} w="full" justify="space-between">
+                      <HStack spacing={4}>
+                        <Box
+                          w="40px"
+                          h="40px"
+                          borderRadius="full"
+                          bgGradient="linear(to-r, purple.500, pink.500)"
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Text color="white" fontSize="lg">
+                            🌈
+                          </Text>
+                        </Box>
+                        <VStack spacing={0} align="flex-start">
+                          <Text fontWeight="bold" color={COLORS.primary}>
+                            RainbowKit Wallet
+                          </Text>
+                          <Text fontSize="xs" color="gray.600">
+                            External wallets (MetaMask, etc.)
+                          </Text>
+                        </VStack>
+                      </HStack>
+                      {authInfo.primary === "rainbowkit" && (
+                        <Badge colorScheme="green" variant="subtle">
+                          Active
+                        </Badge>
+                      )}
                     </HStack>
                   </Button>
 
@@ -173,9 +253,17 @@ export default function Web3Button() {
                     w="full"
                     h="60px"
                     borderRadius="xl"
-                    bg="gray.50"
+                    bg={
+                      authInfo.primary === "base"
+                        ? `${COLORS.ghibli.blue}20`
+                        : "gray.50"
+                    }
                     border="2px solid"
-                    borderColor="gray.200"
+                    borderColor={
+                      authInfo.primary === "base"
+                        ? COLORS.ghibli.blue
+                        : "gray.200"
+                    }
                     _hover={{
                       borderColor: COLORS.ghibli.blue,
                       bg: "gray.100",
@@ -184,25 +272,44 @@ export default function Web3Button() {
                     }}
                     transition="all 0.3s ease"
                   >
-                    <HStack spacing={4} w="full" justify="flex-start">
-                      <Box
-                        w="40px"
-                        h="40px"
-                        borderRadius="full"
-                        bg={COLORS.ghibli.blue}
-                        display="flex"
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Text color="white" fontWeight="bold" fontSize="lg">
-                          🔵
-                        </Text>
-                      </Box>
-                      <Text fontWeight="bold" color={COLORS.primary}>
-                        Sign in with Base
-                      </Text>
+                    <HStack spacing={4} w="full" justify="space-between">
+                      <HStack spacing={4}>
+                        <Box
+                          w="40px"
+                          h="40px"
+                          borderRadius="full"
+                          bg={COLORS.ghibli.blue}
+                          display="flex"
+                          alignItems="center"
+                          justifyContent="center"
+                        >
+                          <Text color="white" fontWeight="bold" fontSize="lg">
+                            🔵
+                          </Text>
+                        </Box>
+                        <VStack spacing={0} align="flex-start">
+                          <Text fontWeight="bold" color={COLORS.primary}>
+                            Sign in with Base
+                          </Text>
+                          <Text fontSize="xs" color="gray.600">
+                            Embedded wallet experience
+                          </Text>
+                        </VStack>
+                      </HStack>
+                      {authInfo.primary === "base" && (
+                        <Badge colorScheme="blue" variant="subtle">
+                          Active
+                        </Badge>
+                      )}
                     </HStack>
                   </Button>
+
+                  {/* Priority Info */}
+                  <Box w="full" textAlign="center" mt={2}>
+                    <Text fontSize="xs" color="gray.500">
+                      💡 RainbowKit takes priority when both are connected
+                    </Text>
+                  </Box>
                 </VStack>
               </MagicalModal>
 
@@ -265,20 +372,25 @@ export default function Web3Button() {
                 </VStack>
               </MagicalButton>
 
-              {/* Base Account Status */}
-              <Badge
-                colorScheme="blue"
-                borderRadius="full"
-                px={3}
-                py={1}
-                bg={COLORS.ghibli.blue}
-                color="white"
-                fontWeight="bold"
-                fontSize="xs"
-                animation={ANIMATION_PRESETS.pulseDefault}
-              >
-                🔵 Base Authenticated
-              </Badge>
+              {/* Base Account Status - Enhanced */}
+              <VStack spacing={1}>
+                <Badge
+                  colorScheme="blue"
+                  borderRadius="full"
+                  px={3}
+                  py={1}
+                  bg={COLORS.ghibli.blue}
+                  color="white"
+                  fontWeight="bold"
+                  fontSize="xs"
+                  animation={ANIMATION_PRESETS.pulseDefault}
+                >
+                  🔵 Base Active
+                </Badge>
+                <Text fontSize="xs" color="gray.400" textAlign="center">
+                  Primary Auth
+                </Text>
+              </VStack>
             </HStack>
           );
         }
@@ -317,22 +429,39 @@ export default function Web3Button() {
               </VStack>
             </MagicalButton>
 
-            {/* Base Account Status */}
-            {hasBaseAuth && (
+            {/* Authentication Status Indicators */}
+            <VStack spacing={1}>
+              {/* Primary Auth Status */}
               <Badge
-                colorScheme="blue"
+                colorScheme="green"
                 borderRadius="full"
                 px={3}
                 py={1}
-                bg={COLORS.ghibli.blue}
+                bg={COLORS.ghibli.green}
                 color="white"
                 fontWeight="bold"
                 fontSize="xs"
                 animation={ANIMATION_PRESETS.pulseDefault}
               >
-                🔵 Base Pay
+                🌈 RainbowKit Active
               </Badge>
-            )}
+
+              {/* Secondary Auth Status */}
+              {hasBaseAuth && (
+                <Badge
+                  colorScheme="blue"
+                  borderRadius="full"
+                  px={2}
+                  py={0.5}
+                  bg={`${COLORS.ghibli.blue}80`}
+                  color="white"
+                  fontWeight="medium"
+                  fontSize="xs"
+                >
+                  🔵 Base Available
+                </Badge>
+              )}
+            </VStack>
           </HStack>
         );
       }}

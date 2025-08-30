@@ -1,6 +1,17 @@
-// Modular Base Account authentication service - Fixed for SDK v1.1.1
+// Modular Base Account authentication service - Simplified with shared utilities
 import { createBaseAccountSDK } from "@base-org/account";
 import { api } from '../config/api';
+import {
+  generateNonce,
+  createSIWEMessage,
+  fetchBackendNonce,
+  verifySignatureWithBackend,
+  isBrowserEnvironment,
+  isBaseAccountSignature,
+  handleAuthError,
+  AuthResult,
+  AuthConfig,
+} from '../utils/auth-utils';
 import {
   BaseAccountConfig,
   BaseAccountUser,
@@ -18,6 +29,13 @@ const BASE_ACCOUNT_CONFIG: BaseAccountConfig = {
   appUrl: "https://ghiblify-it.vercel.app",
   chainId: BASE_ACCOUNT_CHAINS.MAINNET,
   testnet: process.env.NODE_ENV === 'development',
+};
+
+// Auth config for shared utilities
+const AUTH_CONFIG: AuthConfig = {
+  appUrl: BASE_ACCOUNT_CONFIG.appUrl,
+  appDescription: BASE_ACCOUNT_CONFIG.appDescription,
+  chainId: BASE_ACCOUNT_CONFIG.chainId,
 };
 
 class BaseAccountAuthService {
@@ -48,221 +66,137 @@ class BaseAccountAuthService {
     return this.authStatus;
   }
 
-  // Updated Base Account authentication - debug and fallback approach
+  // Simplified Base Account authentication using shared utilities
   private async authenticateWithBaseAccount(): Promise<AuthenticationResult> {
     try {
-      // Check if we're in a browser environment
-      if (typeof window === 'undefined') {
+      if (!isBrowserEnvironment()) {
         throw new BaseAccountError('Base Account authentication requires browser environment');
       }
 
-      // Create the SDK instance with minimal configuration and error handling
-      let sdk;
-      let provider;
+      // Initialize provider
+      const provider = await this.initializeProvider();
 
+      // Try modern wallet_connect method first, fallback to legacy method
       try {
-        sdk = createBaseAccountSDK({
-          appName: this.config.appName,
-        });
-        provider = sdk.getProvider();
-
-        if (!provider) {
-          throw new BaseAccountError('Failed to get Base Account provider');
-        }
-
-        this.provider = provider;
-      } catch (sdkError) {
-        console.warn('[Base Account] SDK initialization failed:', sdkError);
-        throw new BaseAccountError('Failed to initialize Base Account SDK');
-      }
-
-      console.log('[Base Account] Starting authentication...');
-      
-      try {
-        // Try the modern wallet_connect method first
-        const nonce = crypto.randomUUID().replace(/-/g, '');
-        console.log('[Base Account] Attempting wallet_connect with nonce:', nonce);
-        
-        const result = await provider.request({
-          method: 'wallet_connect',
-          params: [{
-            version: '1',
-            capabilities: {
-              signInWithEthereum: { 
-                nonce,
-                chainId: `0x${this.config.chainId.toString(16)}`
-              }
-            }
-          }]
-        }) as unknown;
-
-        console.log('[Base Account] wallet_connect result:', JSON.stringify(result, null, 2));
-
-        // Type guard for wallet_connect result
-        if (result && 
-            typeof result === 'object' && 
-            'accounts' in result && 
-            Array.isArray((result as any).accounts) && 
-            (result as any).accounts[0]?.capabilities?.signInWithEthereum) {
-          
-          const accounts = (result as any).accounts;
-          const account = accounts[0];
-          const siweData = account.capabilities.signInWithEthereum;
-          console.log('[Base Account] SIWE data found:', siweData);
-          console.log('[Base Account] Account address:', account.address);
-          
-          return {
-            address: account.address, // Address is at the account level, not in SIWE data
-            message: siweData.message,
-            signature: siweData.signature,
-            timestamp: Date.now(),
-            authenticated: false,
-          };
-        } else {
-          console.log('[Base Account] No SIWE data in wallet_connect result, trying fallback method');
-          // Fallback: Try direct eth_requestAccounts + personal_sign
-          return await this.fallbackAuthentication();
-        }
-      } catch (walletConnectError) {
-        console.error('[Base Account] wallet_connect failed, trying fallback:', walletConnectError);
-        // Fallback: Try direct eth_requestAccounts + personal_sign
-        return await this.fallbackAuthentication();
+        return await this.attemptWalletConnect(provider);
+      } catch (error) {
+        console.warn('[Base Account] wallet_connect failed, trying fallback:', error);
+        return await this.attemptLegacyAuth(provider);
       }
 
     } catch (error) {
-      console.error('[Base Account] Authentication error:', error);
-      if (error instanceof Error) {
-        if (error.message.includes('User rejected') || error.message.includes('denied')) {
-          throw new BaseAccountError('User rejected the authentication request');
-        }
-        if (error.message.includes('Unsupported chain')) {
-          throw new BaseAccountError(`Chain ${this.config.chainId} is not supported`);
-        }
-      }
-      throw new BaseAccountError(`Base Account authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw handleAuthError(error, 'Base Account authentication');
     }
   }
 
-  // Fallback authentication method when wallet_connect fails
-  private async fallbackAuthentication(): Promise<AuthenticationResult> {
+  // Initialize Base Account provider
+  private async initializeProvider(): Promise<any> {
     try {
-      console.log('[Base Account] Using fallback authentication method');
-
-      // Check if we're in a supported environment
-      if (typeof window === 'undefined') {
-        throw new BaseAccountError('Base Account not available in server environment');
-      }
-
-      // Try to use existing provider first
-      let provider = this.provider;
+      const sdk = createBaseAccountSDK({
+        appName: this.config.appName,
+      });
+      const provider = sdk.getProvider();
 
       if (!provider) {
-        // Create the SDK instance
-        const sdk = createBaseAccountSDK({
-          appName: this.config.appName,
-        });
-        provider = sdk.getProvider();
-        this.provider = provider;
+        throw new BaseAccountError('Failed to get Base Account provider');
       }
 
-      if (!provider || typeof provider.request !== 'function') {
-        throw new BaseAccountError('Base Account provider not available or invalid');
-      }
+      this.provider = provider;
+      return provider;
+    } catch (error) {
+      throw new BaseAccountError('Failed to initialize Base Account SDK');
+    }
+  }
 
-      // Get account access
-      const accounts = await provider.request({ method: 'eth_requestAccounts' });
-      const address = accounts[0];
+  // Attempt modern wallet_connect authentication
+  private async attemptWalletConnect(provider: any): Promise<AuthenticationResult> {
+    const nonce = generateNonce();
+    console.log('[Base Account] Attempting wallet_connect with nonce:', nonce);
 
-      if (!address) {
-        throw new BaseAccountError('No address returned from Base Account');
-      }
+    const result = await provider.request({
+      method: 'wallet_connect',
+      params: [{
+        version: '1',
+        capabilities: {
+          signInWithEthereum: {
+            nonce,
+            chainId: `0x${this.config.chainId.toString(16)}`
+          }
+        }
+      }]
+    });
 
-      // Fetch nonce from backend
-      const nonce = await api.get('/api/web3/auth/nonce');
-      
-      // Create a proper SIWE message
-      const issuedAt = new Date().toISOString();
-      const message = `${this.config.appUrl} wants you to sign in with your Ethereum account.
-${address}
-
-${this.config.appDescription}
-
-URI: ${this.config.appUrl}
-Version: 1
-Chain ID: ${this.config.chainId}
-Nonce: ${nonce}
-Issued At: ${issuedAt}`;
-      
-      console.log('[Base Account] Requesting signature for fallback message');
-      
-      // Request signature
-      const signature = await provider.request({
-        method: 'personal_sign',
-        params: [message, address]
-      }) as string;
-
-      if (!signature) {
-        throw new BaseAccountError('No signature returned from Base Account fallback');
-      }
-
-      console.log('[Base Account] Fallback authentication successful');
+    // Parse wallet_connect result
+    if (result?.accounts?.[0]?.capabilities?.signInWithEthereum) {
+      const account = result.accounts[0];
+      const siweData = account.capabilities.signInWithEthereum;
 
       return {
-        address,
-        message,
-        signature,
+        address: account.address,
+        message: siweData.message,
+        signature: siweData.signature,
         timestamp: Date.now(),
         authenticated: false,
       };
-
-    } catch (error) {
-      console.error('[Base Account] Fallback authentication failed:', error);
-      if (error instanceof Error) {
-        if (error.message.includes('User rejected') || error.message.includes('denied')) {
-          throw new BaseAccountError('User rejected the authentication request');
-        }
-      }
-      throw new BaseAccountError(`Base Account fallback authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+
+    throw new Error('Invalid wallet_connect response format');
   }
 
-  // Verify signature with backend
-  private async verifySignature(authResult: AuthenticationResult): Promise<AuthenticationResult> {
-    try {
-      console.log('[Base Account] Verifying signature with backend...', {
-        address: authResult.address,
-        messageLength: authResult.message.length,
-        signatureLength: authResult.signature.length,
-      });
+  // Attempt legacy eth_requestAccounts + personal_sign authentication
+  private async attemptLegacyAuth(provider: any): Promise<AuthenticationResult> {
+    console.log('[Base Account] Using legacy authentication method');
 
-      const verificationResult = await api.post('/api/web3/auth/verify', {
-        address: authResult.address,
-        message: authResult.message,
-        signature: authResult.signature,
-      });
+    // Get account access
+    const accounts = await provider.request({ method: 'eth_requestAccounts' });
+    const address = accounts[0];
 
-      console.log('[Base Account] Verification result:', verificationResult);
-
-      const isAuthenticated = verificationResult.ok || verificationResult.authenticated;
-      console.log('[Base Account] Authentication status:', isAuthenticated);
-
-      return {
-        ...authResult,
-        authenticated: isAuthenticated,
-      };
-    } catch (error) {
-      console.error('[Base Account] Verification error details:', error);
-      
-      // Better error message extraction
-      let errorMessage = 'Unknown error';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        errorMessage = JSON.stringify(error);
-      }
-      
-      throw new BaseAccountError(`Signature verification failed: ${errorMessage}`);
+    if (!address) {
+      throw new BaseAccountError('No address returned from Base Account');
     }
+
+    // Create and sign SIWE message
+    const nonce = await fetchBackendNonce();
+    const message = createSIWEMessage(address, nonce, AUTH_CONFIG);
+    const signature = await provider.request({
+      method: 'personal_sign',
+      params: [message, address]
+    });
+
+    if (!signature) {
+      throw new BaseAccountError('No signature returned from Base Account');
+    }
+
+    return {
+      address,
+      message,
+      signature,
+      timestamp: Date.now(),
+      authenticated: false,
+    };
+  }
+
+
+  // Verify signature with backend using shared utility
+  private async verifySignature(authResult: AuthenticationResult): Promise<AuthenticationResult> {
+    console.log('[Base Account] Verifying signature with backend...', {
+      address: authResult.address,
+      messageLength: authResult.message.length,
+      signatureLength: authResult.signature.length,
+    });
+
+    const isAuthenticated = await verifySignatureWithBackend(
+      authResult.address,
+      authResult.message,
+      authResult.signature
+    );
+
+    console.log('[Base Account] Authentication status:', isAuthenticated);
+
+    return {
+      ...authResult,
+      authenticated: isAuthenticated,
+    };
   }
 
   // Fetch user credits
