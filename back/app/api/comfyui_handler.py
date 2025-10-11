@@ -117,18 +117,8 @@ async def upload_to_imgbb(image_bytes: bytes) -> str:
     # If we reach here, all attempts failed
     raise last_error or HTTPException(status_code=500, detail="Failed to upload image to ImgBB")
 
-async def handle_comfyui(image_bytes: bytes, webhook_url: str = None):
+async def handle_comfyui(image_bytes: bytes, webhook_url: str = None, address: str = None):
     logger.info("Starting ComfyUI workflow")
-    
-    # First upload to ImgBB
-    image_url = await upload_to_imgbb(image_bytes)
-    
-    # Determine webhook URL (prefer request-derived value)
-    final_webhook = webhook_url or WEBHOOK_URL
-    logger.info(f"Using webhook URL: {final_webhook}")
-    
-    # API endpoints - fallback to Replicate if ComfyUI fails
-    create_task_endpoint = "https://api.comfyonline.app/api/run_workflow"
 
     # Check if we should use Replicate instead
     use_replicate = os.getenv('USE_REPLICATE_FALLBACK', 'false').lower() == 'true'
@@ -169,6 +159,16 @@ async def handle_comfyui(image_bytes: bytes, webhook_url: str = None):
         # Call Replicate handler
         replicate_result = await process_with_replicate(mock_file, address=address, request=mock_request)
         return replicate_result
+
+    # First upload to ImgBB
+    image_url = await upload_to_imgbb(image_bytes)
+
+    # Determine webhook URL (prefer request-derived value)
+    final_webhook = webhook_url or WEBHOOK_URL
+    logger.info(f"Using webhook URL: {final_webhook}")
+
+    # API endpoints
+    create_task_endpoint = "https://api.comfyonline.app/api/run_workflow"
     
     headers = {
         "Authorization": f"Bearer {COMFY_UI_API_KEY}",
@@ -541,7 +541,7 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         webhook_override = f"{derived_base}/api/comfyui/webhook" if derived_base else None
 
         logger.info("Processing image with ComfyUI...")
-        output = await handle_comfyui(image_bytes, webhook_url=webhook_override)
+        output = await handle_comfyui(image_bytes, webhook_url=webhook_override, address=address)
         
         return JSONResponse(
             content={
