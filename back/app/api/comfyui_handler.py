@@ -175,12 +175,174 @@ async def handle_comfyui(image_bytes: bytes, webhook_url: str = None, address: s
         "Content-Type": "application/json"
     }
     
-    # Create the task payload with the ImgBB URL and webhook
+    # Create a simple workflow that uploads to cloud storage
+    # Since the existing workflow doesn't include cloud upload, we'll create a basic one
+    simple_workflow = {
+        "nodes": [
+            {
+                "id": 1,
+                "type": "LoadImage",
+                "pos": [0, 0],
+                "size": {"0": 315, "1": 58},
+                "flags": {},
+                "order": 0,
+                "mode": 0,
+                "inputs": [],
+                "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": [1]}],
+                "properties": {"Node name for S&R": "LoadImage"},
+                "widgets_values": ["input_image.png", "image"]
+            },
+            {
+                "id": 2,
+                "type": "CLIPTextEncode",
+                "pos": [400, 0],
+                "size": {"0": 422, "1": 164},
+                "flags": {},
+                "order": 1,
+                "mode": 0,
+                "inputs": [{"name": "clip", "type": "CLIP", "link": 2}],
+                "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "links": [3]}],
+                "properties": {"Node name for S&R": "CLIPTextEncode"},
+                "widgets_values": ["ghibli style, Studio Ghibli art, anime style"]
+            },
+            {
+                "id": 3,
+                "type": "DualCLIPLoader",
+                "pos": [900, 0],
+                "size": {"0": 315, "1": 130},
+                "flags": {},
+                "order": 2,
+                "mode": 0,
+                "inputs": [],
+                "outputs": [{"name": "CLIP", "type": "CLIP", "links": [2]}],
+                "properties": {"Node name for S&R": "DualCLIPLoader"},
+                "widgets_values": ["clip_l.safetensors", "t5xxl_fp8_e4m3fn.safetensors", "flux", "default"]
+            },
+            {
+                "id": 4,
+                "type": "UNETLoader",
+                "pos": [1300, 0],
+                "size": {"0": 315, "1": 82},
+                "flags": {},
+                "order": 3,
+                "mode": 0,
+                "inputs": [],
+                "outputs": [{"name": "MODEL", "type": "MODEL", "links": [4]}],
+                "properties": {"Node name for S&R": "UNETLoader"},
+                "widgets_values": ["flux1-dev-fp8.safetensors", "fp8_e4m3fn"]
+            },
+            {
+                "id": 5,
+                "type": "VAELoader",
+                "pos": [1700, 0],
+                "size": {"0": 315, "1": 58},
+                "flags": {},
+                "order": 4,
+                "mode": 0,
+                "inputs": [],
+                "outputs": [{"name": "VAE", "type": "VAE", "links": [5]}],
+                "properties": {"Node name for S&R": "VAELoader"},
+                "widgets_values": ["ae.safetensors"]
+            },
+            {
+                "id": 6,
+                "type": "KSampler",
+                "pos": [2100, 0],
+                "size": {"0": 315, "1": 262},
+                "flags": {},
+                "order": 5,
+                "mode": 0,
+                "inputs": [
+                    {"name": "model", "type": "MODEL", "link": 4},
+                    {"name": "positive", "type": "CONDITIONING", "link": 3},
+                    {"name": "negative", "type": "CONDITIONING", "link": 6},
+                    {"name": "latent_image", "type": "LATENT", "link": 7},
+                    {"name": "vae", "type": "VAE", "link": 5}
+                ],
+                "outputs": [{"name": "LATENT", "type": "LATENT", "links": [8]}],
+                "properties": {"Node name for S&R": "KSampler"},
+                "widgets_values": [12345, "randomize", 20, 1, "euler", "simple", 1]
+            },
+            {
+                "id": 7,
+                "type": "CLIPTextEncode",
+                "pos": [2500, 0],
+                "size": {"0": 422, "1": 164},
+                "flags": {},
+                "order": 6,
+                "mode": 0,
+                "inputs": [{"name": "clip", "type": "CLIP", "link": 9}],
+                "outputs": [{"name": "CONDITIONING", "type": "CONDITIONING", "links": [6]}],
+                "properties": {"Node name for S&R": "CLIPTextEncode"},
+                "widgets_values": ["blurry, low quality, distorted"]
+            },
+            {
+                "id": 8,
+                "type": "EmptyLatentImage",
+                "pos": [2900, 0],
+                "size": {"0": 315, "1": 106},
+                "flags": {},
+                "order": 7,
+                "mode": 0,
+                "inputs": [],
+                "outputs": [{"name": "LATENT", "type": "LATENT", "links": [7]}],
+                "properties": {"Node name for S&R": "EmptyLatentImage"},
+                "widgets_values": [1024, 1024, 1]
+            },
+            {
+                "id": 9,
+                "type": "VAEDecode",
+                "pos": [3300, 0],
+                "size": {"0": 210, "1": 46},
+                "flags": {},
+                "order": 8,
+                "mode": 0,
+                "inputs": [
+                    {"name": "samples", "type": "LATENT", "link": 8},
+                    {"name": "vae", "type": "VAE", "link": 10}
+                ],
+                "outputs": [{"name": "IMAGE", "type": "IMAGE", "links": [11]}],
+                "properties": {"Node name for S&R": "VAEDecode"},
+                "widgets_values": []
+            },
+            {
+                "id": 10,
+                "type": "SaveImage",
+                "pos": [3700, 0],
+                "size": {"0": 722, "1": 426},
+                "flags": {},
+                "order": 9,
+                "mode": 0,
+                "inputs": [{"name": "images", "type": "IMAGE", "link": 11}],
+                "outputs": [],
+                "properties": {"Node name for S&R": "SaveImage"},
+                "widgets_values": ["ComfyUI"]
+            }
+        ],
+        "links": [
+            [1, 1, 0, 1, 0, "IMAGE"],
+            [2, 3, 0, 2, 0, "CLIP"],
+            [3, 2, 0, 6, 1, "CONDITIONING"],
+            [4, 4, 0, 6, 0, "MODEL"],
+            [5, 5, 0, 9, 1, "VAE"],
+            [6, 7, 0, 6, 2, "CONDITIONING"],
+            [7, 8, 0, 6, 3, "LATENT"],
+            [8, 6, 0, 9, 0, "LATENT"],
+            [9, 3, 0, 7, 0, "CLIP"],
+            [10, 5, 0, 9, 1, "VAE"],
+            [11, 9, 0, 10, 0, "IMAGE"]
+        ],
+        "groups": [],
+        "config": {},
+        "extra": {},
+        "version": 0.4
+    }
+
+    # Create the task payload with the full workflow and webhook
     task_payload = {
-        "workflow_id": "0f9f99b9-69e7-4651-a37f-7d997b159ce6",
+        "workflow": simple_workflow,
         "input": {
-            "LoadImage_image_17": image_url,
-            "CLIPTextEncode_text_7": ""
+            "LoadImage_1": image_url
         },
         "webhook": final_webhook
     }
