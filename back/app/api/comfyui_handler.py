@@ -127,8 +127,48 @@ async def handle_comfyui(image_bytes: bytes, webhook_url: str = None):
     final_webhook = webhook_url or WEBHOOK_URL
     logger.info(f"Using webhook URL: {final_webhook}")
     
-    # API endpoints
+    # API endpoints - fallback to Replicate if ComfyUI fails
     create_task_endpoint = "https://api.comfyonline.app/api/run_workflow"
+
+    # Check if we should use Replicate instead
+    use_replicate = os.getenv('USE_REPLICATE_FALLBACK', 'false').lower() == 'true'
+    if use_replicate:
+        logger.info("Using Replicate fallback for image processing")
+        # Import and use Replicate handler
+        from .replicate_handler import process_with_replicate
+
+        # Create a mock UploadFile from image bytes
+        from fastapi import UploadFile
+        from io import BytesIO
+
+        # Create a BytesIO object from image_bytes
+        image_io = BytesIO(image_bytes)
+        image_io.seek(0)  # Reset to beginning
+
+        # Create a mock UploadFile
+        class MockUploadFile:
+            def __init__(self, filename, file):
+                self.filename = filename
+                self.file = file
+
+            async def read(self):
+                return self.file.getvalue()
+
+            async def close(self):
+                pass
+
+        mock_file = MockUploadFile("image.png", image_io)
+
+        # Create a mock request for Replicate handler
+        class MockRequest:
+            def __init__(self):
+                self.headers = {"origin": "https://ghiblify-it.vercel.app"}
+
+        mock_request = MockRequest()
+
+        # Call Replicate handler
+        replicate_result = await process_with_replicate(mock_file, address=address, request=mock_request)
+        return replicate_result
     
     headers = {
         "Authorization": f"Bearer {COMFY_UI_API_KEY}",
