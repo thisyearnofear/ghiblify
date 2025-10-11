@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from redis import Redis
 
 # Load environment variables
-load_dotenv()
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path=ENV_PATH)
 
 def test_redis_v5_direct():
     """Test Redis v5+ direct connection method"""

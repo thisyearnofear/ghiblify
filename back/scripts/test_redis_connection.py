@@ -7,8 +7,9 @@ import redis
 import traceback
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from back/.env explicitly
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path=ENV_PATH)
 
 def test_redis_connection():
     """Test the Redis connection with detailed error reporting."""

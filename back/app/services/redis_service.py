@@ -11,6 +11,7 @@ from enum import Enum
 from redis import Redis, ConnectionPool
 from contextlib import contextmanager
 import logging
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +41,38 @@ class RedisConfig:
     socket_connect_timeout: float = 5.0
     retry_on_timeout: bool = True
     decode_responses: bool = True
+    url: Optional[str] = os.getenv('UPSTASH_REDIS_URL') or os.getenv('REDIS_URL')
     
     def __post_init__(self):
+        # If a full URL is provided, parse and override discrete fields
+        if self.url:
+            parsed = urlparse(self.url)
+            # Scheme rediss or redis indicates Redis protocol
+            if parsed.scheme in ('rediss', 'redis', 'redis+tls'):
+                if parsed.hostname:
+                    self.host = parsed.hostname
+                if parsed.port:
+                    self.port = parsed.port
+                # Username/password may be embedded in URL
+                if parsed.username:
+                    self.username = parsed.username
+                if parsed.password:
+                    self.password = parsed.password
+                # Enable SSL for secure schemes
+                if parsed.scheme in ('rediss', 'redis+tls'):
+                    self.ssl = True
+            # If URL is https/http, treat it as host and force SSL
+            elif parsed.scheme in ('https', 'http'):
+                if parsed.hostname:
+                    self.host = parsed.hostname
+                self.ssl = True
+
         # Clean up host URL if it has protocol prefix
         if self.host.startswith('https://'):
             self.host = self.host.replace('https://', '')
         elif self.host.startswith('http://'):
             self.host = self.host.replace('http://', '')
-        
+
         # Remove trailing slash if present
         self.host = self.host.rstrip('/')
 

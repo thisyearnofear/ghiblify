@@ -8,7 +8,9 @@ from app.api.router import router
 import logging
 
 # Load environment variables from .env file
-load_dotenv()
+# Always load env from back/.env regardless of working directory
+ENV_PATH = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=ENV_PATH)
 
 # Configure logging
 logging.basicConfig(

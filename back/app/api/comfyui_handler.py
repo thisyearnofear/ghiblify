@@ -687,23 +687,12 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
         image_bytes = image_bytes_io.getvalue()
         base64_encoded = base64.b64encode(image_bytes).decode("utf-8")
 
-        # Build a webhook URL from the incoming request to avoid first-call base URL issues
-        derived_base = None
-        if request is not None:
-            # Prefer the Origin header for correct public URL in edge/proxy setups
-            origin = request.headers.get("origin") or request.headers.get("Origin")
-            if origin and origin.startswith("http"):
-                derived_base = origin.replace("http://", "https://") if origin.startswith("http://") else origin
-            else:
-                # Fallback to request.url to construct base
-                try:
-                    derived_base = str(request.url).split("/api/")[0]
-                except Exception:
-                    derived_base = None
-        webhook_override = f"{derived_base}/api/comfyui/webhook" if derived_base else None
+        # Always use backend-configured webhook URL to ensure callbacks reach the API
+        # Avoid deriving from request Origin, which can point to the frontend domain
+        webhook_override = None
 
         logger.info("Processing image with ComfyUI...")
-        output = await handle_comfyui(image_bytes, webhook_url=webhook_override, address=address)
+        output = await handle_comfyui(image_bytes, webhook_url=webhook_override or WEBHOOK_URL, address=address)
         
         return JSONResponse(
             content={
