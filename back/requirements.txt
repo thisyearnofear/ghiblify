@@ -2,10 +2,6 @@ fastapi>=0.109.0
 uvicorn>=0.27.0
 python-multipart==0.0.9
 pillow>=10.0.0
-torch>=2.2.0
-diffusers>=0.23.1
-transformers>=4.35.2
-accelerate>=0.24.1
 httpx>=0.24.1,<0.25.0
 httpcore>=0.15.0,<0.18.0
 python-dotenv==1.0.0
