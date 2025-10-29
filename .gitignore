@@ -44,3 +44,6 @@ back/initial_photos/*
 # Logs
 *.log
 logs/ 
+
+.zencoder
+.qodo

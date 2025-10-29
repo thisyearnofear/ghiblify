@@ -5,9 +5,11 @@
  * - RainbowKit (external wallets)
  * - Base Account (embedded wallet)
  * - Credit management and persistence
+ * - Memory API integration for cross-platform identity mapping
  */
 
 import { api } from '../config/api';
+import { memoryApiService } from './memory-api-service';
 
 export type WalletProvider = 'rainbowkit' | 'base';
 
@@ -16,6 +18,9 @@ export interface WalletUser {
   provider: WalletProvider;
   credits: number;
   timestamp: number;
+  // Extended with Memory API identity data
+  identity?: any;
+  socialGraph?: any;
 }
 
 export interface WalletState {
@@ -58,16 +63,16 @@ class WalletService {
   }
 
   /**
-   * Connect wallet
+   * Connect wallet with enhanced identity mapping
    */
-  async connect(address: string, provider: WalletProvider): Promise<WalletUser> {
+  async connect(address: string, provider: WalletProvider, farcasterUsername?: string): Promise<WalletUser> {
     this.setState({ isLoading: true, error: null });
 
     try {
       const normalizedAddress = address.toLowerCase();
 
-      // Initialize user
-      const user = await this.initializeUser(normalizedAddress, provider);
+      // Initialize user with Memory API enhanced profile
+      const user = await this.initializeUser(normalizedAddress, provider, farcasterUsername);
 
       this.setState({
         isConnected: true,
@@ -164,16 +169,34 @@ class WalletService {
 
   // ===== PRIVATE METHODS =====
 
-  private async initializeUser(address: string, provider: WalletProvider): Promise<WalletUser> {
+  private async initializeUser(address: string, provider: WalletProvider, farcasterUsername?: string): Promise<WalletUser> {
     try {
       await api.post(`/api/wallet/connect`, `address=${address}&provider=${provider}`);
       const credits = await this.fetchCredits(address);
+
+      // Enhance user profile with Memory API data if available
+      let identityData = {};
+      let socialGraphData = {};
+      
+      if (memoryApiService.isAvailable()) {
+        try {
+          const unifiedProfile = await memoryApiService.createUnifiedProfile(address, farcasterUsername);
+          if (unifiedProfile) {
+            identityData = unifiedProfile;
+            socialGraphData = unifiedProfile.social;
+          }
+        } catch (error) {
+          console.warn('Failed to fetch identity data from Memory API:', error);
+        }
+      }
 
       return {
         address,
         provider,
         credits,
         timestamp: Date.now(),
+        identity: identityData,
+        socialGraph: socialGraphData,
       };
     } catch (error) {
       console.warn('Failed to initialize user:', error);

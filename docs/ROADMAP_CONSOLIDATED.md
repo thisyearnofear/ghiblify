@@ -1,6 +1,6 @@
-# Ghiblify NFT Integration Roadmap
+# Ghiblify Roadmap
 
-## Strategic Implementation Plan for Multi-Chain NFT Features
+## Strategic Implementation Plan for Multi-Chain NFT Features and Memory API Integration
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### **Primary Objective**
 
-Transform Ghiblify from an AI image processor into a comprehensive creative economy platform that enables users to own, trade, and derive value from their AI-generated Studio Ghibli artwork.
+Transform Ghiblify from an AI image processor into a comprehensive creative economy platform that enables users to own, trade, and derive value from their AI-generated Studio Ghibli artwork, while leveraging cross-platform identity for enhanced user experiences.
 
 ### **Success Metrics**
 
@@ -16,6 +16,7 @@ Transform Ghiblify from an AI image processor into a comprehensive creative econ
 - **Revenue Growth**: 25% increase in platform revenue through NFT features
 - **User Retention**: 60% of NFT creators return within 30 days
 - **Technical Performance**: <3s NFT creation flow, 99.9% uptime
+- **Identity Integration**: 80% of users with connected wallets have enriched profiles
 
 ---
 
@@ -27,37 +28,38 @@ Transform Ghiblify from an AI image processor into a comprehensive creative econ
 2. **Modular**: Each chain integration is a self-contained module
 3. **Performant**: Leverage existing Redis caching and async processing
 4. **Scalable**: Design for multi-chain expansion beyond Base/Celo
+5. **Identity-First**: Integrate Memory API for cross-platform user experiences
 
 ### **Architecture Overview**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Frontend (Next.js)                      │
-├─────────────────────────────────────────────────────────────┤
-│  Existing Components (Reused)  │  New NFT Components       │
-│  • UnifiedWalletService        │  • NFTCreationFlow        │
-│  • TransformationResult        │  • NFTGallery             │
-│  • CreditDisplay               │  • ChainSelector          │
-│  • PaymentModals               │  • SocialImpactToggle     │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js)                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Existing Components (Reused)  │  New NFT Components    │ Identity Features │
+│  • UnifiedWalletService        │  • NFTCreationFlow     │ • Memory API      │
+│  • TransformationResult        │  • NFTGallery          │ • Profile Enrich  │
+│  • CreditDisplay               │  • ChainSelector       │ • Social Graph    │
+│  • PaymentModals               │  • SocialImpactToggle  │ • Leaderboards    │
+└─────────────────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────────────────────────────────────┐
-│                 Backend API (FastAPI)                      │
-├─────────────────────────────────────────────────────────────┤
-│     Existing Services (Extended)    │  New NFT Services     │
-│     • unified_wallet.py            │  • nft_orchestrator.py│
-│     • comfyui_handler.py           │  • metadata_builder.py│
-│     • redis_service.py             │  • chain_router.py    │
-│     • celo_handler.py              │                       │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 Backend API (FastAPI)                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│     Existing Services (Extended)    │  New NFT Services   │ Identity APIs   │
+│     • unified_wallet.py             │  • nft_orchestrator.py│ • memory_api.py│
+│     • comfyui_handler.py            │  • metadata_builder.py│ • graph_analyzr│
+│     • redis_service.py              │  • chain_router.py    │ • profile_svc  │
+│     • celo_handler.py               │                       │               │
+└─────────────────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────────────────────────────────────┐
-│                   Smart Contracts                          │
-├─────────────────────────────────────────────────────────────┤
-│        Base Chain                │        Celo Chain       │
-│  • Zora Coins Integration        │  • GhiblifyNFT.sol     │
-│  • Existing payment flows        │  • Extended cUSD flows │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   Smart Contracts                    │  Identity Services  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│        Base Chain                │        Celo Chain      │ • Memory API     │
+│  • Zora Coins Integration        │  • GhiblifyNFT.sol     │ • Profile Sync   │
+│  • Existing payment flows        │  • Extended cUSD flows │ • Graph Analysis │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -128,10 +130,13 @@ export class UnifiedWalletService {
 - [ ] Chain routing infrastructure
 - [ ] Database schema updates
 - [ ] Unit tests for core services
+- [ ] Memory API integration service
+- [ ] Identity graph retrieval endpoints
+- [ ] Social graph analysis components
 
 ---
 
-### **Phase 2: Base Chain Integration (Zora)** _(Weeks 4-6)_
+### **Phase 2: Base Chain Integration (Zora) & Identity Features** _(Weeks 4-6)_
 
 #### **Zora Integration Service**
 
@@ -174,6 +179,33 @@ export function ZoraCoinCreation({ transformationResult }: Props) {
 }
 ```
 
+#### **Identity Integration**
+
+```tsx
+# New: /front/app/components/identity/ProfileEnrichment.tsx
+export function ProfileEnrichment({ address }: Props) {
+  const { identity, isLoading } = useMemoryApi(); # New hook
+
+  return (
+    <Card>
+      <Heading size="md">Your Cross-Platform Identity</Heading>
+
+      {isLoading ? (
+        <Spinner />
+      ) : identity ? (
+        <VStack align="stretch" spacing={3}>
+          <Text>Connected Identities: {Object.keys(identity.graph).length}</Text>
+          <Text>Social Influence: {identity.socialScore}</Text>
+          <Button onClick={() => refreshIdentity()}>Refresh Profile</Button>
+        </VStack>
+      ) : (
+        <Text>Connect your wallet to see your identity graph</Text>
+      )}
+    </Card>
+  );
+}
+```
+
 **Deliverables:**
 
 - [ ] Zora SDK integration
@@ -181,10 +213,13 @@ export function ZoraCoinCreation({ transformationResult }: Props) {
 - [ ] Trading interface
 - [ ] Portfolio view
 - [ ] Integration tests
+- [ ] Memory API service integration
+- [ ] Identity graph visualization
+- [ ] Social graph analysis dashboard
 
 ---
 
-### **Phase 3: Celo Chain Integration** _(Weeks 7-9)_
+### **Phase 3: Celo Chain Integration & Advanced Identity** _(Weeks 7-9)_
 
 #### **Celo NFT Contract**
 
@@ -262,6 +297,38 @@ export function CeloNFTCreation({ transformationResult }: Props) {
 }
 ```
 
+#### **Advanced Identity Features**
+
+```tsx
+# New: /front/app/components/identity/Leaderboard.tsx
+export function Leaderboard() {
+  const { data: rankings, isLoading } = useLeaderboard();
+
+  return (
+    <Card>
+      <Heading size="md">Community Leaders</Heading>
+
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <VStack align="stretch" spacing={2}>
+          {rankings.map((user, index) => (
+            <HStack key={user.address} justify="space-between">
+              <HStack>
+                <Text fontWeight="bold">#{index + 1}</Text>
+                <Avatar src={user.avatar} size="sm" />
+                <Text>{user.username || user.address.slice(0, 6)}</Text>
+              </HStack>
+              <Text>{user.score} points</Text>
+            </HStack>
+          ))}
+        </VStack>
+      )}
+    </Card>
+  );
+}
+```
+
 **Deliverables:**
 
 - [ ] Celo NFT smart contract
@@ -269,6 +336,9 @@ export function CeloNFTCreation({ transformationResult }: Props) {
 - [ ] Mobile-optimized UI
 - [ ] Environmental impact tracking
 - [ ] Charity integration
+- [ ] Leaderboard implementation
+- [ ] Personality profiling
+- [ ] Suggested connections
 
 ---
 
@@ -346,6 +416,39 @@ export function NFTGallery() {
 }
 ```
 
+#### **Identity Dashboard**
+
+```tsx
+# New: /front/app/components/identity/Dashboard.tsx
+export function IdentityDashboard() {
+  const { profile, socialGraph, isLoading } = useIdentity();
+
+  return (
+    <Container maxW="container.xl">
+      <Tabs>
+        <TabList>
+          <Tab>Profile</Tab>
+          <Tab>Social Graph</Tab>
+          <Tab>Activity</Tab>
+        </TabList>
+
+        <TabPanels>
+          <TabPanel>
+            <ProfileView profile={profile} />
+          </TabPanel>
+          <TabPanel>
+            <SocialGraphView graph={socialGraph} />
+          </TabPanel>
+          <TabPanel>
+            <ActivityFeed />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Container>
+  );
+}
+```
+
 **Deliverables:**
 
 - [ ] Unified chain selection UI
@@ -353,6 +456,9 @@ export function NFTGallery() {
 - [ ] Portfolio analytics
 - [ ] Social sharing features
 - [ ] Mobile responsive design
+- [ ] Identity dashboard
+- [ ] Social graph visualization
+- [ ] Activity tracking
 
 ---
 
@@ -460,6 +566,9 @@ class NFTMetadataOptimizer:
 - [ ] Performance optimizations
 - [ ] Error handling improvements
 - [ ] Comprehensive testing suite
+- [ ] AI-powered recommendations
+- [ ] Token-gated experiences
+- [ ] Community building tools
 
 ---
 
@@ -594,6 +703,7 @@ async def create_nft_with_retry(
 - **Blockchain Confirmation**: <30s average (Base), <10s (Celo)
 - **Error Rate**: <1% for NFT operations
 - **Cache Hit Rate**: >90% for metadata requests
+- **Identity Enrichment**: >95% of users have enriched profiles
 
 ### **Business Metrics**
 
@@ -601,6 +711,7 @@ async def create_nft_with_retry(
 - **Revenue per User**: Average revenue from NFT features
 - **User Retention**: 7-day, 30-day retention for NFT creators
 - **Social Impact**: Total charity donations, carbon offset
+- **Identity Engagement**: % of users interacting with identity features
 
 ### **User Experience Metrics**
 
@@ -608,6 +719,7 @@ async def create_nft_with_retry(
 - **Feature Discovery**: % of users who discover NFT features
 - **Satisfaction Score**: NPS for NFT creation experience
 - **Support Tickets**: Volume and resolution time for NFT issues
+- **Identity Adoption**: % of users with connected identities
 
 ---
 
@@ -633,6 +745,7 @@ async def create_nft_with_retry(
 - **Additional Chains**: Polygon, Arbitrum expansion
 - **Partnerships**: Art galleries, environmental organizations
 - **Advanced Features**: AI-generated collections, collaborative art
+- **Identity Enhancements**: Advanced profiling, community features
 
 ---
 
@@ -644,6 +757,7 @@ async def create_nft_with_retry(
 - **Smart Contract Bugs**: Comprehensive testing and audits
 - **API Rate Limits**: Caching and request optimization
 - **Data Loss**: Redundant storage and backup strategies
+- **Identity Integration**: Fallback to local profiles if Memory API unavailable
 
 ### **Business Risks**
 
@@ -651,6 +765,7 @@ async def create_nft_with_retry(
 - **Regulatory Changes**: Legal compliance monitoring
 - **Competition**: Unique value proposition and rapid iteration
 - **Market Volatility**: Stable pricing with cUSD on Celo
+- **Identity Privacy**: Clear data usage policies and user control
 
 ### **User Experience Risks**
 
@@ -658,6 +773,7 @@ async def create_nft_with_retry(
 - **Gas Fees**: Clear cost communication and alternatives
 - **Technical Barriers**: Simplified wallet connection flows
 - **Support Load**: Comprehensive documentation and FAQs
+- **Identity Confusion**: Clear explanation of cross-platform benefits
 
 ---
 
@@ -671,4 +787,4 @@ async def create_nft_with_retry(
 
 ---
 
-_This roadmap provides a comprehensive, well-structured approach to implementing NFT features while maximizing reuse of existing infrastructure and maintaining the highest standards of user experience and technical excellence._
+_This roadmap provides a comprehensive, well-structured approach to implementing NFT features while maximizing reuse of existing infrastructure and maintaining the highest standards of user experience and technical excellence, enhanced with cross-platform identity integration through the Memory API._

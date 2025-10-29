@@ -90,6 +90,19 @@ const MobileFileUpload = dynamic(
     ),
   }
 );
+
+// Import the Memory API example component
+const MemoryApiExample = dynamic(
+  () => import("./components/MemoryApiExample"),
+  {
+    loading: () => (
+      <Box p={4} textAlign="center">
+        Loading Memory API integration...
+      </Box>
+    ),
+  }
+);
+
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
 import { useFarcaster } from "./components/FarcasterFrameProvider";
@@ -123,7 +136,12 @@ export default function Home() {
   // Use theme system for dark mode support
   const { colors } = useGhibliTheme();
 
-  const { isInFrame, isLoading: frameLoading, isReady } = useFarcaster();
+  const {
+    isInFrame,
+    isLoading: frameLoading,
+    isReady,
+    user: farcasterUser,
+  } = useFarcaster();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImageURL, setSelectedImageURL] = useState("");
   const [generatedImageURL, setGeneratedImageURL] = useState("");
@@ -915,6 +933,16 @@ export default function Home() {
             </WrapItem>
           </Wrap>
         </Box>
+
+        {/* Memory API Integration Demo for Builder Rewards */}
+        {isConnected && (
+          <Box mt={12} mb={8}>
+            <MemoryApiExample
+              address={address}
+              farcasterUsername={farcasterUser?.username}
+            />
+          </Box>
+        )}
 
         <FAQ />
 

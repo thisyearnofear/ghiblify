@@ -10,6 +10,7 @@ from .celo_handler import celo_router
 from .base_pay_handler import base_pay_router
 from .ghiblify_token_handler import ghiblify_token_router
 from .health import router as health_router
+from .memory_api import memory_api_router
 
 router = APIRouter()
 
@@ -25,3 +26,4 @@ router.include_router(unified_wallet_router, tags=["wallet"])  # No prefix - use
 router.include_router(celo_router, prefix="/celo", tags=["celo"])
 router.include_router(base_pay_router, prefix="/base-pay", tags=["base-pay"])
 router.include_router(ghiblify_token_router, prefix="/ghiblify-token", tags=["ghiblify-token"])
+router.include_router(memory_api_router, prefix="/memory", tags=["memory"])

@@ -9,6 +9,7 @@ import {
   isFarcasterEnvironment,
   createNotificationId,
 } from "../config/farcaster";
+import { walletService } from "../lib/services/unified-wallet-service";
 
 interface FarcasterContextType {
   isInFrame: boolean;
@@ -17,6 +18,9 @@ interface FarcasterContextType {
   isLoading: boolean;
   isReady: boolean;
   sendNotification?: (type?: string) => Promise<void>;
+  // Enhanced with Memory API integration
+  unifiedProfile?: any;
+  refreshUnifiedProfile?: () => Promise<void>;
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
@@ -36,6 +40,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
+  const [unifiedProfile, setUnifiedProfile] = useState<any>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -59,13 +64,23 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
           try {
             // Use the injected connector which will detect the Farcaster provider
             const injectedConnector = config.connectors.find(
-              (connector) => connector.id === 'injected'
+              (connector) => connector.id === "injected"
             );
-            
+
             if (injectedConnector) {
               await connect(config, { connector: injectedConnector });
             } else {
-              console.warn('Injected connector not found in config');
+              console.warn("Injected connector not found in config");
+            }
+
+            // Enhance wallet connection with Farcaster identity data
+            if (frameContext.user?.address) {
+              const farcasterUsername = frameContext.user.username || undefined;
+              await walletService.connect(
+                frameContext.user.address,
+                "rainbowkit",
+                farcasterUsername
+              );
             }
           } catch (error) {
             console.error("Failed to connect Farcaster wallet:", error);
@@ -130,6 +145,23 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     }
   };
 
+  // Refresh unified profile with latest Memory API data
+  const refreshUnifiedProfile = async () => {
+    if (!user?.address) return;
+
+    try {
+      const farcasterUsername = user.username || undefined;
+      const profile = await walletService.connect(
+        user.address,
+        "rainbowkit",
+        farcasterUsername
+      );
+      setUnifiedProfile(profile.identity);
+    } catch (error) {
+      console.error("Failed to refresh unified profile:", error);
+    }
+  };
+
   const contextValue: FarcasterContextType = {
     isInFrame,
     context,
@@ -137,6 +169,8 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     isLoading,
     isReady,
     sendNotification,
+    unifiedProfile,
+    refreshUnifiedProfile,
   };
 
   return (

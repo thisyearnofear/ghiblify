@@ -11,6 +11,7 @@ Transform your photos into enchanting Studio Ghibli style artwork using AI. A be
 - 📚 **Batch Processing** - Transform up to 6 images at once
 - 🎯 **Divvi Integration** - Earn referral rewards on blockchain transactions
 - 🔐 **Web3 Integration** - MetaMask, WalletConnect, Base Account support
+- 🌐 **Memory API Integration** - Cross-platform identity mapping for Builder Rewards
 
 ## 🚀 Quick Start
 
@@ -32,13 +33,15 @@ Transform your photos into enchanting Studio Ghibli style artwork using AI. A be
 - **Web3**: RainbowKit, Wagmi, Viem, MetaMask, WalletConnect
 - **Payments**: Stripe, $GHIBLIFY tokens, Celo cUSD, Base Pay
 - **Infrastructure**: Vercel, Hetzner VPS, Upstash Redis
+- **Identity**: Memory API for cross-platform identity mapping
 
 ## 📚 Documentation
 
 - **Setup Guide**: [docs/SETUP.md](docs/SETUP.md) - Complete local development setup
-- **API Documentation**: Visit `/docs` when running the backend locally
-- **Roadmap**: [docs/ROADMAP.md](docs/ROADMAP.md) - NFT integration plans
-- **Farcaster Strategy**: [docs/FARCASTER_WALLET_STRATEGY.md](docs/FARCASTER_WALLET_STRATEGY.md)
+- **User Guide**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md) - How to use Ghiblify
+- **Technical Docs**: [docs/TECHNICAL.md](docs/TECHNICAL.md) - Architecture and implementation details
+- **Roadmap**: [docs/ROADMAP_CONSOLIDATED.md](docs/ROADMAP_CONSOLIDATED.md) - Future plans and features
+- **Memory API**: [docs/MEMORY_API.md](docs/MEMORY_API.md) - Integration details for Builder Rewards
 
 ## 📖 API Usage
 
