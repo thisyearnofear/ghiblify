@@ -33,6 +33,10 @@ import {
   VStack,
   Radio,
   RadioGroup,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription,
 } from "@chakra-ui/react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWallet } from "./lib/hooks/useWallet";
@@ -91,13 +95,43 @@ const MobileFileUpload = dynamic(
   }
 );
 
-// Import the Memory API example component
-const MemoryApiExample = dynamic(
-  () => import("./components/MemoryApiExample"),
+// Import the Identity Dashboard component
+const IdentityDashboard = dynamic(
+  () => import("./components/IdentityDashboard"),
   {
     loading: () => (
       <Box p={4} textAlign="center">
-        Loading Memory API integration...
+        Loading identity dashboard...
+      </Box>
+    ),
+  }
+);
+
+const Leaderboard = dynamic(() => import("./components/Leaderboard"), {
+  loading: () => (
+    <Box p={4} textAlign="center">
+      Loading leaderboard...
+    </Box>
+  ),
+});
+
+const SuggestedFollows = dynamic(
+  () => import("./components/SuggestedFollows"),
+  {
+    loading: () => (
+      <Box p={4} textAlign="center">
+        Loading suggestions...
+      </Box>
+    ),
+  }
+);
+
+const PersonalityProfile = dynamic(
+  () => import("./components/PersonalityProfile"),
+  {
+    loading: () => (
+      <Box p={4} textAlign="center">
+        Loading personality profile...
       </Box>
     ),
   }
@@ -521,8 +555,29 @@ export default function Home() {
 
   return (
     <>
-      <SplashScreen isLoading={frameLoading} />
       <MiniAppContainer>
+        {/* Memory API Integration Banner for Builder Rewards */}
+        {isConnected && (
+          <Alert status="info" mb={6} borderRadius="md">
+            <AlertIcon />
+            <Box flex="1">
+              <AlertTitle>Memory API Integration Active!</AlertTitle>
+              <AlertDescription display="block">
+                Your cross-platform identity is now enriched with Memory API
+                data.
+                <Link
+                  href="#identity-dashboard"
+                  color="blue.500"
+                  fontWeight="bold"
+                >
+                  {" "}
+                  View your unified profile
+                </Link>
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+
         <Box borderWidth="0px" mx="0px" my="10px">
           <Text
             color={colors.text.accent}
@@ -934,10 +989,61 @@ export default function Home() {
           </Wrap>
         </Box>
 
-        {/* Memory API Integration Demo for Builder Rewards */}
+        {/* Memory API Integration Dashboard for Builder Rewards */}
         {isConnected && (
-          <Box mt={12} mb={8}>
-            <MemoryApiExample
+          <Box id="identity-dashboard" mt={12} mb={8}>
+            <Heading size="lg" mb={4} textAlign="center">
+              Your Cross-Platform Identity Dashboard
+            </Heading>
+            <Text textAlign="center" mb={6} color="gray.600">
+              Powered by Memory API for the Builder Rewards initiative
+            </Text>
+            <IdentityDashboard
+              address={address}
+              farcasterUsername={farcasterUser?.username}
+            />
+          </Box>
+        )}
+
+        {/* Memory API Leaderboard for Builder Rewards */}
+        {isConnected && (
+          <Box id="leaderboard" mt={12} mb={8}>
+            <Heading size="lg" mb={4} textAlign="center">
+              Social Influence Leaderboard
+            </Heading>
+            <Text textAlign="center" mb={6} color="gray.600">
+              See how you rank among top creators in the ecosystem
+            </Text>
+            <Leaderboard />
+          </Box>
+        )}
+
+        {/* Memory API Suggested Follows for Builder Rewards */}
+        {isConnected && (
+          <Box id="suggested-follows" mt={12} mb={8}>
+            <Heading size="lg" mb={4} textAlign="center">
+              Suggested Follows
+            </Heading>
+            <Text textAlign="center" mb={6} color="gray.600">
+              Personalized recommendations based on your interests
+            </Text>
+            <SuggestedFollows
+              address={address}
+              farcasterUsername={farcasterUser?.username}
+            />
+          </Box>
+        )}
+
+        {/* Memory API Personality Profile for Builder Rewards */}
+        {isConnected && (
+          <Box id="personality-profile" mt={12} mb={8}>
+            <Heading size="lg" mb={4} textAlign="center">
+              Personality Profile
+            </Heading>
+            <Text textAlign="center" mb={6} color="gray.600">
+              Insights into your digital personality and interests
+            </Text>
+            <PersonalityProfile
               address={address}
               farcasterUsername={farcasterUser?.username}
             />

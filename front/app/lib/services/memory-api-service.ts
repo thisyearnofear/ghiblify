@@ -1,8 +1,8 @@
 /**
  * Memory API Service
  * 
- * Integrates with the Memory Protocol to provide cross-platform identity mapping
- * and social graph analysis capabilities.
+ * Integrates with the Memory Protocol through our backend endpoints
+ * to provide cross-platform identity mapping and social graph analysis capabilities.
  * 
  * This service extends the existing wallet functionality to:
  * - Map Farcaster identities to wallet addresses
@@ -27,22 +27,59 @@ export interface MemoryIdentityGraph {
   [platform: string]: MemoryIdentity;
 }
 
-// Memory API configuration
-const MEMORY_API_BASE_URL = 'https://api.memoryproto.co/v1';
-const MEMORY_API_KEY = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MEMORY_API_KEY || '';
-
 class MemoryApiService {
-  private apiKey: string;
-
-  constructor() {
-    this.apiKey = MEMORY_API_KEY;
-  }
+  // Cache for storing recently fetched data
+  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Check if Memory API is configured and available
    */
   isAvailable(): boolean {
-    return !!this.apiKey;
+    // Always return true since we're using backend endpoints
+    // The backend will handle the actual Memory API availability
+    return true;
+  }
+
+  /**
+   * Check if cached data is still valid
+   */
+  private isCacheValid(timestamp: number): boolean {
+    return Date.now() - timestamp < this.CACHE_DURATION;
+  }
+
+  /**
+   * Get cached data if available and valid
+   */
+  private getCachedData(key: string): any | null {
+    const cached = this.cache.get(key);
+    if (cached && this.isCacheValid(cached.timestamp)) {
+      return cached.data;
+    }
+    // Remove expired cache entry
+    this.cache.delete(key);
+    return null;
+  }
+
+  /**
+   * Set cached data
+   */
+  private setCachedData(key: string, data: any): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+
+  /**
+   * Clear cache for a specific key
+   */
+  clearCache(key: string): void {
+    this.cache.delete(key);
+  }
+
+  /**
+   * Clear all cached data
+   */
+  clearAllCache(): void {
+    this.cache.clear();
   }
 
   /**
@@ -50,30 +87,23 @@ class MemoryApiService {
    * @param username Farcaster username (e.g., 'vitalik.eth')
    */
   async getIdentityGraphByFarcasterUsername(username: string): Promise<MemoryIdentityGraph | null> {
-    if (!this.isAvailable()) {
-      console.warn('Memory API not configured - skipping identity graph retrieval');
-      return null;
+    const cacheKey = `identity-graph-farcaster-${username}`;
+    const cachedData = this.getCachedData(cacheKey);
+    if (cachedData) {
+      return cachedData;
     }
 
     try {
-      const response = await fetch(
-        `${MEMORY_API_BASE_URL}/identity-graph/farcaster/${encodeURIComponent(username)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Memory API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await api.post('/api/memory/identity-graph', {
+        identifier: username,
+        identifier_type: 'farcaster'
+      });
+      
+      const result = response.identity_graph;
+      this.setCachedData(cacheKey, result);
+      return result;
     } catch (error) {
-      console.error('Failed to fetch identity graph from Memory API:', error);
+      console.error('Failed to fetch identity graph:', error);
       return null;
     }
   }
@@ -83,30 +113,23 @@ class MemoryApiService {
    * @param address Ethereum wallet address
    */
   async getIdentityGraphByAddress(address: string): Promise<MemoryIdentityGraph | null> {
-    if (!this.isAvailable()) {
-      console.warn('Memory API not configured - skipping identity graph retrieval');
-      return null;
+    const cacheKey = `identity-graph-address-${address}`;
+    const cachedData = this.getCachedData(cacheKey);
+    if (cachedData) {
+      return cachedData;
     }
 
     try {
-      const response = await fetch(
-        `${MEMORY_API_BASE_URL}/identity-graph/address/${encodeURIComponent(address)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Memory API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
+      const response = await api.post('/api/memory/identity-graph', {
+        identifier: address,
+        identifier_type: 'address'
+      });
+      
+      const result = response.identity_graph;
+      this.setCachedData(cacheKey, result);
+      return result;
     } catch (error) {
-      console.error('Failed to fetch identity graph from Memory API:', error);
+      console.error('Failed to fetch identity graph:', error);
       return null;
     }
   }
@@ -116,19 +139,17 @@ class MemoryApiService {
    * @param username Farcaster username
    */
   async getWalletAddressForFarcasterUser(username: string): Promise<string | null> {
+    const cacheKey = `wallet-address-${username}`;
+    const cachedData = this.getCachedData(cacheKey);
+    if (cachedData) {
+      return cachedData;
+    }
+
     try {
-      const identityGraph = await this.getIdentityGraphByFarcasterUsername(username);
-      
-      if (!identityGraph) return null;
-
-      // Look for Ethereum address in the identity graph
-      for (const [platform, identity] of Object.entries(identityGraph)) {
-        if (platform === 'ethereum' && identity.id) {
-          return identity.id;
-        }
-      }
-
-      return null;
+      const response = await api.get(`/api/memory/wallet-address/${encodeURIComponent(username)}`);
+      const result = response.wallet_address;
+      this.setCachedData(cacheKey, result);
+      return result;
     } catch (error) {
       console.error('Failed to map Farcaster user to wallet address:', error);
       return null;
@@ -140,34 +161,25 @@ class MemoryApiService {
    * @param identifier User identifier (wallet address or Farcaster username)
    */
   async getSocialGraph(identifier: string): Promise<any> {
-    if (!this.isAvailable()) {
-      console.warn('Memory API not configured - skipping social graph retrieval');
-      return null;
+    const isAddress = identifier.startsWith('0x') && identifier.length === 42;
+    const type = isAddress ? 'address' : 'farcaster';
+    const cacheKey = `social-graph-${type}-${identifier}`;
+    const cachedData = this.getCachedData(cacheKey);
+    if (cachedData) {
+      return cachedData;
     }
 
     try {
-      // Determine if identifier is a wallet address or Farcaster username
-      const isAddress = identifier.startsWith('0x') && identifier.length === 42;
-      
-      const endpoint = isAddress 
-        ? `${MEMORY_API_BASE_URL}/social-graph/address/${encodeURIComponent(identifier)}`
-        : `${MEMORY_API_BASE_URL}/social-graph/farcaster/${encodeURIComponent(identifier)}`;
-
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
+      const response = await api.post('/api/memory/social-graph', {
+        identifier: identifier,
+        identifier_type: type
       });
-
-      if (!response.ok) {
-        throw new Error(`Memory API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
+      
+      const result = response.social_graph;
+      this.setCachedData(cacheKey, result);
+      return result;
     } catch (error) {
-      console.error('Failed to fetch social graph from Memory API:', error);
+      console.error('Failed to fetch social graph:', error);
       return null;
     }
   }
@@ -177,31 +189,28 @@ class MemoryApiService {
    * @param address Wallet address
    * @param farcasterUsername Farcaster username (optional)
    */
-  async createUnifiedProfile(address: string, farcasterUsername?: string): Promise<any> {
+  async createUnifiedProfile(address: string, farcasterUsername?: string, forceRefresh: boolean = false): Promise<any> {
+    const cacheKey = `unified-profile-${address}-${farcasterUsername || 'no-farcaster'}`;
+    
+    // If force refresh is requested, clear the cache for this key
+    if (forceRefresh) {
+      this.clearCache(cacheKey);
+    } else {
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        return cachedData;
+      }
+    }
+
     try {
-      // Get wallet-based identity graph
-      const walletIdentityGraph = await this.getIdentityGraphByAddress(address);
+      const response = await api.post('/api/memory/unified-profile', {
+        address: address,
+        farcaster_username: farcasterUsername
+      });
       
-      // Get Farcaster-based identity graph if username provided
-      const farcasterIdentityGraph = farcasterUsername 
-        ? await this.getIdentityGraphByFarcasterUsername(farcasterUsername)
-        : null;
-
-      // Get social graph data
-      const socialGraph = await this.getSocialGraph(address);
-
-      return {
-        wallet: {
-          address,
-          identities: walletIdentityGraph || {},
-        },
-        farcaster: {
-          username: farcasterUsername,
-          identities: farcasterIdentityGraph || {},
-        },
-        social: socialGraph || {},
-        timestamp: Date.now(),
-      };
+      const result = response;
+      this.setCachedData(cacheKey, result);
+      return result;
     } catch (error) {
       console.error('Failed to create unified profile:', error);
       return null;

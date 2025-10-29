@@ -25,7 +25,10 @@ interface UseMemoryApiReturn {
   getIdentityGraph: (identifier: string, type: 'address' | 'farcaster') => Promise<any>;
   getSocialGraph: (identifier: string, type: 'address' | 'farcaster') => Promise<any>;
   getWalletAddressForFarcasterUser: (username: string) => Promise<string | null>;
-  createUnifiedProfile: (address: string, farcasterUsername?: string) => Promise<any>;
+  createUnifiedProfile: (address: string, farcasterUsername?: string, forceRefresh?: boolean) => Promise<any>;
+  getLeaderboard: (range?: string) => Promise<any>;
+  getSuggestedFollows: (identifier: string, type: 'address' | 'farcaster') => Promise<any>;
+  getPersonalityProfile: (identifier: string, type: 'address' | 'farcaster') => Promise<any>;
   
   // State
   isLoading: boolean;
@@ -86,7 +89,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
     }
   }, []);
 
-  const createUnifiedProfile = useCallback(async (address: string, farcasterUsername?: string): Promise<any> => {
+  const createUnifiedProfile = useCallback(async (address: string, farcasterUsername?: string, forceRefresh: boolean = false): Promise<any> => {
     setIsLoading(true);
     setError(null);
 
@@ -103,11 +106,62 @@ export function useMemoryApi(): UseMemoryApiReturn {
     }
   }, []);
 
+  const getLeaderboard = useCallback(async (range: string = 'all'): Promise<any> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.get(`/api/memory/leaderboard?range=${range}`);
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch leaderboard';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const getSuggestedFollows = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.get(`/api/memory/suggested-follows?identifier=${identifier}&identifier_type=${type}`);
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch suggestions';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const getPersonalityProfile = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.get(`/api/memory/personality-profile?identifier=${identifier}&identifier_type=${type}`);
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch personality profile';
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     getIdentityGraph,
     getSocialGraph,
     getWalletAddressForFarcasterUser,
     createUnifiedProfile,
+    getLeaderboard,
+    getSuggestedFollows,
+    getPersonalityProfile,
     isLoading,
     error,
   };

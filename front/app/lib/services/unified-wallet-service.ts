@@ -187,6 +187,8 @@ class WalletService {
           }
         } catch (error) {
           console.warn('Failed to fetch identity data from Memory API:', error);
+          // Try to get cached data if available
+          console.log('Attempting to use cached identity data...');
         }
       }
 

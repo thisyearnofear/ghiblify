@@ -42,6 +42,7 @@ Transform your photos into enchanting Studio Ghibli style artwork using AI. A be
 - **Technical Docs**: [docs/TECHNICAL.md](docs/TECHNICAL.md) - Architecture and implementation details
 - **Roadmap**: [docs/ROADMAP_CONSOLIDATED.md](docs/ROADMAP_CONSOLIDATED.md) - Future plans and features
 - **Memory API**: [docs/MEMORY_API.md](docs/MEMORY_API.md) - Integration details for Builder Rewards
+- **Builder Rewards**: [docs/BUILDER_REWARDS_SUMMARY.md](docs/BUILDER_REWARDS_SUMMARY.md) - Implementation summary for the Builder Rewards initiative
 
 ## 📖 API Usage
 

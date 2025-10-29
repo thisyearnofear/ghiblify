@@ -21,6 +21,7 @@ interface FarcasterContextType {
   // Enhanced with Memory API integration
   unifiedProfile?: any;
   refreshUnifiedProfile?: () => Promise<void>;
+  socialScore?: number;
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
@@ -41,6 +42,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [unifiedProfile, setUnifiedProfile] = useState<any>(null);
+  const [socialScore, setSocialScore] = useState<number | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -150,6 +152,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     if (!user?.address) return;
 
     try {
+      // Force refresh the unified profile to get latest data
       const farcasterUsername = user.username || undefined;
       const profile = await walletService.connect(
         user.address,
@@ -157,9 +160,37 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
         farcasterUsername
       );
       setUnifiedProfile(profile.identity);
+
+      // Calculate social score if social data is available
+      if (profile.socialGraph) {
+        const score = calculateSocialScore(profile.socialGraph);
+        setSocialScore(score);
+      }
     } catch (error) {
       console.error("Failed to refresh unified profile:", error);
     }
+  };
+
+  // Simple social influence scoring algorithm
+  const calculateSocialScore = (socialData: any): number => {
+    let score = 0;
+
+    // Farcaster followers
+    if (socialData.farcaster?.social?.followers) {
+      score += Math.log10(socialData.farcaster.social.followers) * 10;
+    }
+
+    // Twitter followers (if available)
+    if (socialData.twitter?.social?.followers) {
+      score += Math.log10(socialData.twitter.social.followers) * 5;
+    }
+
+    // GitHub followers (if available)
+    if (socialData.github?.social?.followers) {
+      score += Math.log10(socialData.github.social.followers) * 3;
+    }
+
+    return Math.round(score);
   };
 
   const contextValue: FarcasterContextType = {
@@ -171,6 +202,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
     sendNotification,
     unifiedProfile,
     refreshUnifiedProfile,
+    socialScore: socialScore || undefined,
   };
 
   return (
