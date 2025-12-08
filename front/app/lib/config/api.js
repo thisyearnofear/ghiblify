@@ -5,7 +5,9 @@
  */
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.thisyearnofear.com";
+  process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? "http://localhost:3001" 
+    : "https://api.thisyearnofear.com");
 
 if (!API_URL) {
   console.error("[API] NEXT_PUBLIC_API_URL environment variable is not set");
