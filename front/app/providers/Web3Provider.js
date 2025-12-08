@@ -11,13 +11,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@rainbow-me/rainbowkit/styles.css";
 
 // Lazy load frame connector to avoid initialization issues
-let farcasterFrame;
-try {
-  const frameModule = require("@farcaster/frame-wagmi-connector");
-  farcasterFrame = frameModule.farcasterFrame;
-} catch (e) {
-  console.warn("Frame connector not available", e);
-}
+let farcasterFrame = null;
+// Don't load on initial import - only when needed
+const loadFrameConnector = () => {
+  if (farcasterFrame) return farcasterFrame;
+  try {
+    const { farcasterFrame: ff } = require("@farcaster/frame-wagmi-connector");
+    farcasterFrame = ff;
+    return ff;
+  } catch (e) {
+    console.warn("Frame connector not available");
+    return null;
+  }
+};
 
 // Detect if running in Mini App context
 const isInMiniApp = typeof window !== 'undefined' && (
@@ -105,7 +111,10 @@ const config = getDefaultConfig({
   },
   connectors: [
     farcasterMiniApp(),
-    ...(farcasterFrame ? [farcasterFrame()] : []),
+    ...(() => {
+      const ff = loadFrameConnector();
+      return ff ? [ff()] : [];
+    })(),
     ...(isInMiniApp ? [] : [injected()]),
     walletConnect({
       projectId:

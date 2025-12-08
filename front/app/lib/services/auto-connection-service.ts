@@ -7,7 +7,15 @@
 'use client';
 
 import { switchChain, getChainId } from '@wagmi/core';
-import { config } from '../../providers/Web3Provider';
+
+// Lazy load config to avoid circular dependencies
+let configPromise: Promise<any> | null = null;
+const getConfig = async () => {
+  if (!configPromise) {
+    configPromise = import('../../providers/Web3Provider').then(m => m.config);
+  }
+  return configPromise;
+};
 
 // Supported chains mapping by name
 const CHAIN_BY_KEY: Record<string, number> = {
@@ -39,18 +47,19 @@ const DEFAULT_OPTIONS: Required<NetworkSwitchOptions> = {
  * Enhanced chain switching with retry logic and stabilization
  */
 async function switchToChainIdWithRetry(
-  targetChainId: number,
-  options: NetworkSwitchOptions = {}
-): Promise<boolean> {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-  const { maxRetries, stabilizationDelay, retryDelay, onProgress, onError } = opts;
+   targetChainId: number,
+   options: NetworkSwitchOptions = {}
+ ): Promise<boolean> {
+   const opts = { ...DEFAULT_OPTIONS, ...options };
+   const { maxRetries, stabilizationDelay, retryDelay, onProgress, onError } = opts;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      onProgress(`Switching to network ${targetChainId} (attempt ${attempt}/${maxRetries})`);
+   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+     try {
+       onProgress(`Switching to network ${targetChainId} (attempt ${attempt}/${maxRetries})`);
 
-      // Attempt to switch chain
-      await switchChain(config, { chainId: targetChainId });
+       // Attempt to switch chain
+       const config = await getConfig();
+       await switchChain(config, { chainId: targetChainId });
 
       // Wait for stabilization
       onProgress('Network switched, stabilizing connection...');
@@ -87,15 +96,16 @@ async function switchToChainIdWithRetry(
  * Verify that the network is ready for transactions
  */
 async function verifyNetworkReady(targetChainId: number): Promise<boolean> {
-  try {
-    // Check if wagmi reports the correct chain
-    const currentChainId = getChainId(config);
-    return currentChainId === targetChainId;
-  } catch (error) {
-    console.warn('[auto-connection] Network verification failed:', error);
-    return false;
-  }
-}
+   try {
+     // Check if wagmi reports the correct chain
+     const config = await getConfig();
+     const currentChainId = getChainId(config);
+     return currentChainId === targetChainId;
+   } catch (error) {
+     console.warn('[auto-connection] Network verification failed:', error);
+     return false;
+   }
+ }
 
 /**
  * Simple delay utility
@@ -108,14 +118,15 @@ function delay(ms: number): Promise<void> {
  * Legacy simple switch function for backward compatibility
  */
 async function switchToChainId(targetChainId: number): Promise<boolean> {
-  try {
-    await switchChain(config, { chainId: targetChainId });
-    return true;
-  } catch (err) {
-    console.warn('[auto-connection] switchChain failed:', err);
-    return false;
-  }
-}
+   try {
+     const config = await getConfig();
+     await switchChain(config, { chainId: targetChainId });
+     return true;
+   } catch (err) {
+     console.warn('[auto-connection] switchChain failed:', err);
+     return false;
+   }
+ }
 
 export const autoConnectionService = {
   /**

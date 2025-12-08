@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, createContext, useContext } from "react";
 import { walletService } from "../lib/services/unified-wallet-service";
-import { config } from "../providers/Web3Provider";
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
@@ -62,32 +61,35 @@ export function FarcasterMiniAppProvider({ children }: { children: any }) {
         }
 
         // Autoconnect if running in a frame using the injected connector
-        if (miniAppContext?.client?.clientFid) {
-          try {
-            // Use the injected connector which will detect the Farcaster provider
-            const injectedConnector = config.connectors.find(
-              (connector) => connector.id === "injected"
-            );
+         if (miniAppContext?.client?.clientFid) {
+           try {
+             // Lazy load config to avoid circular dependencies
+             const { config } = await import("../providers/Web3Provider");
+             
+             // Use the injected connector which will detect the Farcaster provider
+             const injectedConnector = config.connectors.find(
+               (connector) => connector.id === "injected"
+             );
 
-            if (injectedConnector) {
-              await connect(config, { connector: injectedConnector });
-            } else {
-              console.warn("Injected connector not found in config");
-            }
+             if (injectedConnector) {
+               await connect(config, { connector: injectedConnector });
+             } else {
+               console.warn("Injected connector not found in config");
+             }
 
-            // Enhance wallet connection with Farcaster identity data
-            if (miniAppContext.user && 'address' in miniAppContext.user) {
-              const farcasterUsername = miniAppContext.user.username || undefined;
-              await walletService.connect(
-                miniAppContext.user.address as string,
-                "rainbowkit",
-                farcasterUsername
-              );
-            }
-          } catch (error) {
-            console.error("Failed to connect Farcaster wallet:", error);
-          }
-        }
+             // Enhance wallet connection with Farcaster identity data
+             if (miniAppContext.user && 'address' in miniAppContext.user) {
+               const farcasterUsername = miniAppContext.user.username || undefined;
+               await walletService.connect(
+                 miniAppContext.user.address as string,
+                 "rainbowkit",
+                 farcasterUsername
+               );
+             }
+           } catch (error) {
+             console.error("Failed to connect Farcaster wallet:", error);
+           }
+         }
 
         setIsLoading(false);
 
