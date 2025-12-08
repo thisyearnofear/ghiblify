@@ -8,15 +8,7 @@ import { ghiblifyPriceOracle, PricingCalculation } from './ghiblify-price-oracle
 import { walletService } from './unified-wallet-service';
 import { readContract, waitForTransactionReceipt, getChainId } from '@wagmi/core';
 import { parseUnits, formatUnits } from 'viem';
-
-// Lazy load config to avoid circular dependencies
-let configPromise: Promise<any> | null = null;
-const getConfig = async () => {
-  if (!configPromise) {
-    configPromise = import('../../providers/Web3Provider').then(m => m.config);
-  }
-  return configPromise;
-};
+import { config } from '../../config/wagmi-config';
 
 // We'll need to use the wagmi hooks pattern like the existing Celo implementation
 // This service will coordinate with the UI layer that has access to wagmi hooks
@@ -172,7 +164,6 @@ class GhiblifyTokenPaymentService {
      const contractTier = tierName === 'unlimited' ? 'don' : tierName;
      
      try {
-       const config = await getConfig();
        const tokenAmount = await readContract(config, {
          address: GHIBLIFY_TOKEN_CONFIG.contractAddress as `0x${string}`,
          abi: GHIBLIFY_PAYMENTS_ABI,
@@ -225,7 +216,6 @@ class GhiblifyTokenPaymentService {
     
     try {
       // Real contract call to check token balance
-      const config = await getConfig();
       const balance = await readContract(config, {
         address: GHIBLIFY_TOKEN_CONFIG.tokenAddress as `0x${string}`,
         abi: ERC20_ABI,
@@ -328,7 +318,6 @@ class GhiblifyTokenPaymentService {
     
     try {
       // Check current allowance
-      const config = await getConfig();
       const currentAllowance = await readContract(config, {
         address: GHIBLIFY_TOKEN_CONFIG.tokenAddress as `0x${string}`,
         abi: ERC20_ABI,
@@ -497,7 +486,6 @@ class GhiblifyTokenPaymentService {
     */
    private async getCurrentChainId(): Promise<number | null> {
      try {
-       const config = await getConfig();
        return getChainId(config);
      } catch (error) {
        console.warn('[GHIBLIFY Token] Failed to get current chain ID:', error);

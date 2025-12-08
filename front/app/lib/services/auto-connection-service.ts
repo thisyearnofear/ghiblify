@@ -7,15 +7,7 @@
 'use client';
 
 import { switchChain, getChainId } from '@wagmi/core';
-
-// Lazy load config to avoid circular dependencies
-let configPromise: Promise<any> | null = null;
-const getConfig = async () => {
-  if (!configPromise) {
-    configPromise = import('../../providers/Web3Provider').then(m => m.config);
-  }
-  return configPromise;
-};
+import { config } from '../../config/wagmi-config';
 
 // Supported chains mapping by name
 const CHAIN_BY_KEY: Record<string, number> = {
@@ -58,7 +50,6 @@ async function switchToChainIdWithRetry(
        onProgress(`Switching to network ${targetChainId} (attempt ${attempt}/${maxRetries})`);
 
        // Attempt to switch chain
-       const config = await getConfig();
        await switchChain(config, { chainId: targetChainId });
 
       // Wait for stabilization
@@ -98,7 +89,6 @@ async function switchToChainIdWithRetry(
 async function verifyNetworkReady(targetChainId: number): Promise<boolean> {
    try {
      // Check if wagmi reports the correct chain
-     const config = await getConfig();
      const currentChainId = getChainId(config);
      return currentChainId === targetChainId;
    } catch (error) {
@@ -119,7 +109,6 @@ function delay(ms: number): Promise<void> {
  */
 async function switchToChainId(targetChainId: number): Promise<boolean> {
    try {
-     const config = await getConfig();
      await switchChain(config, { chainId: targetChainId });
      return true;
    } catch (err) {

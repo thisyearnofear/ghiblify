@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, createContext, useContext } from "react";
 import { walletService } from "../lib/services/unified-wallet-service";
+import { config } from "../config/wagmi-config";
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
@@ -63,9 +64,6 @@ export function FarcasterMiniAppProvider({ children }: { children: any }) {
         // Autoconnect if running in a frame using the injected connector
          if (miniAppContext?.client?.clientFid) {
            try {
-             // Lazy load config to avoid circular dependencies
-             const { config } = await import("../providers/Web3Provider");
-             
              // Use the injected connector which will detect the Farcaster provider
              const injectedConnector = config.connectors.find(
                (connector) => connector.id === "injected"
