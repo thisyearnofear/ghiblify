@@ -6,7 +6,7 @@ import { useWallet } from "../../lib/hooks/useWallet";
 import { useSwitchChain, useChainId } from "wagmi";
 import { base } from "wagmi/chains";
 import { celoMainnet } from "../../providers/Web3Provider";
-import { useFarcaster } from "../FarcasterFrameProvider";
+import { useFarcaster } from "../FarcasterMiniAppProvider";
 import { COLORS, INTERACTIONS } from "../../theme";
 
 interface NetworkSwitcherProps {
@@ -19,7 +19,7 @@ export default function NetworkSwitcher({
   showLabel = false,
 }: NetworkSwitcherProps) {
   const { user, address } = useWallet();
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
   const chainId = useChainId();
   const { switchChain, isPending } = useSwitchChain();
   const [networkError, setNetworkError] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function NetworkSwitcher({
   };
 
   // Only show in Farcaster frames where chain switching makes sense
-  if (!isInFrame) {
+  if (!isInMiniApp) {
     return null;
   }
 

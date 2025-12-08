@@ -30,7 +30,7 @@ import {
 import { parseEther, formatUnits } from "ethers";
 import { createPaymentHandler } from "../utils/paymentUtils";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
-import { useFarcaster } from "./FarcasterFrameProvider";
+import { useFarcaster } from "./FarcasterMiniAppProvider";
 import { parsePaymentError, getToastConfig } from "../utils/errorHandling";
 import PaymentMethodSelector from "./payments/PaymentMethodSelector";
 import { ghiblifyTokenPayments } from "../lib/services/ghiblify-token-payments";

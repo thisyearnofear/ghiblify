@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { useWallet } from "../../lib/hooks/useWallet";
-import { useFarcaster } from "../FarcasterFrameProvider";
+import { useFarcaster } from "../FarcasterMiniAppProvider";
 import { useBaseAccountAuth } from "../../lib/hooks/useBaseAccountAuth";
 import Web3Avatar from "../Web3Avatar";
 import SignInWithBase from "../SignInWithBase";
@@ -25,7 +25,7 @@ import { COLORS, PATTERNS, INTERACTIONS, ANIMATION_PRESETS } from "../../theme";
 
 export default function CompactWalletButton() {
   const { address, isConnected } = useAccount();
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
   const { signOut: baseSignOut, isAuthenticated: isBaseAuthenticated } =
     useBaseAccountAuth();
   const {
@@ -126,7 +126,7 @@ export default function CompactWalletButton() {
                 onClick={() => {
                   if (account) {
                     openAccountModal();
-                  } else if (!isInFrame) {
+                  } else if (!isInMiniApp) {
                     const shouldDisconnect =
                       window.confirm("Disconnect wallet?");
                     if (shouldDisconnect) {
@@ -139,7 +139,7 @@ export default function CompactWalletButton() {
                 px={3}
                 leftIcon={<Web3Avatar address={displayAddress} size={18} />}
                 rightIcon={null}
-                cursor={isInFrame && !account ? "default" : "pointer"}
+                cursor={isInMiniApp && !account ? "default" : "pointer"}
               >
                 <VStack spacing={0} align="flex-start">
                   <HStack spacing={1}>
@@ -163,7 +163,7 @@ export default function CompactWalletButton() {
         // Not connected state - use environment-aware wallet selector
         return (
           <Box position="relative">
-            {isInFrame ? (
+            {isInMiniApp ? (
               // In Farcaster frames, show Base Account auth directly
               <MagicalButton
                 onClick={openBaseAuth}
@@ -204,7 +204,7 @@ export default function CompactWalletButton() {
                   onSuccess={handleBaseAuthSuccess}
                   onError={handleBaseAuthError}
                 />
-                {!isInFrame && (
+                {!isInMiniApp && (
                   <Button
                     onClick={() => {
                       closeBaseAuth();

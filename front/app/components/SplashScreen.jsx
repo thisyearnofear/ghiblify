@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Flex, Image, Text, Spinner, VStack } from '@chakra-ui/react';
-import { useFarcaster } from './FarcasterFrameProvider';
+import { useFarcaster } from './FarcasterMiniAppProvider';
 
 export default function SplashScreen({ isLoading = true }) {
   const { isInFrame } = useFarcaster();

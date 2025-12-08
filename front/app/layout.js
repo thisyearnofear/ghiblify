@@ -2,7 +2,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import theme from "./theme/chakra-theme";
 import themeConfig from "./theme/config";
 import { Web3Provider } from "./providers/Web3Provider";
-import { FarcasterFrameProvider } from "./components/FarcasterFrameProvider";
+import { FarcasterMiniAppProvider } from "./components/FarcasterMiniAppProvider";
 import Navigation from "./components/Navigation";
 import MobileErrorBoundary from "./components/MobileErrorBoundary";
 
@@ -60,12 +60,12 @@ export default function RootLayout({ children }) {
       <body>
         <ChakraProvider theme={theme}>
           <Web3Provider>
-            <FarcasterFrameProvider>
+            <FarcasterMiniAppProvider>
               <MobileErrorBoundary>
                 <Navigation />
                 {children}
               </MobileErrorBoundary>
-            </FarcasterFrameProvider>
+            </FarcasterMiniAppProvider>
           </Web3Provider>
         </ChakraProvider>
       </body>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Box, Text, Button, VStack, Alert, AlertIcon } from '@chakra-ui/react';
-import { useFarcaster } from './FarcasterFrameProvider';
+import { useFarcaster } from './FarcasterMiniAppProvider';
 
 class MobileErrorBoundary extends React.Component {
   constructor(props) {

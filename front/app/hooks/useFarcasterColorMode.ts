@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { useColorMode as useChakraColorMode } from '@chakra-ui/react';
-import { useFarcaster } from '../components/FarcasterFrameProvider';
+import { useFarcaster } from '../components/FarcasterMiniAppProvider';
 
 export interface FarcasterColorModeReturn {
   colorMode: 'light' | 'dark';
@@ -22,7 +22,7 @@ export interface FarcasterColorModeReturn {
 
 export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
   const chakraColorMode = useChakraColorMode();
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
   const [systemColorMode, setSystemColorMode] = useState<'light' | 'dark' | 'unknown'>('unknown');
   const [isColorModeReady, setIsColorModeReady] = useState(false);
   const [frameColorMode, setFrameColorMode] = useState<'light' | 'dark'>('light');
@@ -41,7 +41,7 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
             setSystemColorMode(systemPrefersDark ? 'dark' : 'light');
             
             // In frame environment, use system preference as fallback
-            if (isInFrame) {
+            if (isInMiniApp) {
               setFrameColorMode(systemPrefersDark ? 'dark' : 'light');
             }
           }
@@ -51,7 +51,7 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
             if (mounted) {
               setSystemColorMode(e.matches ? 'dark' : 'light');
               // In frames, automatically follow system preference if localStorage isn't working
-              if (isInFrame) {
+              if (isInMiniApp) {
                 setFrameColorMode(e.matches ? 'dark' : 'light');
               }
             }
@@ -63,7 +63,7 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
           };
         }
       } catch (error) {
-        console.log('Color mode initialization limited in frame environment:', error);
+        console.log('Color mode initialization limited in mini app environment:', error);
         // Fallback to light mode in constrained environments
         if (mounted) {
           setSystemColorMode('unknown');
@@ -83,11 +83,11 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [isInFrame]);
+  }, [isInMiniApp]);
 
   // Enhanced toggle function with frame-specific handling
   const enhancedToggleColorMode = () => {
-    if (isInFrame) {
+    if (isInMiniApp) {
       // In frames, manage color mode locally if Chakra's persistence fails
       const newMode = frameColorMode === 'light' ? 'dark' : 'light';
       setFrameColorMode(newMode);
@@ -96,7 +96,7 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
       try {
         chakraColorMode.toggleColorMode();
       } catch (error) {
-        console.log('Chakra color mode toggle failed in frame:', error);
+        console.log('Chakra color mode toggle failed in mini app:', error);
       }
     } else {
       chakraColorMode.toggleColorMode();
@@ -105,13 +105,13 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
 
   // Enhanced set color mode function
   const enhancedSetColorMode = (mode: 'light' | 'dark') => {
-    if (isInFrame) {
+    if (isInMiniApp) {
       setFrameColorMode(mode);
       
       try {
         chakraColorMode.setColorMode(mode);
       } catch (error) {
-        console.log('Chakra set color mode failed in frame:', error);
+        console.log('Chakra set color mode failed in mini app:', error);
       }
     } else {
       chakraColorMode.setColorMode(mode);
@@ -119,14 +119,14 @@ export const useFarcasterColorMode = (): FarcasterColorModeReturn => {
   };
 
   // Determine the current color mode
-  const currentColorMode = isInFrame ? frameColorMode : chakraColorMode.colorMode;
+  const currentColorMode = isInMiniApp ? frameColorMode : chakraColorMode.colorMode;
 
   return {
     colorMode: currentColorMode,
     toggleColorMode: enhancedToggleColorMode,
     setColorMode: enhancedSetColorMode,
     systemColorMode,
-    isFrameEnvironment: isInFrame,
+    isFrameEnvironment: isInMiniApp,
     isColorModeReady,
   };
 };

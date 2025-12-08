@@ -15,7 +15,7 @@ import {
   ModalCloseButton,
 } from "@chakra-ui/react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useFarcaster } from "../FarcasterFrameProvider";
+import { useFarcaster } from "../FarcasterMiniAppProvider";
 import { useWallet } from "../../lib/hooks/useWallet";
 import { useBaseAccountAuth } from "../../lib/hooks/useBaseAccountAuth";
 import SignInWithBase from "../SignInWithBase";
@@ -32,7 +32,7 @@ export default function WalletSelector({
   size = "md",
   variant = "compact",
 }: WalletSelectorProps) {
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
   const { isConnected, user, provider } = useWallet();
   const { isAuthenticated: isBaseAuth } = useBaseAccountAuth();
 
@@ -49,7 +49,7 @@ export default function WalletSelector({
   } = useDisclosure();
 
   // In Farcaster frames, wallet is auto-connected, no selection needed
-  if (isInFrame) {
+  if (isInMiniApp) {
     return null;
   }
 

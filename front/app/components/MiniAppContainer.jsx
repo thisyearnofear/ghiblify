@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Container } from '@chakra-ui/react';
-import { useFarcaster } from './FarcasterFrameProvider';
+import { useFarcaster } from './FarcasterMiniAppProvider';
 
 export default function MiniAppContainer({ children }) {
   const { isInFrame } = useFarcaster();

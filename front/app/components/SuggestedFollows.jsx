@@ -5,7 +5,7 @@
  * powered by Memory API cross-platform identity mapping.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Heading,
@@ -94,9 +94,9 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
     if (address || farcasterUsername) {
       fetchSuggestions();
     }
-  }, [address, farcasterUsername]);
+  }, [address, farcasterUsername, fetchSuggestions]);
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = useCallback(async () => {
     try {
       const identifier = address || farcasterUsername;
       const type = address ? 'address' : 'farcaster';
@@ -109,7 +109,7 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setSuggestions(mockSuggestions);
     }
-  };
+  }, [address, farcasterUsername, getSuggestedFollows, mockSuggestions]);
 
   const handleFollow = (userId) => {
     setFollowing(prev => new Set([...prev, userId]));

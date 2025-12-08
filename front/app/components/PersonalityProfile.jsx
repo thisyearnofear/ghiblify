@@ -5,7 +5,7 @@
  * powered by Memory API cross-platform identity mapping.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Heading,
@@ -79,9 +79,9 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
     if (address || farcasterUsername) {
       fetchPersonalityData();
     }
-  }, [address, farcasterUsername]);
+  }, [address, farcasterUsername, fetchPersonalityData]);
 
-  const fetchPersonalityData = async () => {
+  const fetchPersonalityData = useCallback(async () => {
     try {
       const identifier = address || farcasterUsername;
       const type = address ? 'address' : 'farcaster';
@@ -94,7 +94,7 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setPersonalityData(mockPersonalityData);
     }
-  };
+  }, [address, farcasterUsername, getPersonalityProfile, mockPersonalityData]);
 
   if (error) {
     return (

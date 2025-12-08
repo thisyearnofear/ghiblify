@@ -139,7 +139,7 @@ const PersonalityProfile = dynamic(
 
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
-import { useFarcaster } from "./components/FarcasterFrameProvider";
+import { useFarcaster } from "./components/FarcasterMiniAppProvider";
 import ImageReadyBoundary from "./components/ImageReadyBoundary";
 import {
   retrySpendCredits,

@@ -5,7 +5,7 @@
  * powered by Memory API social graph analysis.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Heading,
@@ -61,15 +61,12 @@ export default function Leaderboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [timeRange, setTimeRange] = useState('all'); // all, week, month
 
-  // State for last updated timestamp
-  const [lastUpdated, setLastUpdated] = useState(null);
-
   // Fetch leaderboard data when component mounts
   useEffect(() => {
     fetchLeaderboardData();
-  }, [timeRange]);
+  }, [timeRange, fetchLeaderboardData]);
 
-  const fetchLeaderboardData = async () => {
+  const fetchLeaderboardData = useCallback(async () => {
     try {
       const response = await getLeaderboard(timeRange);
       if (response && response.leaderboard) {
@@ -79,7 +76,7 @@ export default function Leaderboard() {
     } catch (err) {
       console.error('Leaderboard fetch error:', err);
     }
-  };
+  }, [getLeaderboard, timeRange]);
 
   if (error) {
     return (

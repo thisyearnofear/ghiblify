@@ -12,7 +12,7 @@ import {
 import { walletService } from "../lib/services/unified-wallet-service";
 
 interface FarcasterContextType {
-  isInFrame: boolean;
+  isInMiniApp: boolean;
   context: any;
   user: any;
   isLoading: boolean;
@@ -25,7 +25,7 @@ interface FarcasterContextType {
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
-  isInFrame: false,
+  isInMiniApp: false,
   context: null,
   user: null,
   isLoading: true,
@@ -35,8 +35,8 @@ const FarcasterContext = createContext<FarcasterContextType>({
 
 export const useFarcaster = () => useContext(FarcasterContext);
 
-export function FarcasterFrameProvider({ children }: { children: any }) {
-  const [isInFrame, setIsInFrame] = useState(false);
+export function FarcasterMiniAppProvider({ children }: { children: any }) {
+  const [isInMiniApp, setIsInMiniApp] = useState(false);
   const [context, setContext] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,22 +47,22 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
   useEffect(() => {
     const init = async () => {
       try {
-        const frameContext = await sdk.context;
-        setContext(frameContext);
+        const miniAppContext = await sdk.context;
+        setContext(miniAppContext);
 
         // Check if we're running in a Mini App environment using config
-        const inFrame = !!(
-          frameContext?.client?.clientFid || isFarcasterEnvironment()
+        const inMiniApp = !!(
+          miniAppContext?.client?.clientFid || isFarcasterEnvironment()
         );
 
-        setIsInFrame(inFrame);
+        setIsInMiniApp(inMiniApp);
 
-        if (frameContext?.user) {
-          setUser(frameContext.user);
+        if (miniAppContext?.user) {
+          setUser(miniAppContext.user);
         }
 
         // Autoconnect if running in a frame using the injected connector
-        if (frameContext?.client?.clientFid) {
+        if (miniAppContext?.client?.clientFid) {
           try {
             // Use the injected connector which will detect the Farcaster provider
             const injectedConnector = config.connectors.find(
@@ -76,10 +76,10 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
             }
 
             // Enhance wallet connection with Farcaster identity data
-            if (frameContext.user?.address) {
-              const farcasterUsername = frameContext.user.username || undefined;
+            if (miniAppContext.user && 'address' in miniAppContext.user) {
+              const farcasterUsername = miniAppContext.user.username || undefined;
               await walletService.connect(
-                frameContext.user.address,
+                miniAppContext.user.address as string,
                 "rainbowkit",
                 farcasterUsername
               );
@@ -92,12 +92,12 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
         setIsLoading(false);
 
         // Notify frame we're ready - using config timeout
-        const readyDelay = inFrame ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
+        const readyDelay = inMiniApp ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
         setTimeout(() => {
           // Enhanced mobile debugging
-          if (FARCASTER_CONFIG.sdk.enableMobileConsole && inFrame) {
-            console.log("[Farcaster] Frame ready in mobile environment");
-            console.log("[Farcaster] Context:", frameContext);
+          if (FARCASTER_CONFIG.sdk.enableMobileConsole && inMiniApp) {
+            console.log("[Farcaster] Mini App ready in mobile environment");
+            console.log("[Farcaster] Context:", miniAppContext);
             console.log("[Farcaster] User agent:", navigator.userAgent);
             console.log("[Farcaster] Viewport:", {
               width: window.innerWidth,
@@ -112,16 +112,16 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
       } catch (error) {
         console.error("Failed to initialize Farcaster Frame SDK:", error);
         setIsLoading(false);
-        // Not in frame environment, continue normally
+        // Not in Mini App environment, continue normally
       }
     };
 
     init();
-  }, [isInFrame, context?.user?.address]);
+  }, [isInMiniApp, context?.user?.address]);
 
   // Send notifications when transformations complete
   const sendNotification = async (type: string = "transformComplete") => {
-    if (!isInFrame) return;
+    if (!isInMiniApp) return;
 
     try {
       const notificationConfig = FARCASTER_CONFIG.notifications[type];
@@ -194,7 +194,7 @@ export function FarcasterFrameProvider({ children }: { children: any }) {
   };
 
   const contextValue: FarcasterContextType = {
-    isInFrame,
+    isInMiniApp,
     context,
     user,
     isLoading,

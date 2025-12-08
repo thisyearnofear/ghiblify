@@ -23,7 +23,7 @@ import {
 } from "react-icons/fi";
 import { useState } from "react";
 import { useUnifiedWallet } from "../../lib/hooks/useUnifiedWallet";
-import { useFarcaster } from "../FarcasterFrameProvider";
+import { useFarcaster } from "../FarcasterMiniAppProvider";
 import { useChainId } from "wagmi";
 import { ghiblifyTokenPayments } from "../../lib/services/ghiblify-token-payments";
 import { baseAccountPayments } from "../../lib/services/base-account-payments";
@@ -49,7 +49,7 @@ export default function PaymentMethodSelector({
   isProcessing = false,
 }: PaymentMethodSelectorProps) {
   const { user, provider, isConnected } = useUnifiedWallet();
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
   const chainId = useChainId();
   const toast = useToast();
 
@@ -57,14 +57,14 @@ export default function PaymentMethodSelector({
   const { colors, patterns, utils } = useGhibliTheme();
 
   // Responsive layout values - optimized for Farcaster mini app
-  const buttonSpacing = useBreakpointValue({ base: isInFrame ? 2 : 3, md: 4 });
+  const buttonSpacing = useBreakpointValue({ base: isInMiniApp ? 2 : 3, md: 4 });
   const badgePadding = useBreakpointValue({ base: 1, md: 2 });
   const priceLayout = useBreakpointValue({
     base: "vertical", // Stack vertically on mobile
     md: "horizontal", // Side by side on desktop
   });
-  const buttonHeight = isInFrame ? "60px" : "72px";
-  const buttonPadding = isInFrame ? 3 : 4;
+  const buttonHeight = isInMiniApp ? "60px" : "72px";
+  const buttonPadding = isInMiniApp ? 3 : 4;
 
   // Determine available payment methods based on context
   const getAvailablePaymentMethods = () => {
@@ -157,23 +157,23 @@ export default function PaymentMethodSelector({
   }
 
   return (
-    <VStack spacing={isInFrame ? 2 : 3} align="stretch">
+    <VStack spacing={isInMiniApp ? 2 : 3} align="stretch">
       <HStack justify="space-between" align="center">
         <Text
-          fontSize={isInFrame ? "sm" : "md"}
+          fontSize={isInMiniApp ? "sm" : "md"}
           fontWeight="semibold"
           color={colors.text.primary}
         >
           Choose Payment Method
         </Text>
-        {isInFrame && (
+        {isInMiniApp && (
           <Tooltip label="Optimized for Farcaster mini app">
             <Icon as={FiInfo as any} color={colors.text.accent} boxSize={3} />
           </Tooltip>
         )}
       </HStack>
 
-      <VStack spacing={isInFrame ? 1.5 : 2} align="stretch">
+      <VStack spacing={isInMiniApp ? 1.5 : 2} align="stretch">
         {availableMethods.map((method) => {
           const pricing = calculatePrice(tier.basePrice, method.discount);
           const isSelected = selectedMethod === method.id;
@@ -211,7 +211,7 @@ export default function PaymentMethodSelector({
               key={method.id}
               variant={isSelected ? "solid" : "outline"}
               colorScheme={method.colorScheme}
-              size={isInFrame ? "md" : "lg"}
+              size={isInMiniApp ? "md" : "lg"}
               h="auto"
               minH={buttonHeight}
               p={buttonPadding}
@@ -299,22 +299,22 @@ export default function PaymentMethodSelector({
                 align="center"
                 spacing={buttonSpacing}
               >
-                <HStack spacing={isInFrame ? 2 : 3} flex="1" minW="0">
+                <HStack spacing={isInMiniApp ? 2 : 3} flex="1" minW="0">
                   <Icon
                     as={method.icon as any}
-                    boxSize={isInFrame ? 4 : 5}
+                    boxSize={isInMiniApp ? 4 : 5}
                     flexShrink={0}
                   />
                   <VStack align="start" spacing={0} minW="0" flex="1">
                     <Text
                       fontWeight="semibold"
-                      fontSize={isInFrame ? "xs" : "sm"}
+                      fontSize={isInMiniApp ? "xs" : "sm"}
                       color={colors.text.primary}
                       noOfLines={1}
                     >
                       {method.name}
                     </Text>
-                    {!isInFrame && (
+                    {!isInMiniApp && (
                       <Text
                         fontSize="xs"
                         color={colors.text.secondary}
@@ -378,7 +378,7 @@ export default function PaymentMethodSelector({
       </VStack>
 
       {/* Helpful context for Farcaster users */}
-      {isInFrame && (
+      {isInMiniApp && (
         <>
           <Divider />
           <Box p={3} bg={colors.bg.secondary} borderRadius="md">

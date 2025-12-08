@@ -5,7 +5,7 @@
  * for the Memory API Builder Rewards initiative.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Heading,
@@ -63,9 +63,9 @@ export default function IdentityDashboard({ address, farcasterUsername }) {
     if (address || farcasterUsername) {
       fetchIdentityData(forceRefresh);
     }
-  }, [address, farcasterUsername, forceRefresh]);
+  }, [address, farcasterUsername, forceRefresh, fetchIdentityData]);
 
-  const fetchIdentityData = async (force = false) => {
+  const fetchIdentityData = useCallback(async (force = false) => {
     try {
       // Fetch unified profile
       let profileData;
@@ -96,7 +96,7 @@ export default function IdentityDashboard({ address, farcasterUsername }) {
     } catch (err) {
       console.error('Identity dashboard error:', err);
     }
-  };
+  }, [address, farcasterUsername, createUnifiedProfile, getWalletAddressForFarcasterUser]);
 
   const calculateSocialScore = (socialData) => {
     // Simple social influence scoring algorithm
@@ -262,7 +262,7 @@ export default function IdentityDashboard({ address, farcasterUsername }) {
               </Badge>
             </HStack>
             <Text fontSize="sm" color="gray.600">
-              You're connected to {profile.wallet?.identities ? Object.keys(profile.wallet.identities).length : 0} different platforms, 
+              You&apos;re connected to {profile.wallet?.identities ? Object.keys(profile.wallet.identities).length : 0} different platforms, 
               making your identity more discoverable and valuable.
             </Text>
           </Box>
