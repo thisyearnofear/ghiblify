@@ -171,7 +171,7 @@ export default function Home() {
   const { colors } = useGhibliTheme();
 
   const {
-    isInFrame,
+    isInMiniApp,
     isLoading: frameLoading,
     isReady,
     user: farcasterUser,

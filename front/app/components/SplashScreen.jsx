@@ -4,9 +4,9 @@ import { Box, Flex, Image, Text, Spinner, VStack } from '@chakra-ui/react';
 import { useFarcaster } from './FarcasterMiniAppProvider';
 
 export default function SplashScreen({ isLoading = true }) {
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
 
-  if (!isLoading || !isInFrame) return null;
+  if (!isLoading || !isInMiniApp) return null;
 
   return (
     <Box

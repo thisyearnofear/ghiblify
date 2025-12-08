@@ -4,20 +4,17 @@
     "name": "Ghiblify",
     "homeUrl": "https://ghiblify-it.vercel.app",
     "iconUrl": "https://ghiblify-it.vercel.app/ghibli-it-icon.png",
-    "imageUrl": "https://ghiblify-it.vercel.app/ghibli-time-og.png",
-    "buttonTitle": "Ghiblify",
+    "subtitle": "Transform photos to Ghibli style",
+    "description": "Transform your photos into Studio Ghibli style art using AI",
     "splashImageUrl": "https://ghiblify-it.vercel.app/ghibli-it-splash.png",
     "splashBackgroundColor": "#4FD1C5",
-    "description": "Transform your photos into Studio Ghibli style art using AI",
-    "author": "ghiblify.app",
-    "category": "art",
-    "screenshots": [
+    "screenshotUrls": [
       "https://ghiblify-it.vercel.app/examples/grow.png",
       "https://ghiblify-it.vercel.app/examples/grow2.png",
-      "https://ghiblify-it.vercel.app/examples/bridge0.png",
-      "https://ghiblify-it.vercel.app/examples/bridge.png"
+      "https://ghiblify-it.vercel.app/examples/bridge0.png"
     ],
-    "keywords": ["art", "ai", "ghibli", "photo", "transform", "anime"],
+    "primaryCategory": "art-creativity",
+    "tags": ["art", "ai", "ghibli", "photo", "transform"],
     "webhookUrl": "https://ghiblify-it.vercel.app/api/farcaster/webhook"
   },
   "accountAssociation": {

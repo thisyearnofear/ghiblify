@@ -4,10 +4,10 @@ import { Box, Container } from '@chakra-ui/react';
 import { useFarcaster } from './FarcasterMiniAppProvider';
 
 export default function MiniAppContainer({ children }) {
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
 
   // Enhanced Mini App sizing with better mobile optimization
-  const containerStyles = isInFrame ? {
+  const containerStyles = isInMiniApp ? {
     // Mini App mode - optimized for Farcaster mobile
     maxW: "424px",
     minH: "695px",
@@ -35,7 +35,7 @@ export default function MiniAppContainer({ children }) {
     my: { base: 4, md: 8 }
   };
 
-  const wrapperStyles = isInFrame ? {
+  const wrapperStyles = isInMiniApp ? {
     // Mini App wrapper - ensure full height usage
     minH: "100vh",
     w: "100vw",
@@ -51,7 +51,7 @@ export default function MiniAppContainer({ children }) {
     minH: "auto"
   };
 
-  if (isInFrame) {
+  if (isInMiniApp) {
     return (
       <Box {...wrapperStyles}>
         <Container {...containerStyles}>

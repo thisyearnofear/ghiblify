@@ -660,12 +660,12 @@ export default function Pricing({ onPurchaseComplete }) {
 
   // DRY: Use centralized theme instead of duplicated color definitions
   const { colors, patterns, utils } = useGhibliTheme();
-  const { isInFrame } = useFarcaster();
+  const { isInMiniApp } = useFarcaster();
 
   // Mobile-optimized spacing for Farcaster mini app
-  const containerSpacing = isInFrame ? 4 : 8;
-  const cardSpacing = isInFrame ? 4 : 8;
-  const containerPadding = isInFrame ? { base: 6, md: 12 } : 12;
+  const containerSpacing = isInMiniApp ? 4 : 8;
+  const cardSpacing = isInMiniApp ? 4 : 8;
+  const containerPadding = isInMiniApp ? { base: 6, md: 12 } : 12;
 
   return (
     <Box py={containerPadding}>
@@ -689,13 +689,13 @@ export default function Pricing({ onPurchaseComplete }) {
         <Flex
           direction={{ base: "column", md: "row" }}
           gap={cardSpacing}
-          px={isInFrame ? 2 : 4}
+          px={isInMiniApp ? 2 : 4}
         >
           {tiers.map((tier) => (
             <Box
               key={tier.name}
               {...patterns.card}
-              p={isInFrame ? 4 : 6}
+              p={isInMiniApp ? 4 : 6}
               width={{ base: "full", md: "320px" }}
               position="relative"
               {...utils.getElevationStyle(2)}
@@ -714,7 +714,7 @@ export default function Pricing({ onPurchaseComplete }) {
                 </Badge>
               )}
 
-              <VStack spacing={isInFrame ? 3 : 4} align="stretch">
+              <VStack spacing={isInMiniApp ? 3 : 4} align="stretch">
                 <Text
                   fontSize={{ base: "lg", md: "2xl" }}
                   fontWeight="bold"
@@ -750,15 +750,15 @@ export default function Pricing({ onPurchaseComplete }) {
 
                 <VStack
                   align="stretch"
-                  spacing={isInFrame ? 2 : 3}
-                  mt={isInFrame ? 2 : 4}
+                  spacing={isInMiniApp ? 2 : 3}
+                  mt={isInMiniApp ? 2 : 4}
                 >
                   {tier.features.map((feature) => (
                     <HStack key={feature} spacing={2}>
                       <Icon
                         as={FiCheck}
                         color="green.500"
-                        boxSize={isInFrame ? 3 : 4}
+                        boxSize={isInMiniApp ? 3 : 4}
                       />
                       <Text
                         color={colors.text.primary}
@@ -813,7 +813,7 @@ export default function Pricing({ onPurchaseComplete }) {
         {/* Single tip message for all cards - more mobile-friendly */}
         <Box
           bg={colors.bg.secondary}
-          p={isInFrame ? 3 : 4}
+          p={isInMiniApp ? 3 : 4}
           borderRadius="lg"
           border="1px solid"
           borderColor={colors.border.subtle}
@@ -824,10 +824,10 @@ export default function Pricing({ onPurchaseComplete }) {
             <Icon
               as={FiDollarSign}
               color={colors.text.accent}
-              boxSize={isInFrame ? 4 : 5}
+              boxSize={isInMiniApp ? 4 : 5}
             />
             <Text
-              fontSize={isInFrame ? "xs" : "sm"}
+              fontSize={isInMiniApp ? "xs" : "sm"}
               color={colors.text.secondary}
               textAlign="center"
             >
