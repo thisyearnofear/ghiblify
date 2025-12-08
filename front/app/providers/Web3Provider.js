@@ -5,11 +5,25 @@ import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { mainnet, polygon } from "wagmi/chains";
 import { http } from "viem";
-import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
 import { injected, walletConnect } from "wagmi/connectors";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@rainbow-me/rainbowkit/styles.css";
+
+// Lazy load frame connector to avoid initialization issues
+let farcasterFrame;
+try {
+  const frameModule = require("@farcaster/frame-wagmi-connector");
+  farcasterFrame = frameModule.farcasterFrame;
+} catch (e) {
+  console.warn("Frame connector not available", e);
+}
+
+// Detect if running in Mini App context
+const isInMiniApp = typeof window !== 'undefined' && (
+  window.parent !== window ||
+  /Farcaster/i.test(navigator?.userAgent || '')
+);
 
 // Define Celo Mainnet with proper yellow color
 const celoMainnet = {
@@ -91,8 +105,8 @@ const config = getDefaultConfig({
   },
   connectors: [
     farcasterMiniApp(),
-    farcasterFrame(),
-    injected(),
+    ...(farcasterFrame ? [farcasterFrame()] : []),
+    ...(isInMiniApp ? [] : [injected()]),
     walletConnect({
       projectId:
         process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
