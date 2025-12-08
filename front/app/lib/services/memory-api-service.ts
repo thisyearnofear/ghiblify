@@ -36,9 +36,9 @@ class MemoryApiService {
    * Check if Memory API is configured and available
    */
   isAvailable(): boolean {
-    // Always return true since we're using backend endpoints
-    // The backend will handle the actual Memory API availability
-    return true;
+    // Disable Memory API integration until MEMORY_API_KEY is configured
+    // The backend endpoint returns 503 if not configured
+    return false;
   }
 
   /**

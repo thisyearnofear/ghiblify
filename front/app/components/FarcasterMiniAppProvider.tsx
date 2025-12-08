@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useEffect, useState, createContext, useContext } from "react";
-import { sdk } from "@farcaster/miniapp-sdk";
-import { connect } from "@wagmi/core";
+import { walletService } from "../lib/services/unified-wallet-service";
 import { config } from "../providers/Web3Provider";
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
   createNotificationId,
 } from "../config/farcaster";
-import { walletService } from "../lib/services/unified-wallet-service";
+import { sdk } from "@farcaster/miniapp-sdk";
+import { connect } from "@wagmi/core";
 
 interface FarcasterContextType {
   isInMiniApp: boolean;
