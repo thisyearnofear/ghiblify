@@ -2,14 +2,12 @@
 
 import React, { useEffect, useState, createContext, useContext } from "react";
 import { walletService } from "../lib/services/unified-wallet-service";
-import { config } from "../config/wagmi-config";
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
   createNotificationId,
 } from "../config/farcaster";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { connect } from "@wagmi/core";
 
 interface FarcasterContextType {
   isInMiniApp: boolean;
@@ -36,88 +34,60 @@ const FarcasterContext = createContext<FarcasterContextType>({
 export const useFarcaster = () => useContext(FarcasterContext);
 
 export function FarcasterMiniAppProvider({ children }: { children: any }) {
-  const [isInMiniApp, setIsInMiniApp] = useState(false);
-  const [context, setContext] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isReady, setIsReady] = useState(false);
-  const [unifiedProfile, setUnifiedProfile] = useState<any>(null);
-  const [socialScore, setSocialScore] = useState<number | null>(null);
+   const [isInMiniApp, setIsInMiniApp] = useState(false);
+   const [context, setContext] = useState<any>(null);
+   const [user, setUser] = useState<any>(null);
+   const [isLoading, setIsLoading] = useState(true);
+   const [isReady, setIsReady] = useState(false);
+   const [unifiedProfile, setUnifiedProfile] = useState<any>(null);
+   const [socialScore, setSocialScore] = useState<number | null>(null);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const miniAppContext = await sdk.context;
-        setContext(miniAppContext);
+   useEffect(() => {
+     const init = async () => {
+       try {
+         const miniAppContext = await sdk.context;
+         setContext(miniAppContext);
 
-        // Check if we're running in a Mini App environment using config
-        const inMiniApp = !!(
-          miniAppContext?.client?.clientFid || isFarcasterEnvironment()
-        );
+         // Check if we're running in a Mini App environment
+         const inMiniApp = !!(
+           miniAppContext?.client?.clientFid || isFarcasterEnvironment()
+         );
 
-        setIsInMiniApp(inMiniApp);
+         setIsInMiniApp(inMiniApp);
 
-        if (miniAppContext?.user) {
-          setUser(miniAppContext.user);
-        }
-
-        // Autoconnect if running in a frame using the injected connector
-         if (miniAppContext?.client?.clientFid) {
-           try {
-             // Use the injected connector which will detect the Farcaster provider
-             const injectedConnector = config.connectors.find(
-               (connector) => connector.id === "injected"
-             );
-
-             if (injectedConnector) {
-               await connect(config, { connector: injectedConnector });
-             } else {
-               console.warn("Injected connector not found in config");
-             }
-
-             // Enhance wallet connection with Farcaster identity data
-             if (miniAppContext.user && 'address' in miniAppContext.user) {
-               const farcasterUsername = miniAppContext.user.username || undefined;
-               await walletService.connect(
-                 miniAppContext.user.address as string,
-                 "rainbowkit",
-                 farcasterUsername
-               );
-             }
-           } catch (error) {
-             console.error("Failed to connect Farcaster wallet:", error);
-           }
+         if (miniAppContext?.user) {
+           setUser(miniAppContext.user);
          }
 
-        setIsLoading(false);
+         setIsLoading(false);
 
-        // Notify frame we're ready - using config timeout
-        const readyDelay = inMiniApp ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
-        setTimeout(() => {
-          // Enhanced mobile debugging
-          if (FARCASTER_CONFIG.sdk.enableMobileConsole && inMiniApp) {
-            console.log("[Farcaster] Mini App ready in mobile environment");
-            console.log("[Farcaster] Context:", miniAppContext);
-            console.log("[Farcaster] User agent:", navigator.userAgent);
-            console.log("[Farcaster] Viewport:", {
-              width: window.innerWidth,
-              height: window.innerHeight,
-              devicePixelRatio: window.devicePixelRatio,
-            });
-          }
+         // Notify frame we're ready - using config timeout
+         const readyDelay = inMiniApp ? FARCASTER_CONFIG.sdk.readyTimeout : 100;
+         setTimeout(() => {
+           // Enhanced mobile debugging
+           if (FARCASTER_CONFIG.sdk.enableMobileConsole && inMiniApp) {
+             console.log("[Farcaster] Mini App ready in mobile environment");
+             console.log("[Farcaster] Context:", miniAppContext);
+             console.log("[Farcaster] User agent:", navigator.userAgent);
+             console.log("[Farcaster] Viewport:", {
+               width: window.innerWidth,
+               height: window.innerHeight,
+               devicePixelRatio: window.devicePixelRatio,
+             });
+           }
 
-          sdk.actions.ready();
-          setIsReady(true);
-        }, readyDelay);
-      } catch (error) {
-        console.error("Failed to initialize Farcaster Frame SDK:", error);
-        setIsLoading(false);
-        // Not in Mini App environment, continue normally
-      }
-    };
+           sdk.actions.ready();
+           setIsReady(true);
+         }, readyDelay);
+       } catch (error) {
+         console.error("Failed to initialize Farcaster Frame SDK:", error);
+         setIsLoading(false);
+         // Not in Mini App environment, continue normally
+       }
+     };
 
-    init();
-  }, [isInMiniApp, context?.user?.address]);
+     init();
+   }, []);
 
   // Send notifications when transformations complete
   const sendNotification = async (type: string = "transformComplete") => {
