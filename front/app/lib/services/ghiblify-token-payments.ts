@@ -170,7 +170,7 @@ class GhiblifyTokenPaymentService {
          functionName: 'getTokenPackagePrice',
          args: [contractTier],
          chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
-       }) as bigint;
+       } as any) as bigint;
        
        return tokenAmount;
      } catch (error) {
@@ -222,7 +222,7 @@ class GhiblifyTokenPaymentService {
         functionName: 'balanceOf',
         args: [userAddress as `0x${string}`],
         chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
-      }) as bigint;
+      } as any) as bigint;
       
       return {
         balance,
@@ -324,7 +324,7 @@ class GhiblifyTokenPaymentService {
         functionName: 'allowance',
         args: [userAddress as `0x${string}`, GHIBLIFY_TOKEN_CONFIG.contractAddress as `0x${string}`],
         chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
-      }) as bigint;
+      } as any) as bigint;
 
       console.log(`[GHIBLIFY Token] Current allowance: ${formatUnits(currentAllowance, 18)}`);
 

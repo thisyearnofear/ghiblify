@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, createContext, useContext } from "react";
-import { walletService } from "../lib/services/unified-wallet-service";
+// Lazy import to prevent initialization issues
+let walletService: any;
 import {
   FARCASTER_CONFIG,
   isFarcasterEnvironment,
@@ -134,6 +135,12 @@ export function FarcasterMiniAppProvider({ children }: { children: any }) {
     if (!user?.address) return;
 
     try {
+      // Lazy load wallet service to prevent initialization issues
+      if (!walletService) {
+        const { walletService: ws } = await import("../lib/services/unified-wallet-service");
+        walletService = ws;
+      }
+      
       // Force refresh the unified profile to get latest data
       const farcasterUsername = user.username || undefined;
       const profile = await walletService.connect(
