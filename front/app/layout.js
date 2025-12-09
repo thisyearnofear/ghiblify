@@ -5,6 +5,13 @@ import { Web3Provider } from "./providers/Web3Provider";
 import { FarcasterMiniAppProvider } from "./components/FarcasterMiniAppProvider";
 import Navigation from "./components/Navigation";
 import MobileErrorBoundary from "./components/MobileErrorBoundary";
+import dynamic from "next/dynamic";
+
+// Dynamically import the GhibliBackground to avoid SSR issues
+const GhibliBackground = dynamic(
+  () => import("./components/GhibliBackground"),
+  { ssr: false }
+);
 
 export const metadata = {
   metadataBase: new URL("https://ghiblify-it.vercel.app"),
@@ -62,6 +69,7 @@ export default function RootLayout({ children }) {
           <Web3Provider>
             <FarcasterMiniAppProvider>
               <MobileErrorBoundary>
+                <GhibliBackground isEnabled={true} />
                 <Navigation />
                 {children}
               </MobileErrorBoundary>

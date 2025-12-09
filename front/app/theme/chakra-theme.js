@@ -131,7 +131,7 @@ const semanticTokens = {
 const styles = {
   global: (props) => ({
     body: {
-      bg: mode('white', 'ghibliGray.900')(props),
+      bg: mode('rgba(185, 220, 197, 0.3)', 'ghibliGray.900')(props),
       color: mode('ghibliGray.900', 'ghibliGray.50')(props),
       transition: 'background-color 0.2s ease, color 0.2s ease',
       fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -209,7 +209,8 @@ const components = {
 
   Card: {
     baseStyle: (props) => ({
-      bg: mode('white', 'ghibliGray.800')(props),
+      bg: mode('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)')(props),
+      backdropFilter: 'blur(10px)',
       borderColor: mode('gray.200', 'ghibliGray.600')(props),
       boxShadow: mode(
         '0 4px 6px rgba(0, 0, 0, 0.05)',
@@ -221,7 +222,8 @@ const components = {
   Modal: {
     baseStyle: (props) => ({
       dialog: {
-        bg: mode('white', 'ghibliGray.800')(props),
+        bg: mode('rgba(255, 255, 255, 0.9)', 'rgba(26, 32, 44, 0.9)')(props),
+        backdropFilter: 'blur(10px)',
         boxShadow: mode(
           '0 25px 50px rgba(0, 0, 0, 0.15)',
           '0 25px 50px rgba(0, 0, 0, 0.5)'

@@ -17,7 +17,8 @@ export default function MiniAppContainer({ children }) {
     // Remove default margins and ensure proper mobile sizing
     my: 0,
     borderRadius: { base: 0, sm: "xl" },
-    bg: "white",
+    bg: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(10px)",
     overflowX: "hidden",
     overflowY: "auto", // Allow vertical scrolling in mini app
     // Enhanced mobile viewport handling
@@ -32,14 +33,16 @@ export default function MiniAppContainer({ children }) {
     // Regular web mode
     maxW: "container.lg",
     p: { base: 4, md: 6 },
-    my: { base: 4, md: 8 }
+    my: { base: 4, md: 8 },
+    bg: "rgba(255, 255, 255, 0.8)",
+    backdropFilter: "blur(10px)",
+    borderRadius: "lg"
   };
 
   const wrapperStyles = isInMiniApp ? {
     // Mini App wrapper - ensure full height usage
     minH: "100vh",
     w: "100vw",
-    bg: "gray.100",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
