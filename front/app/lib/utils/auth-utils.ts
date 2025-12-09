@@ -27,6 +27,60 @@ export interface AuthConfig {
   chainId: number;
 }
 
+// ===== CONSTANTS =====
+
+export const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+export const REFRESH_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours before expiry
+
+// ===== SESSION MANAGEMENT =====
+
+/**
+ * Validate session age
+ */
+export function validateSession(timestamp: number): { valid: boolean; needsRefresh: boolean } {
+  const age = Date.now() - timestamp;
+  return {
+    valid: age < SESSION_TTL,
+    needsRefresh: age > (SESSION_TTL - REFRESH_THRESHOLD)
+  };
+}
+
+/**
+ * Sign credit balance to prevent tampering
+ */
+export async function signCredits(address: string, credits: number): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  
+  const data = `${address.toLowerCase()}:${credits}:${Date.now()}`;
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Verify signed credit balance
+ */
+export async function verifySignedCredits(
+  address: string,
+  credits: number,
+  signature: string,
+  timestamp: number
+): Promise<boolean> {
+  // Allow 5 minute window for timestamp drift
+  if (Math.abs(Date.now() - timestamp) > 5 * 60 * 1000) return false;
+  
+  const data = `${address.toLowerCase()}:${credits}:${timestamp}`;
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const expectedSignature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  return signature === expectedSignature;
+}
+
 // ===== UTILITIES =====
 
 /**
@@ -67,7 +121,7 @@ export async function fetchBackendNonce(apiClient: ApiInterface = api): Promise<
 }
 
 /**
- * Verify signature with backend
+ * Verify signature with backend with retry logic
  */
 export async function verifySignatureWithBackend(
   address: string,
@@ -75,7 +129,7 @@ export async function verifySignatureWithBackend(
   signature: string,
   apiClient: ApiInterface = api
 ): Promise<boolean> {
-  try {
+  return retryWithBackoff(async () => {
     const result = await apiClient.post('/api/web3/auth/verify', {
       address,
       message,
@@ -83,10 +137,44 @@ export async function verifySignatureWithBackend(
     });
 
     return result.ok || result.authenticated;
-  } catch (error) {
-    console.error('Signature verification failed:', error);
-    return false;
+  }, 3);
+}
+
+/**
+ * Retry function with exponential backoff
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      
+      // Don't retry on user rejection or invalid input
+      if (lastError.message.includes('rejected') || 
+          lastError.message.includes('denied') ||
+          lastError.message.includes('invalid')) {
+        throw lastError;
+      }
+      
+      // Last attempt, throw error
+      if (attempt === maxRetries - 1) {
+        throw lastError;
+      }
+      
+      // Exponential backoff: 1s, 2s, 4s
+      const delay = baseDelay * Math.pow(2, attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+  
+  throw lastError || new Error('Retry failed');
 }
 
 /**

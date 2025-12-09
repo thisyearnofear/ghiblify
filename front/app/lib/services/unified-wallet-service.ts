@@ -6,10 +6,12 @@
  * - Base Account (embedded wallet)
  * - Credit management and persistence
  * - Memory API integration for cross-platform identity mapping
+ * - Session validation and signed credits
  */
 
 import { api } from '../config/api';
 import { memoryApiService } from './memory-api-service';
+import { validateSession, signCredits, verifySignedCredits } from '../utils/auth-utils';
 
 export type WalletProvider = 'rainbowkit' | 'base';
 
@@ -18,6 +20,7 @@ export interface WalletUser {
   provider: WalletProvider;
   credits: number;
   timestamp: number;
+  creditSignature?: string; // Cryptographic proof of credit balance
   // Extended with Memory API identity data
   identity?: any;
   socialGraph?: any;
@@ -109,7 +112,7 @@ class WalletService {
   }
 
   /**
-   * Refresh credits for current user
+   * Refresh credits for current user with signed balance
    */
   async refreshCredits(): Promise<number> {
     if (!this.state.user) {
@@ -118,10 +121,12 @@ class WalletService {
 
     try {
       const credits = await this.fetchCredits(this.state.user.address);
+      const creditSignature = await signCredits(this.state.user.address, credits);
 
       const updatedUser = {
         ...this.state.user,
         credits,
+        creditSignature,
         timestamp: Date.now(),
       };
 
@@ -253,13 +258,27 @@ class WalletService {
       const stored = localStorage.getItem(this.storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Only restore recent state (within 1 hour)
-        if (parsed.user && Date.now() - parsed.user.timestamp < 60 * 60 * 1000) {
+        
+        // Validate session with proper TTL
+        if (parsed.user) {
+          const { valid, needsRefresh } = validateSession(parsed.user.timestamp);
+          
+          if (!valid) {
+            console.log('[Wallet] Session expired, clearing state');
+            this.clearState();
+            return;
+          }
+          
+          if (needsRefresh) {
+            console.log('[Wallet] Session needs refresh soon');
+          }
+          
           this.state = parsed;
         }
       }
     } catch (error) {
       console.warn('Failed to load wallet state:', error);
+      this.clearState();
     }
   }
 
