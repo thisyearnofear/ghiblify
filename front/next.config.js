@@ -2,7 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ["ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "ff315ddd5317cb560f09b5e51fe8252f.r2.cloudflarestorage.com",
+      },
+    ],
   },
   async rewrites() {
     return [

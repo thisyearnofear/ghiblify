@@ -3,13 +3,20 @@
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
 import { config, celoMainnet, baseMainnet } from "../config/wagmi-config";
 import "@rainbow-me/rainbowkit/styles.css";
 
-// Create React Query client
-const queryClient = new QueryClient();
-
 export function Web3Provider({ children }) {
+  // Create QueryClient inside component to avoid hydration issues
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000,
+      },
+    },
+  }));
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
