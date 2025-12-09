@@ -3,11 +3,18 @@
  * Separated to avoid circular dependencies between Web3Provider and FarcasterMiniAppProvider
  */
 
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { connectorsForWallets } from "@rainbow-me/rainbowkit";
+import {
+  metaMaskWallet,
+  rainbowWallet,
+  walletConnectWallet,
+  coinbaseWallet,
+  rabbyWallet,
+} from "@rainbow-me/rainbowkit/wallets";
+import { createConfig } from "wagmi";
 import { mainnet, polygon } from "wagmi/chains";
 import { http } from "viem";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
-import { injected, walletConnect } from "wagmi/connectors";
 
 // Define Celo Mainnet with proper yellow color
 const celoMainnet = {
@@ -69,26 +76,33 @@ const isInMiniApp = typeof window !== 'undefined' && (
   /Farcaster/i.test(navigator?.userAgent || '')
 );
 
-// Lazy load frame connector to avoid initialization issues
-let farcasterFrameConnector: (() => any) | null = null;
-const loadFrameConnector = () => {
-  if (farcasterFrameConnector) return farcasterFrameConnector;
-  try {
-    const { farcasterFrame } = require("@farcaster/frame-wagmi-connector");
-    farcasterFrameConnector = farcasterFrame;
-    return farcasterFrame;
-  } catch (e) {
-    console.warn("Frame connector not available");
-    return null;
-  }
-};
+const projectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
+  "fcbcb493dbc2081c040b760a9ee8956b";
 
-// Create base config first
-const baseConfig = getDefaultConfig({
-  appName: "Ghiblify",
-  projectId:
-    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
-    "fcbcb493dbc2081c040b760a9ee8956b",
+// Configure wallet connectors
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: "Popular",
+      wallets: [
+        metaMaskWallet,
+        rainbowWallet,
+        coinbaseWallet,
+        rabbyWallet,
+        walletConnectWallet,
+      ],
+    },
+  ],
+  {
+    appName: "Ghiblify",
+    projectId,
+  }
+);
+
+// Create the config
+export const config = createConfig({
+  connectors,
   chains: [celoMainnet, mainnet, polygon, baseMainnet],
   transports: {
     [celoMainnet.id]: http(
@@ -108,26 +122,5 @@ const baseConfig = getDefaultConfig({
     }),
   },
 });
-
-// Add custom connectors to the base config
-const customConnectors = [
-  farcasterMiniApp(),
-  ...(() => {
-    const ff = loadFrameConnector();
-    return ff ? [ff()] : [];
-  })(),
-  injected(),
-  walletConnect({
-    projectId:
-      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
-      "fcbcb493dbc2081c040b760a9ee8956b",
-  }),
-];
-
-// Create the final config with custom connectors
-export const config = {
-  ...baseConfig,
-  connectors: customConnectors,
-};
 
 export { celoMainnet, baseMainnet };
