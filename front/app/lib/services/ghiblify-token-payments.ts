@@ -5,7 +5,8 @@
 
 import { api } from '../config/api';
 import { ghiblifyPriceOracle, PricingCalculation } from './ghiblify-price-oracle';
-import { walletService } from './unified-wallet-service';
+// Lazy import to prevent circular dependencies
+let walletService: any;
 import { readContract, waitForTransactionReceipt, getChainId } from '@wagmi/core';
 import { parseUnits, formatUnits } from 'viem';
 import { config } from '../../config/wagmi-config';
@@ -134,10 +135,22 @@ class GhiblifyTokenPaymentService {
   private activePayments: Map<string, AbortController> = new Map();
 
   /**
+   * Get wallet service with lazy loading
+   */
+  private async getWalletService() {
+    if (!walletService) {
+      const { walletService: ws } = await import('./unified-wallet-service');
+      walletService = ws;
+    }
+    return walletService;
+  }
+
+  /**
    * Validate payment prerequisites with helpful error messages
    */
   private async validatePaymentPrerequisites(): Promise<void> {
-    const state = walletService.getState();
+    const ws = await this.getWalletService();
+    const state = ws.getState();
 
     if (!state.isConnected || !state.user) {
       throw new TokenPaymentError('Please connect your wallet to pay with $GHIBLIFY tokens.');
@@ -263,7 +276,8 @@ class GhiblifyTokenPaymentService {
         throw new TokenPaymentError('Token price too volatile for payment. Please try again later.');
       }
 
-      const state = walletService.getState();
+      const ws = await this.getWalletService();
+      const state = ws.getState();
       const userAddress = state.user!.address;
 
       // Validate user has sufficient token balance
@@ -406,7 +420,8 @@ class GhiblifyTokenPaymentService {
     publicClient: any
   ): Promise<TokenPaymentCompletionResult> {
     try {
-      const state = walletService.getState();
+      const ws = await this.getWalletService();
+      const state = ws.getState();
       const userAddress = state.user!.address;
 
       console.log(`[GHIBLIFY Token] Waiting for transaction confirmation: ${paymentResult.transactionHash}`);
@@ -437,7 +452,7 @@ class GhiblifyTokenPaymentService {
       console.log(`[GHIBLIFY Token] Backend processing completed:`, response);
 
       // Refresh user credits in unified wallet
-      await walletService.refreshCredits();
+      await ws.refreshCredits();
 
       return {
         transactionHash: paymentResult.transactionHash!,
@@ -472,6 +487,11 @@ class GhiblifyTokenPaymentService {
    * Now simplified - always available if user has a wallet connected
    */
   isAvailable(): boolean {
+    // Note: This is a synchronous method, so we can't use lazy loading here
+    // The walletService should be available by the time this is called
+    if (!walletService) {
+      return false;
+    }
     const state = walletService.getState();
 
     return !!(
@@ -498,7 +518,8 @@ class GhiblifyTokenPaymentService {
    * Enhanced to properly handle Base Account users who may be on different networks
    */
   async requiresNetworkSwitch(): Promise<{ required: boolean; currentProvider?: string; recommendedAction?: string; currentChainId?: number }> {
-    const state = walletService.getState();
+    const ws = await this.getWalletService();
+    const state = ws.getState();
 
     if (!state.isConnected || !state.user) {
       return { required: false };

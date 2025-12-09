@@ -10,8 +10,10 @@
  */
 
 import { api } from '../config/api';
-import { memoryApiService } from './memory-api-service';
 import { validateSession, signCredits, verifySignedCredits } from '../utils/auth-utils';
+
+// Lazy load memory API service to prevent circular dependencies
+let memoryApiService: any;
 
 export type WalletProvider = 'rainbowkit' | 'base';
 
@@ -183,7 +185,17 @@ class WalletService {
       let identityData = {};
       let socialGraphData = {};
       
-      if (memoryApiService.isAvailable()) {
+      // Lazy load memory API service to prevent initialization issues
+      if (!memoryApiService) {
+        try {
+          const { memoryApiService: mas } = await import('./memory-api-service');
+          memoryApiService = mas;
+        } catch (error) {
+          console.warn('Failed to load memory API service:', error);
+        }
+      }
+      
+      if (memoryApiService && memoryApiService.isAvailable()) {
         try {
           const unifiedProfile = await memoryApiService.createUnifiedProfile(address, farcasterUsername);
           if (unifiedProfile) {
