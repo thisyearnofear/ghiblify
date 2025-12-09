@@ -76,7 +76,7 @@ export default function Leaderboard() {
     } catch (err) {
       console.error('Leaderboard fetch error:', err);
     }
-  }, [getLeaderboard, timeRange]);
+  }, [timeRange]);
 
   if (error) {
     return (

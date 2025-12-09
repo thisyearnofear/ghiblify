@@ -43,52 +43,6 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
   const [suggestions, setSuggestions] = useState([]);
   const [following, setFollowing] = useState(new Set());
 
-  // Mock data for demonstration
-  const mockSuggestions = [
-    {
-      id: '1',
-      username: 'kevinrose',
-      platform: 'farcaster',
-      score: 87,
-      mutuals: 12,
-      followers: 45000,
-      avatar: 'https://pbs.twimg.com/profile_images/1712044611633324032/kQ675Yyz_400x400.jpg',
-      identities: {
-        farcaster: { username: 'kevinrose', followers: 45000 },
-        twitter: { username: 'kevinrose', followers: 350000 }
-      },
-      reason: 'Similar interests in tech and crypto'
-    },
-    {
-      id: '2',
-      username: 'balajis',
-      platform: 'farcaster',
-      score: 82,
-      mutuals: 8,
-      followers: 38000,
-      avatar: 'https://pbs.twimg.com/profile_images/1704008965161562112/-YuYcPz-_400x400.jpg',
-      identities: {
-        farcaster: { username: 'balajis', followers: 38000 },
-        twitter: { username: 'balajis', followers: 520000 }
-      },
-      reason: 'Shared connections in the crypto space'
-    },
-    {
-      id: '3',
-      username: 'cdixon',
-      platform: 'farcaster',
-      score: 79,
-      mutuals: 15,
-      followers: 32000,
-      avatar: 'https://pbs.twimg.com/profile_images/1697886349618569216/0tXK2N5h_400x400.jpg',
-      identities: {
-        farcaster: { username: 'cdixon', followers: 32000 },
-        twitter: { username: 'cdixon', followers: 280000 }
-      },
-      reason: 'Interest in AI and startups'
-    }
-  ];
-
   // Fetch suggestions when component mounts or when user data changes
   useEffect(() => {
     if (address || farcasterUsername) {
@@ -97,6 +51,52 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
   }, [address, farcasterUsername, fetchSuggestions]);
 
   const fetchSuggestions = useCallback(async () => {
+    // Mock data for demonstration
+    const mockSuggestions = [
+      {
+        id: '1',
+        username: 'kevinrose',
+        platform: 'farcaster',
+        score: 87,
+        mutuals: 12,
+        followers: 45000,
+        avatar: 'https://pbs.twimg.com/profile_images/1712044611633324032/kQ675Yyz_400x400.jpg',
+        identities: {
+          farcaster: { username: 'kevinrose', followers: 45000 },
+          twitter: { username: 'kevinrose', followers: 350000 }
+        },
+        reason: 'Similar interests in tech and crypto'
+      },
+      {
+        id: '2',
+        username: 'balajis',
+        platform: 'farcaster',
+        score: 82,
+        mutuals: 8,
+        followers: 38000,
+        avatar: 'https://pbs.twimg.com/profile_images/1704008965161562112/-YuYcPz-_400x400.jpg',
+        identities: {
+          farcaster: { username: 'balajis', followers: 38000 },
+          twitter: { username: 'balajis', followers: 520000 }
+        },
+        reason: 'Shared connections in the crypto space'
+      },
+      {
+        id: '3',
+        username: 'cdixon',
+        platform: 'farcaster',
+        score: 79,
+        mutuals: 15,
+        followers: 32000,
+        avatar: 'https://pbs.twimg.com/profile_images/1697886349618569216/0tXK2N5h_400x400.jpg',
+        identities: {
+          farcaster: { username: 'cdixon', followers: 32000 },
+          twitter: { username: 'cdixon', followers: 280000 }
+        },
+        reason: 'Interest in AI and startups'
+      }
+    ];
+
     try {
       const identifier = address || farcasterUsername;
       const type = address ? 'address' : 'farcaster';
@@ -109,7 +109,7 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setSuggestions(mockSuggestions);
     }
-  }, [address, farcasterUsername, getSuggestedFollows, mockSuggestions]);
+  }, [address, farcasterUsername, getSuggestedFollows]);
 
   const handleFollow = (userId) => {
     setFollowing(prev => new Set([...prev, userId]));

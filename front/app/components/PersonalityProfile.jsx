@@ -42,38 +42,6 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
   
   const [personalityData, setPersonalityData] = useState(null);
 
-  // Mock data for demonstration
-  const mockPersonalityData = {
-    traits: [
-      { name: 'Tech Enthusiast', score: 92, color: 'blue' },
-      { name: 'Crypto Native', score: 88, color: 'purple' },
-      { name: 'Creative', score: 76, color: 'pink' },
-      { name: 'Community Builder', score: 85, color: 'green' },
-      { name: 'Early Adopter', score: 90, color: 'orange' },
-      { name: 'Knowledge Sharer', score: 82, color: 'teal' }
-    ],
-    interests: [
-      { name: 'Web3', relevance: 95 },
-      { name: 'AI', relevance: 88 },
-      { name: 'Startups', relevance: 82 },
-      { name: 'Digital Art', relevance: 75 },
-      { name: 'DeFi', relevance: 90 },
-      { name: 'NFTs', relevance: 78 },
-      { name: 'DAOs', relevance: 85 },
-      { name: 'Gaming', relevance: 70 }
-    ],
-    engagement: {
-      daily: 78,
-      weekly: 85,
-      monthly: 92
-    },
-    influence: {
-      reach: 87,
-      resonance: 82,
-      authority: 79
-    }
-  };
-
   // Fetch personality data when component mounts or when user data changes
   useEffect(() => {
     if (address || farcasterUsername) {
@@ -82,6 +50,38 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
   }, [address, farcasterUsername, fetchPersonalityData]);
 
   const fetchPersonalityData = useCallback(async () => {
+    // Mock data for demonstration
+    const mockPersonalityData = {
+      traits: [
+        { name: 'Tech Enthusiast', score: 92, color: 'blue' },
+        { name: 'Crypto Native', score: 88, color: 'purple' },
+        { name: 'Creative', score: 76, color: 'pink' },
+        { name: 'Community Builder', score: 85, color: 'green' },
+        { name: 'Early Adopter', score: 90, color: 'orange' },
+        { name: 'Knowledge Sharer', score: 82, color: 'teal' }
+      ],
+      interests: [
+        { name: 'Web3', relevance: 95 },
+        { name: 'AI', relevance: 88 },
+        { name: 'Startups', relevance: 82 },
+        { name: 'Digital Art', relevance: 75 },
+        { name: 'DeFi', relevance: 90 },
+        { name: 'NFTs', relevance: 78 },
+        { name: 'DAOs', relevance: 85 },
+        { name: 'Gaming', relevance: 70 }
+      ],
+      engagement: {
+        daily: 78,
+        weekly: 85,
+        monthly: 92
+      },
+      influence: {
+        reach: 87,
+        resonance: 82,
+        authority: 79
+      }
+    };
+
     try {
       const identifier = address || farcasterUsername;
       const type = address ? 'address' : 'farcaster';
@@ -94,7 +94,7 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setPersonalityData(mockPersonalityData);
     }
-  }, [address, farcasterUsername, getPersonalityProfile, mockPersonalityData]);
+  }, [address, farcasterUsername, getPersonalityProfile]);
 
   if (error) {
     return (

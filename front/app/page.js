@@ -556,22 +556,20 @@ export default function Home() {
   return (
     <>
       <MiniAppContainer>
-        {/* Memory API Integration Banner for Builder Rewards */}
         {isConnected && (
           <Alert status="info" mb={6} borderRadius="md">
             <AlertIcon />
             <Box flex="1">
-              <AlertTitle>Memory API Integration Active!</AlertTitle>
+              <AlertTitle>Cross-Platform Identity Active</AlertTitle>
               <AlertDescription display="block">
-                Your cross-platform identity is now enriched with Memory API
-                data.
+                Your unified profile connects your wallet and social identities.
                 <Link
                   href="#identity-dashboard"
                   color="blue.500"
                   fontWeight="bold"
                 >
                   {" "}
-                  View your unified profile
+                  View your dashboard
                 </Link>
               </AlertDescription>
             </Box>
@@ -989,14 +987,13 @@ export default function Home() {
           </Wrap>
         </Box>
 
-        {/* Memory API Integration Dashboard for Builder Rewards */}
         {isConnected && (
           <Box id="identity-dashboard" mt={12} mb={8}>
             <Heading size="lg" mb={4} textAlign="center">
-              Your Cross-Platform Identity Dashboard
+              Your Cross-Platform Identity
             </Heading>
             <Text textAlign="center" mb={6} color="gray.600">
-              Powered by Memory API for the Builder Rewards initiative
+              Unified view of your wallet and social connections
             </Text>
             <IdentityDashboard
               address={address}
@@ -1005,27 +1002,25 @@ export default function Home() {
           </Box>
         )}
 
-        {/* Memory API Leaderboard for Builder Rewards */}
         {isConnected && (
           <Box id="leaderboard" mt={12} mb={8}>
             <Heading size="lg" mb={4} textAlign="center">
-              Social Influence Leaderboard
+              Community Leaderboard
             </Heading>
             <Text textAlign="center" mb={6} color="gray.600">
-              See how you rank among top creators in the ecosystem
+              Top creators in the Ghiblify ecosystem
             </Text>
             <Leaderboard />
           </Box>
         )}
 
-        {/* Memory API Suggested Follows for Builder Rewards */}
         {isConnected && (
           <Box id="suggested-follows" mt={12} mb={8}>
             <Heading size="lg" mb={4} textAlign="center">
               Suggested Follows
             </Heading>
             <Text textAlign="center" mb={6} color="gray.600">
-              Personalized recommendations based on your interests
+              Connect with creators who share your interests
             </Text>
             <SuggestedFollows
               address={address}
@@ -1034,14 +1029,13 @@ export default function Home() {
           </Box>
         )}
 
-        {/* Memory API Personality Profile for Builder Rewards */}
         {isConnected && (
           <Box id="personality-profile" mt={12} mb={8}>
             <Heading size="lg" mb={4} textAlign="center">
-              Personality Profile
+              Your Digital Profile
             </Heading>
             <Text textAlign="center" mb={6} color="gray.600">
-              Insights into your digital personality and interests
+              Insights into your on-chain personality and interests
             </Text>
             <PersonalityProfile
               address={address}

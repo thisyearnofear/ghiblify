@@ -224,11 +224,34 @@ The backend is built with FastAPI and uses Python 3.11+. Key components include:
    - Wallet-to-Farcaster mapping
    - Unified profile creation
 
-4. **Demo Component** (`front/app/components/MemoryApiExample.jsx`)
-   - Demonstration of Memory API capabilities
-   - Visual representation of unified identity profiles
-   - Real-time identity data fetching
-   - Error handling and loading states
+4. **Social Feature Components**
+   - `IdentityDashboard.jsx` - Cross-platform identity aggregation
+   - `Leaderboard.jsx` - Community rankings and influence metrics
+   - `PersonalityProfile.jsx` - User traits, interests, engagement analytics
+   - `SuggestedFollows.jsx` - Personalized connection recommendations
+   - All components use Memory API with fallback to mock data
+
+### Architecture Improvements (Planned)
+
+1. **Unified Social Context**
+   - Centralized provider to batch-fetch all social data
+   - Reduces API calls from 4 individual requests to 1 batch request
+   - Shared state across all social components
+
+2. **Smart Caching**
+   - 5-minute TTL for social data in localStorage
+   - Reduces redundant API calls
+   - Improves perceived performance
+
+3. **Lazy Loading**
+   - Intersection observer for true on-demand loading
+   - Social features load only when scrolled into view
+   - Doesn't block initial page render
+
+4. **Error Boundaries**
+   - Graceful degradation when social features fail
+   - Core Ghiblify functionality remains unaffected
+   - User-friendly error messages
 
 ### Backend Components
 

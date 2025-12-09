@@ -2,7 +2,7 @@
  * Identity Dashboard Component
  * 
  * Comprehensive dashboard showing cross-platform identity information
- * for the Memory API Builder Rewards initiative.
+ * using Memory API integration.
  */
 
 import { useState, useEffect, useCallback } from 'react';

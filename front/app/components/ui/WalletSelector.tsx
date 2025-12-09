@@ -49,6 +49,23 @@ export default function WalletSelector({
     onClose: closeBaseAuth,
   } = useDisclosure();
 
+  // Log wallet connection issues for debugging
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('Window ethereum:', window.ethereum);
+      console.log('Available wallets:', window.ethereum?.isMetaMask ? 'MetaMask detected' : 'No MetaMask');
+    }
+  }, []);
+
+  const handleBaseAuthSuccess = () => {
+    closeBaseAuth();
+    closeWalletSelect();
+  };
+
+  const handleBaseAuthError = (error: any) => {
+    console.error("Base authentication failed:", error);
+  };
+
   // In Farcaster frames, wallet is auto-connected, no selection needed
   if (isInMiniApp) {
     return null;
@@ -68,23 +85,6 @@ export default function WalletSelector({
       </Box>
     );
   }
-
-  const handleBaseAuthSuccess = () => {
-    closeBaseAuth();
-    closeWalletSelect();
-  };
-
-  const handleBaseAuthError = (error: any) => {
-    console.error("Base authentication failed:", error);
-  };
-
-  // Log wallet connection issues for debugging
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('Window ethereum:', window.ethereum);
-      console.log('Available wallets:', window.ethereum?.isMetaMask ? 'MetaMask detected' : 'No MetaMask');
-    }
-  }, []);
 
   return (
     <>
