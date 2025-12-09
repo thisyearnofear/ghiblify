@@ -11,16 +11,14 @@ import {
   coinbaseWallet,
   rabbyWallet,
 } from "@rainbow-me/rainbowkit/wallets";
-import { createConfig } from "wagmi";
+import { createConfig, http } from "wagmi";
 import { mainnet, polygon } from "wagmi/chains";
-import { http } from "viem";
-import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
+import type { Chain } from "wagmi/chains";
 
 // Define Celo Mainnet with proper yellow color
-const celoMainnet = {
+export const celoMainnet = {
   id: 42220,
   name: "Celo",
-  network: "celo",
   nativeCurrency: {
     decimals: 18,
     name: "Celo",
@@ -37,15 +35,13 @@ const celoMainnet = {
   blockExplorers: {
     default: { name: "CeloScan", url: "https://celoscan.io" },
   },
-  color: "#FCFF52",
   testnet: false,
-};
+} as const satisfies Chain;
 
 // Define Base with proper blue color
-const baseMainnet = {
+export const baseMainnet = {
   id: 8453,
   name: "Base",
-  network: "base",
   nativeCurrency: {
     decimals: 18,
     name: "Ether",
@@ -66,15 +62,8 @@ const baseMainnet = {
   blockExplorers: {
     default: { name: "BaseScan", url: "https://basescan.org" },
   },
-  color: "#0052FF",
   testnet: false,
-};
-
-// Detect if running in Mini App context
-const isInMiniApp = typeof window !== 'undefined' && (
-  window.parent !== window ||
-  /Farcaster/i.test(navigator?.userAgent || '')
-);
+} as const satisfies Chain;
 
 const projectId =
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
@@ -115,12 +104,14 @@ export const config = createConfig({
     ),
     [mainnet.id]: http(),
     [polygon.id]: http(),
-    [baseMainnet.id]: http(process.env.NEXT_PUBLIC_BASE_RPC_URL, {
-      timeout: 10000,
-      retryCount: 3,
-      retryDelay: 1000,
-    }),
+    [baseMainnet.id]: http(
+      process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://mainnet.base.org",
+      {
+        timeout: 10000,
+        retryCount: 3,
+        retryDelay: 1000,
+      }
+    ),
   },
+  ssr: true,
 });
-
-export { celoMainnet, baseMainnet };

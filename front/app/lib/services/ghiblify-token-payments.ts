@@ -169,7 +169,7 @@ class GhiblifyTokenPaymentService {
          abi: GHIBLIFY_PAYMENTS_ABI,
          functionName: 'getTokenPackagePrice',
          args: [contractTier],
-         chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+         chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
        }) as bigint;
        
        return tokenAmount;
@@ -221,7 +221,7 @@ class GhiblifyTokenPaymentService {
         abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [userAddress as `0x${string}`],
-        chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+        chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
       }) as bigint;
       
       return {
@@ -323,7 +323,7 @@ class GhiblifyTokenPaymentService {
         abi: ERC20_ABI,
         functionName: 'allowance',
         args: [userAddress as `0x${string}`, GHIBLIFY_TOKEN_CONFIG.contractAddress as `0x${string}`],
-        chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+        chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
       }) as bigint;
 
       console.log(`[GHIBLIFY Token] Current allowance: ${formatUnits(currentAllowance, 18)}`);
@@ -557,7 +557,7 @@ export const GHIBLIFY_TOKEN_CONTRACT = {
   tokenAddress: GHIBLIFY_TOKEN_CONFIG.tokenAddress,
   abi: GHIBLIFY_PAYMENTS_ABI,
   tokenAbi: ERC20_ABI,
-  chainId: GHIBLIFY_TOKEN_CONFIG.chainId,
+  chainId: GHIBLIFY_TOKEN_CONFIG.chainId as any,
 };
 
 // Convenience exports

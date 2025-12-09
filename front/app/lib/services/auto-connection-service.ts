@@ -50,7 +50,7 @@ async function switchToChainIdWithRetry(
        onProgress(`Switching to network ${targetChainId} (attempt ${attempt}/${maxRetries})`);
 
        // Attempt to switch chain
-       await switchChain(config, { chainId: targetChainId });
+       await switchChain(config, { chainId: targetChainId as any });
 
       // Wait for stabilization
       onProgress('Network switched, stabilizing connection...');
@@ -109,7 +109,7 @@ function delay(ms: number): Promise<void> {
  */
 async function switchToChainId(targetChainId: number): Promise<boolean> {
    try {
-     await switchChain(config, { chainId: targetChainId });
+     await switchChain(config, { chainId: targetChainId as any });
      return true;
    } catch (err) {
      console.warn('[auto-connection] switchChain failed:', err);
