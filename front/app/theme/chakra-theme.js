@@ -160,6 +160,12 @@ const styles = {
 };
 
 // Component style overrides for better dark mode support
+
+const glassMorphismStyle = (props, opacity = 0.8) => ({
+  bg: mode(`rgba(255, 255, 255, ${opacity})`, `rgba(26, 32, 44, ${opacity})`)(props),
+  backdropFilter: 'blur(10px)',
+});
+
 const components = {
   Button: {
     baseStyle: {
@@ -209,8 +215,7 @@ const components = {
 
   Card: {
     baseStyle: (props) => ({
-      bg: mode('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)')(props),
-      backdropFilter: 'blur(10px)',
+      ...glassMorphismStyle(props, 0.8),
       borderColor: mode('gray.200', 'ghibliGray.600')(props),
       boxShadow: mode(
         '0 4px 6px rgba(0, 0, 0, 0.05)',
@@ -222,8 +227,7 @@ const components = {
   Modal: {
     baseStyle: (props) => ({
       dialog: {
-        bg: mode('rgba(255, 255, 255, 0.9)', 'rgba(26, 32, 44, 0.9)')(props),
-        backdropFilter: 'blur(10px)',
+        ...glassMorphismStyle(props, 0.9),
         boxShadow: mode(
           '0 25px 50px rgba(0, 0, 0, 0.15)',
           '0 25px 50px rgba(0, 0, 0, 0.5)'
@@ -233,6 +237,43 @@ const components = {
         bg: mode('blackAlpha.600', 'blackAlpha.800')(props),
         backdropFilter: 'blur(4px)',
       },
+    }),
+  },
+
+  Menu: {
+    baseStyle: (props) => ({
+      list: {
+        ...glassMorphismStyle(props, 0.9),
+        border: '1px solid',
+        borderColor: mode('gray.200', 'ghibliGray.700')(props),
+      },
+      item: {
+        bg: 'transparent',
+        _hover: {
+          bg: mode('gray.100', 'ghibliGray.700')(props),
+        },
+        _focus: {
+          bg: mode('gray.100', 'ghibliGray.700')(props),
+        }
+      }
+    }),
+  },
+
+  Drawer: {
+    baseStyle: (props) => ({
+      dialog: {
+        ...glassMorphismStyle(props, 0.85),
+      }
+    }),
+  },
+
+  Popover: {
+    baseStyle: (props) => ({
+      content: {
+        ...glassMorphismStyle(props, 0.9),
+        border: '1px solid',
+        borderColor: mode('gray.200', 'ghibliGray.700')(props),
+      }
     }),
   },
 

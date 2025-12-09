@@ -3,6 +3,7 @@ import theme from "./theme/chakra-theme";
 import themeConfig from "./theme/config";
 import { Web3Provider } from "./providers/Web3Provider";
 import { FarcasterMiniAppProvider } from "./components/FarcasterMiniAppProvider";
+import { GhibliThemeProvider } from "./providers/GhibliThemeProvider";
 import Navigation from "./components/Navigation";
 import MobileErrorBoundary from "./components/MobileErrorBoundary";
 import dynamic from "next/dynamic";
@@ -68,11 +69,13 @@ export default function RootLayout({ children }) {
         <ChakraProvider theme={theme}>
           <Web3Provider>
             <FarcasterMiniAppProvider>
-              <MobileErrorBoundary>
-                <GhibliBackground isEnabled={true} />
-                <Navigation />
-                {children}
-              </MobileErrorBoundary>
+              <GhibliThemeProvider>
+                <MobileErrorBoundary>
+                  <GhibliBackground />
+                  <Navigation />
+                  {children}
+                </MobileErrorBoundary>
+              </GhibliThemeProvider>
             </FarcasterMiniAppProvider>
           </Web3Provider>
         </ChakraProvider>

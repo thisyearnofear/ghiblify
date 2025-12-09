@@ -6,15 +6,17 @@ import {
   Button, 
   HStack, 
   Text, 
+  FormControl,
+  FormLabel,
+  Switch,
 } from "@chakra-ui/react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
 import "@rainbow-me/rainbowkit/styles.css";
 import { useWallet } from "../lib/hooks/useWallet";
 import CompactWalletButton from "./ui/CompactWalletButton";
 import { DarkModeToggle } from "./ui/SimpleDarkModeToggle";
-import { useGhibliTheme } from "../hooks/useGhibliTheme";
+import { useGhibliTheme } from "../providers/GhibliThemeProvider";
 import {
   GRADIENTS,
   PATTERNS,
@@ -23,14 +25,11 @@ import {
 } from "../theme";
 import SparkleEffect from "./ui/SparkleEffect";
 
-const CreditsDisplay = dynamic(() => import("./CreditsDisplay"), {
-  ssr: false,
-});
-
 export default function Navigation() {
   const router = useRouter();
   const { isConnected } = useWallet();
   const [mounted, setMounted] = useState(false);
+  const { isBackgroundEnabled, toggleBackground } = useGhibliTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -119,6 +118,12 @@ export default function Navigation() {
         </HStack>
 
         <HStack spacing={3}>
+          <FormControl display="flex" alignItems="center" w="auto">
+            <FormLabel htmlFor="bg-toggle" mb="0" mr={2} color="whiteAlpha.800" fontSize="xs">
+              Animation
+            </FormLabel>
+            <Switch id="bg-toggle" size="sm" isChecked={isBackgroundEnabled} onChange={toggleBackground} />
+          </FormControl>
           <DarkModeToggle variant="glass" size="sm" />
           <CompactWalletButton />
         </HStack>
