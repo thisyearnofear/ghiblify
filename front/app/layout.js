@@ -6,13 +6,8 @@ import { FarcasterMiniAppProvider } from "./components/FarcasterMiniAppProvider"
 import { GhibliThemeProvider } from "./providers/GhibliThemeProvider";
 import Navigation from "./components/Navigation";
 import MobileErrorBoundary from "./components/MobileErrorBoundary";
-import dynamic from "next/dynamic";
+import DynamicGhibliBackground from "./components/DynamicGhibliBackground"; // Import the new client component
 
-// Dynamically import the GhibliBackground to avoid SSR issues
-const GhibliBackground = dynamic(
-  () => import("./components/GhibliBackground"),
-  { ssr: false }
-);
 
 export const metadata = {
   metadataBase: new URL("https://ghiblify-it.vercel.app"),
@@ -71,7 +66,7 @@ export default function RootLayout({ children }) {
             <FarcasterMiniAppProvider>
               <GhibliThemeProvider>
                 <MobileErrorBoundary>
-                  <GhibliBackground />
+                  <DynamicGhibliBackground />
                   <Navigation />
                   {children}
                 </MobileErrorBoundary>
