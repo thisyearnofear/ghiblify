@@ -116,7 +116,7 @@ const customConnectors = [
     const ff = loadFrameConnector();
     return ff ? [ff()] : [];
   })(),
-  ...(isInMiniApp ? [] : [injected()]),
+  injected(),
   walletConnect({
     projectId:
       process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||

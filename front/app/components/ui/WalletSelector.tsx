@@ -15,6 +15,7 @@ import {
   ModalCloseButton,
 } from "@chakra-ui/react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useEffect } from "react";
 import { useFarcaster } from "../FarcasterMiniAppProvider";
 import { useWallet } from "../../lib/hooks/useWallet";
 import { useBaseAccountAuth } from "../../lib/hooks/useBaseAccountAuth";
@@ -76,6 +77,14 @@ export default function WalletSelector({
   const handleBaseAuthError = (error: any) => {
     console.error("Base authentication failed:", error);
   };
+
+  // Log wallet connection issues for debugging
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('Window ethereum:', window.ethereum);
+      console.log('Available wallets:', window.ethereum?.isMetaMask ? 'MetaMask detected' : 'No MetaMask');
+    }
+  }, []);
 
   return (
     <>

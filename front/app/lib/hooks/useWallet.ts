@@ -82,6 +82,8 @@ export function useWallet(): UseWalletReturn {
         await walletService.connect(connectionDetails.address, connectionDetails.provider);
       } catch (error) {
         console.warn('Auto-connect failed:', error);
+        // Set error state to display to user
+        setState(prev => ({ ...prev, error: 'Failed to connect wallet. Please try again.' }));
       }
     };
 
