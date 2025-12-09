@@ -185,27 +185,33 @@ class WalletService {
       let identityData = {};
       let socialGraphData = {};
       
-      // Lazy load memory API service to prevent initialization issues
-      if (!memoryApiService) {
-        try {
-          const { memoryApiService: mas } = await import('./memory-api-service');
-          memoryApiService = mas;
-        } catch (error) {
-          console.warn('Failed to load memory API service:', error);
-        }
-      }
+      // Memory API integration disabled to prevent crashes
+      // TODO: Re-enable when Memory API integration is stable
+      const isMemoryApiEnabled = false;
       
-      if (memoryApiService && memoryApiService.isAvailable()) {
-        try {
-          const unifiedProfile = await memoryApiService.createUnifiedProfile(address, farcasterUsername);
-          if (unifiedProfile) {
-            identityData = unifiedProfile;
-            socialGraphData = unifiedProfile.social;
+      if (isMemoryApiEnabled) {
+        // Lazy load memory API service to prevent initialization issues
+        if (!memoryApiService) {
+          try {
+            const { memoryApiService: mas } = await import('./memory-api-service');
+            memoryApiService = mas;
+          } catch (error) {
+            console.warn('Failed to load memory API service:', error);
           }
-        } catch (error) {
-          console.warn('Failed to fetch identity data from Memory API:', error);
-          // Try to get cached data if available
-          console.log('Attempting to use cached identity data...');
+        }
+        
+        if (memoryApiService && memoryApiService.isAvailable()) {
+          try {
+            const unifiedProfile = await memoryApiService.createUnifiedProfile(address, farcasterUsername);
+            if (unifiedProfile) {
+              identityData = unifiedProfile;
+              socialGraphData = unifiedProfile.social;
+            }
+          } catch (error) {
+            console.warn('Failed to fetch identity data from Memory API:', error);
+            // Try to get cached data if available
+            console.log('Attempting to use cached identity data...');
+          }
         }
       }
 

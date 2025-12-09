@@ -34,12 +34,16 @@ import { InfoIcon } from '@chakra-ui/icons';
 import { useMemoryApi } from '../lib/hooks/useMemoryApi';
 
 export default function PersonalityProfile({ address, farcasterUsername }) {
+  // Memory API is currently disabled to prevent crashes
+  const isMemoryApiEnabled = false;
+  
   const { 
     getPersonalityProfile, 
     isLoading, 
     error 
   } = useMemoryApi();
   
+  // State hooks must be called before early return
   const [personalityData, setPersonalityData] = useState(null);
 
   // Fetch personality data when component mounts or when user data changes
@@ -50,6 +54,7 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
   }, [address, farcasterUsername, fetchPersonalityData]);
 
   const fetchPersonalityData = useCallback(async () => {
+    if (!isMemoryApiEnabled) return;
     // Mock data for demonstration
     const mockPersonalityData = {
       traits: [
@@ -94,7 +99,12 @@ export default function PersonalityProfile({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setPersonalityData(mockPersonalityData);
     }
-  }, [address, farcasterUsername, getPersonalityProfile]);
+  }, [address, farcasterUsername, getPersonalityProfile, isMemoryApiEnabled]);
+
+  // Early return if Memory API is disabled (after all hooks)
+  if (!isMemoryApiEnabled) {
+    return null;
+  }
 
   if (error) {
     return (

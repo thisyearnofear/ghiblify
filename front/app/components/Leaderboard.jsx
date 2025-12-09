@@ -51,22 +51,23 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useMemoryApi } from '../lib/hooks/useMemoryApi';
 
 export default function Leaderboard() {
+  // Memory API is currently disabled to prevent crashes
+  const isMemoryApiEnabled = false;
+  
   const { 
     getSocialGraph, 
     isLoading, 
     error 
   } = useMemoryApi();
   
+  // State hooks must be called before early return
   const [leaderboard, setLeaderboard] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [timeRange, setTimeRange] = useState('all'); // all, week, month
 
-  // Fetch leaderboard data when component mounts
-  useEffect(() => {
-    fetchLeaderboardData();
-  }, [timeRange, fetchLeaderboardData]);
-
+  // Define fetchLeaderboardData before useEffect
   const fetchLeaderboardData = useCallback(async () => {
+    if (!isMemoryApiEnabled) return;
     try {
       const response = await getLeaderboard(timeRange);
       if (response && response.leaderboard) {
@@ -76,7 +77,17 @@ export default function Leaderboard() {
     } catch (err) {
       console.error('Leaderboard fetch error:', err);
     }
-  }, [timeRange]);
+  }, [timeRange, isMemoryApiEnabled]);
+
+  // Fetch leaderboard data when component mounts
+  useEffect(() => {
+    fetchLeaderboardData();
+  }, [timeRange, fetchLeaderboardData]);
+
+  // Early return if Memory API is disabled (after all hooks)
+  if (!isMemoryApiEnabled) {
+    return null;
+  }
 
   if (error) {
     return (

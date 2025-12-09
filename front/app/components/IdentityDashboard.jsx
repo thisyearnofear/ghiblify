@@ -43,6 +43,9 @@ import { ExternalLinkIcon } from '@chakra-ui/icons';
 import { useMemoryApi } from '../lib/hooks/useMemoryApi';
 
 export default function IdentityDashboard({ address, farcasterUsername }) {
+  // Memory API is currently disabled to prevent crashes
+  const isMemoryApiEnabled = false;
+  
   const { 
     getIdentityGraph, 
     getSocialGraph, 
@@ -52,20 +55,15 @@ export default function IdentityDashboard({ address, farcasterUsername }) {
     error 
   } = useMemoryApi();
   
-  // State for force refresh
+  // State for force refresh - must call before early return
   const [forceRefresh, setForceRefresh] = useState(false);
-  
   const [profile, setProfile] = useState(null);
   const [socialScore, setSocialScore] = useState(null);
 
-  // Fetch identity data when component mounts or when address/username changes
-  useEffect(() => {
-    if (address || farcasterUsername) {
-      fetchIdentityData(forceRefresh);
-    }
-  }, [address, farcasterUsername, forceRefresh, fetchIdentityData]);
-
+  // Define fetchIdentityData before useEffect
   const fetchIdentityData = useCallback(async (force = false) => {
+    // Early return if Memory API is disabled
+    if (!isMemoryApiEnabled) return;
     try {
       // Fetch unified profile
       let profileData;
@@ -96,7 +94,19 @@ export default function IdentityDashboard({ address, farcasterUsername }) {
     } catch (err) {
       console.error('Identity dashboard error:', err);
     }
-  }, [address, farcasterUsername, createUnifiedProfile, getWalletAddressForFarcasterUser]);
+  }, [address, farcasterUsername, createUnifiedProfile, getWalletAddressForFarcasterUser, isMemoryApiEnabled]);
+
+  // Fetch identity data when component mounts or when address/username changes
+  useEffect(() => {
+    if (address || farcasterUsername) {
+      fetchIdentityData(forceRefresh);
+    }
+  }, [address, farcasterUsername, forceRefresh, fetchIdentityData]);
+
+  // Early return if Memory API is disabled (after all hooks)
+  if (!isMemoryApiEnabled) {
+    return null;
+  }
 
   const calculateSocialScore = (socialData) => {
     // Simple social influence scoring algorithm

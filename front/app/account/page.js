@@ -22,6 +22,30 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useUnifiedWallet } from "../lib/hooks/useUnifiedWallet";
+import dynamic from "next/dynamic";
+
+// MODULAR: Dynamic imports for Memory API social features (post-conversion enhancement)
+const IdentityDashboard = dynamic(
+  () => import("../components/IdentityDashboard"),
+  {
+    loading: () => (
+      <Box p={4} textAlign="center">
+        <Text>Loading identity insights...</Text>
+      </Box>
+    ),
+  }
+);
+
+const SuggestedFollows = dynamic(
+  () => import("../components/SuggestedFollows"),
+  {
+    loading: () => (
+      <Box p={4} textAlign="center">
+        <Text>Loading community suggestions...</Text>
+      </Box>
+    ),
+  }
+);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 if (!API_URL) {
@@ -320,6 +344,44 @@ export default function Account() {
             </Table>
           )}
         </Box>
+
+        {/* ENHANCEMENT FIRST: Social features only appear after user engagement */}
+        {allPurchases.length > 0 && (
+          <Box mt={12} pt={8} borderTop="1px" borderColor="gray.200">
+            <VStack spacing={8}>
+              <Box textAlign="center">
+                <Heading size="lg" mb={2}>
+                  🌟 Discover Your Creative Community
+                </Heading>
+                <Text color="gray.600" mb={6}>
+                  Since you&apos;re actively creating Ghibli art, explore connections with other artists
+                </Text>
+              </Box>
+
+              {/* Progressive enhancement: Identity insights for engaged users */}
+              <Box width="100%">
+                <Heading size="md" mb={4}>
+                  Your Creative Identity
+                </Heading>
+                <IdentityDashboard
+                  address={address}
+                  farcasterUsername={state.user?.identity?.farcaster?.username}
+                />
+              </Box>
+
+              {/* Community suggestions for creators */}
+              <Box width="100%">
+                <Heading size="md" mb={4}>
+                  Connect with Fellow Artists
+                </Heading>
+                <SuggestedFollows
+                  address={address}
+                  farcasterUsername={state.user?.identity?.farcaster?.username}
+                />
+              </Box>
+            </VStack>
+          </Box>
+        )}
 
         <Box>
           <Link href="/account/cancel" color="gray.500">

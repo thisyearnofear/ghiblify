@@ -39,7 +39,11 @@ export function useMemoryApi(): UseMemoryApiReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Memory API is disabled to prevent crashes - return no-op functions
+  const isMemoryApiEnabled = false;
+
   const getIdentityGraph = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -57,6 +61,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const getSocialGraph = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -74,6 +79,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const getWalletAddressForFarcasterUser = useCallback(async (username: string): Promise<string | null> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -90,6 +96,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const createUnifiedProfile = useCallback(async (address: string, farcasterUsername?: string, forceRefresh: boolean = false): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -107,6 +114,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const getLeaderboard = useCallback(async (range: string = 'all'): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -123,6 +131,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const getSuggestedFollows = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 
@@ -139,6 +148,7 @@ export function useMemoryApi(): UseMemoryApiReturn {
   }, []);
 
   const getPersonalityProfile = useCallback(async (identifier: string, type: 'address' | 'farcaster'): Promise<any> => {
+    if (!isMemoryApiEnabled) return null;
     setIsLoading(true);
     setError(null);
 

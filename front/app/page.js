@@ -95,47 +95,8 @@ const MobileFileUpload = dynamic(
   }
 );
 
-// Import the Identity Dashboard component
-const IdentityDashboard = dynamic(
-  () => import("./components/IdentityDashboard"),
-  {
-    loading: () => (
-      <Box p={4} textAlign="center">
-        Loading identity dashboard...
-      </Box>
-    ),
-  }
-);
-
-const Leaderboard = dynamic(() => import("./components/Leaderboard"), {
-  loading: () => (
-    <Box p={4} textAlign="center">
-      Loading leaderboard...
-    </Box>
-  ),
-});
-
-const SuggestedFollows = dynamic(
-  () => import("./components/SuggestedFollows"),
-  {
-    loading: () => (
-      <Box p={4} textAlign="center">
-        Loading suggestions...
-      </Box>
-    ),
-  }
-);
-
-const PersonalityProfile = dynamic(
-  () => import("./components/PersonalityProfile"),
-  {
-    loading: () => (
-      <Box p={4} textAlign="center">
-        Loading personality profile...
-      </Box>
-    ),
-  }
-);
+// REMOVED: Memory API components relocated to account page for post-conversion enhancement
+// Following AGGRESSIVE CONSOLIDATION principle - delete rather than deprecate
 
 import MiniAppContainer from "./components/MiniAppContainer";
 import SplashScreen from "./components/SplashScreen";
@@ -987,62 +948,8 @@ export default function Home() {
           </Wrap>
         </Box>
 
-        {isConnected && (
-          <Box id="identity-dashboard" mt={12} mb={8}>
-            <Heading size="lg" mb={4} textAlign="center">
-              Your Cross-Platform Identity
-            </Heading>
-            <Text textAlign="center" mb={6} color="gray.600">
-              Unified view of your wallet and social connections
-            </Text>
-            <IdentityDashboard
-              address={address}
-              farcasterUsername={farcasterUser?.username}
-            />
-          </Box>
-        )}
-
-        {isConnected && (
-          <Box id="leaderboard" mt={12} mb={8}>
-            <Heading size="lg" mb={4} textAlign="center">
-              Community Leaderboard
-            </Heading>
-            <Text textAlign="center" mb={6} color="gray.600">
-              Top creators in the Ghiblify ecosystem
-            </Text>
-            <Leaderboard />
-          </Box>
-        )}
-
-        {isConnected && (
-          <Box id="suggested-follows" mt={12} mb={8}>
-            <Heading size="lg" mb={4} textAlign="center">
-              Suggested Follows
-            </Heading>
-            <Text textAlign="center" mb={6} color="gray.600">
-              Connect with creators who share your interests
-            </Text>
-            <SuggestedFollows
-              address={address}
-              farcasterUsername={farcasterUser?.username}
-            />
-          </Box>
-        )}
-
-        {isConnected && (
-          <Box id="personality-profile" mt={12} mb={8}>
-            <Heading size="lg" mb={4} textAlign="center">
-              Your Digital Profile
-            </Heading>
-            <Text textAlign="center" mb={6} color="gray.600">
-              Insights into your on-chain personality and interests
-            </Text>
-            <PersonalityProfile
-              address={address}
-              farcasterUsername={farcasterUser?.username}
-            />
-          </Box>
-        )}
+        {/* ENHANCEMENT FIRST: Memory API social features moved to post-conversion flow */}
+        {/* Core user journey: Land → Transform → Connect → Discover Social */}
 
         <FAQ />
 

@@ -34,12 +34,16 @@ import { ExternalLinkIcon, SmallAddIcon } from '@chakra-ui/icons';
 import { useMemoryApi } from '../lib/hooks/useMemoryApi';
 
 export default function SuggestedFollows({ address, farcasterUsername }) {
+  // Memory API is currently disabled to prevent crashes
+  const isMemoryApiEnabled = false;
+  
   const { 
     getSuggestedFollows, 
     isLoading, 
     error 
   } = useMemoryApi();
   
+  // State hooks must be called before early return
   const [suggestions, setSuggestions] = useState([]);
   const [following, setFollowing] = useState(new Set());
 
@@ -51,6 +55,7 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
   }, [address, farcasterUsername, fetchSuggestions]);
 
   const fetchSuggestions = useCallback(async () => {
+    if (!isMemoryApiEnabled) return;
     // Mock data for demonstration
     const mockSuggestions = [
       {
@@ -109,7 +114,12 @@ export default function SuggestedFollows({ address, farcasterUsername }) {
       // Fallback to mock data if API fails
       setSuggestions(mockSuggestions);
     }
-  }, [address, farcasterUsername, getSuggestedFollows]);
+  }, [address, farcasterUsername, getSuggestedFollows, isMemoryApiEnabled]);
+
+  // Early return if Memory API is disabled (after all hooks)
+  if (!isMemoryApiEnabled) {
+    return null;
+  }
 
   const handleFollow = (userId) => {
     setFollowing(prev => new Set([...prev, userId]));
