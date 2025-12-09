@@ -517,25 +517,6 @@ export default function Home() {
   return (
     <>
       <MiniAppContainer>
-        {isConnected && (
-          <Alert status="info" mb={6} borderRadius="md">
-            <AlertIcon />
-            <Box flex="1">
-              <AlertTitle>Cross-Platform Identity Active</AlertTitle>
-              <AlertDescription display="block">
-                Your unified profile connects your wallet and social identities.
-                <Link
-                  href="#identity-dashboard"
-                  color="blue.500"
-                  fontWeight="bold"
-                >
-                  {" "}
-                  View your dashboard
-                </Link>
-              </AlertDescription>
-            </Box>
-          </Alert>
-        )}
 
         <Box borderWidth="0px" mx="0px" my="10px">
           <Text
