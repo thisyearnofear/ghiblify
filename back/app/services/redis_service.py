@@ -30,7 +30,7 @@ class KeyNamespace(Enum):
 @dataclass
 class RedisConfig:
     """Modern Redis configuration with connection pooling"""
-    host: str = os.getenv('REDIS_HOST', 'active-mosquito-46497.upstash.io')
+    host: str = os.getenv('REDIS_HOST', 'pretty-flea-6564.upstash.io')
     port: int = int(os.getenv('REDIS_PORT', 6379))
     username: str = os.getenv('REDIS_USERNAME', 'default')
     password: Optional[str] = os.getenv('REDIS_PASSWORD')
