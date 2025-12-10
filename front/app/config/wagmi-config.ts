@@ -14,6 +14,7 @@ import {
 import { createConfig, http } from "wagmi";
 import { mainnet, polygon } from "wagmi/chains";
 import type { Chain } from "wagmi/chains";
+import { createPublicClient } from "viem";
 
 // Define Celo Mainnet with proper yellow color
 export const celoMainnet = {
@@ -114,4 +115,17 @@ export const config = createConfig({
     ),
   },
   ssr: true,
+});
+
+// Create a public client for reading blockchain data
+export const publicClient = createPublicClient({
+  chain: celoMainnet,
+  transport: http(
+    process.env.NEXT_PUBLIC_CELO_RPC_URL || "https://forno.celo.org",
+    {
+      timeout: 10000,
+      retryCount: 3,
+      retryDelay: 1000,
+    }
+  ),
 });

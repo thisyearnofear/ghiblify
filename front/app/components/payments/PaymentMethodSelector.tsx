@@ -78,11 +78,21 @@ export default function PaymentMethodSelector({
       
       try {
         setCheckingCeloBalance(true);
-        const { publicClient } = await import("../../lib/config/wagmi");
-        const balance = await publicClient.getBalance({
-          address: user.address as `0x${string}`,
-          token: "0x765DE816845861e75A25fCA122bb6898B6F02217", // cUSD token address on Celo
-        });
+        const { publicClient } = await import("../../config/wagmi-config");
+        const balance = await publicClient.readContract({
+          address: "0x765DE816845861e75A25fCA122bb6898B6F02217" as `0x${string}`,
+          abi: [
+            {
+              name: "balanceOf",
+              type: "function",
+              inputs: [{ type: "address" }],
+              outputs: [{ type: "uint256" }],
+              stateMutability: "view",
+            },
+          ] as const,
+          functionName: "balanceOf",
+          args: [user.address as `0x${string}`],
+        } as any);
         setCeloBalance(balance.toString());
       } catch (error) {
         console.error("Error checking Celo balance:", error);
