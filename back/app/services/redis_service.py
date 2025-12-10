@@ -30,43 +30,57 @@ class KeyNamespace(Enum):
 @dataclass
 class RedisConfig:
     """Modern Redis configuration with connection pooling"""
-    host: str = os.getenv('REDIS_HOST', 'pretty-flea-6564.upstash.io')
+    # Try UPSTASH_REDIS_URL first, then REDIS_URL, then fallback to discrete params
+    url: Optional[str] = os.getenv('UPSTASH_REDIS_URL') or os.getenv('REDIS_URL')
+    host: str = os.getenv('REDIS_HOST', 'localhost')
     port: int = int(os.getenv('REDIS_PORT', 6379))
-    username: str = os.getenv('REDIS_USERNAME', 'default')
+    username: Optional[str] = os.getenv('REDIS_USERNAME')  # None by default
     password: Optional[str] = os.getenv('REDIS_PASSWORD')
     db: int = 0
-    ssl: bool = os.getenv('REDIS_SSL', 'true').lower() == 'true'
+    ssl: bool = os.getenv('REDIS_SSL', 'false').lower() == 'true'
     max_connections: int = 20
-    socket_timeout: float = 30.0
-    socket_connect_timeout: float = 30.0
-    retry_on_timeout: bool = True
+    socket_timeout: float = 10.0  # Reduced from 30s
+    socket_connect_timeout: float = 10.0  # Reduced from 30s
     decode_responses: bool = True
-    url: Optional[str] = os.getenv('UPSTASH_REDIS_URL') or os.getenv('REDIS_URL')
+    is_local: bool = False  # Track if this is local Redis
+    requires_auth: bool = False  # Track if auth is needed
     
     def __post_init__(self):
-        # If a full URL is provided, parse and override discrete fields
+        """Parse and validate Redis configuration"""
+        # If a full URL is provided, parse it and determine configuration
         if self.url:
             parsed = urlparse(self.url)
-            # Scheme rediss or redis indicates Redis protocol
+            
+            # Handle Redis protocol schemes (redis://, rediss://, redis+tls://)
             if parsed.scheme in ('rediss', 'redis', 'redis+tls'):
                 if parsed.hostname:
                     self.host = parsed.hostname
                 if parsed.port:
                     self.port = parsed.port
-                # Username/password may be embedded in URL
+                # Extract credentials from URL if present
                 if parsed.username:
                     self.username = parsed.username
+                    self.requires_auth = True
                 if parsed.password:
                     self.password = parsed.password
+                    self.requires_auth = True
                 # Enable SSL for secure schemes
                 if parsed.scheme in ('rediss', 'redis+tls'):
                     self.ssl = True
-            # If URL is https/http, treat it as host and force SSL
+            # Handle http/https URLs (treated as hosts)
             elif parsed.scheme in ('https', 'http'):
                 if parsed.hostname:
                     self.host = parsed.hostname
                 self.ssl = True
 
+        # Determine if this is a local Redis instance
+        self.is_local = self.host in ('localhost', '127.0.0.1', '::1')
+        
+        # Local Redis doesn't require authentication
+        if self.is_local and not self.password:
+            self.requires_auth = False
+            self.username = None
+        
         # Clean up host URL if it has protocol prefix
         if self.host.startswith('https://'):
             self.host = self.host.replace('https://', '')
@@ -96,64 +110,65 @@ class ModernRedisService:
         self._initialize_connection()
     
     def _initialize_connection(self):
-        """Initialize Redis connection with modern Redis v5+ SSL support"""
+        """Initialize Redis connection with proper handling for local and remote instances"""
         try:
-            # For Redis v5.0+, use direct Redis client initialization instead of ConnectionPool
-            # This handles SSL configuration more reliably for Upstash
+            logger.info(f"[Redis] Connecting to {self.config.host}:{self.config.port} (Local: {self.config.is_local}, Auth: {self.config.requires_auth})")
             
+            # Build connection kwargs - only include auth if required
             redis_kwargs = {
                 'host': self.config.host,
                 'port': self.config.port,
-                'username': self.config.username,
-                'password': self.config.password,
                 'db': self.config.db,
                 'socket_timeout': self.config.socket_timeout,
                 'socket_connect_timeout': self.config.socket_connect_timeout,
-                'retry_on_timeout': self.config.retry_on_timeout,
                 'decode_responses': self.config.decode_responses,
-                'health_check_interval': 30  # Keep connection alive
             }
             
-            # Add SSL parameters for Upstash (Redis v5+ compatible)
+            # Only add authentication if it's required
+            if self.config.requires_auth:
+                if self.config.username:
+                    redis_kwargs['username'] = self.config.username
+                if self.config.password:
+                    redis_kwargs['password'] = self.config.password
+            
+            # Add SSL parameters only if SSL is enabled
             if self.config.ssl:
                 redis_kwargs.update({
                     'ssl': True,
-                    'ssl_cert_reqs': None,      # Don't verify certificates (Upstash compatible)
-                    'ssl_check_hostname': False, # Don't verify hostname (Upstash compatible)
-                    'ssl_ca_certs': None        # Use system CA bundle
+                    'ssl_cert_reqs': None,      # Don't verify certificates
+                    'ssl_check_hostname': False, # Don't verify hostname
                 })
             
-            # Initialize Redis client directly (not through ConnectionPool for SSL compatibility)
+            # Initialize Redis client
             self.client = Redis(**redis_kwargs)
             
             # Test connection
             ping_result = self.client.ping()
             if ping_result:
                 self.available = True
-                logger.info(f"[Redis] ✅ Successfully connected to {self.config.host}:{self.config.port}")
+                auth_status = "with authentication" if self.config.requires_auth else "without authentication"
+                logger.info(f"[Redis] ✅ Connected to {self.config.host}:{self.config.port} {auth_status}")
                 
                 # Log server info for debugging
                 try:
                     server_info = self.client.info('server')
                     redis_version = server_info.get('redis_version', 'unknown')
-                    logger.info(f"[Redis] Server version: {redis_version}")
-                    logger.info(f"[Redis] SSL enabled: {self.config.ssl}")
+                    memory = server_info.get('used_memory_human', 'unknown')
+                    logger.info(f"[Redis] Server version: {redis_version}, Memory: {memory}")
                 except Exception as info_error:
-                    logger.warning(f"[Redis] Could not get server info: {info_error}")
+                    logger.debug(f"[Redis] Could not get server info: {info_error}")
             else:
-                raise Exception("Redis ping failed")
+                raise Exception("Redis ping returned false")
             
         except Exception as e:
             logger.error(f"[Redis] Primary connection failed: {str(e)}")
 
-            # Try alternative connection method for Upstash - Always attempt when primary fails
-            if True:  # Always try alternative method on connection failure
-                logger.info("[Redis] Attempting alternative SSL connection method...")
+            # Try URL-based connection as fallback (for Upstash with complex credentials)
+            if self.config.url and self.config.requires_auth:
+                logger.info("[Redis] Attempting URL-based connection (Upstash fallback)...")
                 try:
-                    # Alternative: Use URL-based connection for Upstash
-                    redis_url = f"rediss://{self.config.username}:{self.config.password}@{self.config.host}:{self.config.port}/{self.config.db}"
                     self.client = Redis.from_url(
-                        redis_url,
+                        self.config.url,
                         socket_timeout=self.config.socket_timeout,
                         socket_connect_timeout=self.config.socket_connect_timeout,
                         decode_responses=self.config.decode_responses,
@@ -164,22 +179,21 @@ class ModernRedisService:
                     # Test alternative connection
                     if self.client.ping():
                         self.available = True
-                        logger.info("[Redis] ✅ Alternative SSL connection successful!")
+                        logger.info("[Redis] ✅ URL-based connection successful!")
                         return
 
                 except Exception as alt_error:
-                    logger.error(f"[Redis] Alternative connection also failed: {alt_error}")
+                    logger.error(f"[Redis] URL-based connection failed: {alt_error}")
             
             # Fallback to memory storage
-            logger.warning("[Redis] Using memory fallback - data will not persist across restarts")
-            logger.warning("[Redis] Memory fallback may cause issues in multi-instance deployments")
+            logger.warning("[Redis] ⚠️ Using in-memory fallback - data will not persist across restarts")
+            logger.warning("[Redis] Multi-instance deployments may have data consistency issues")
             self.available = False
             
-            # Log server instance info for debugging
-            import os
-            instance_id = os.getenv('RENDER_INSTANCE_ID', 'unknown')
-            logger.info(f"[Redis] Server instance: {instance_id}")
-            logger.info(f"[Redis] Config - Host: {self.config.host}, Port: {self.config.port}, SSL: {self.config.ssl}")
+            # Log connection details for debugging
+            instance_id = os.getenv('RENDER_INSTANCE_ID', os.getenv('HOSTNAME', 'unknown'))
+            logger.info(f"[Redis] Instance: {instance_id}")
+            logger.info(f"[Redis] Config - Host: {self.config.host}, Port: {self.config.port}, SSL: {self.config.ssl}, Auth: {self.config.requires_auth}")
     
     def _build_key(self, namespace: KeyNamespace, identifier: str, suffix: str = None) -> str:
         """Build consistent Redis keys"""

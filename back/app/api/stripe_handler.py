@@ -242,123 +242,181 @@ async def stripe_webhook(request: Request):
 
 @stripe_router.get("/session/{session_id}")
 async def check_session_status(session_id: str, address: str):
-    """Check session status and handle credit updates"""
-    try:
-        logger.info(f"[Stripe] Checking session {session_id} for {address}")
+     """Check session status and handle credit updates"""
+     try:
+         logger.info(f"[Stripe] Checking session {session_id} for {address}")
 
-        # Check if credits were already added for this session
-        credit_key = f'credited:session:{session_id}'
-        if redis_service.get(credit_key):
-            logger.info(f"[Stripe] Credits already added for session {session_id}")
-            current_credits = admin_credit_manager.admin_get_credits(address)["credits"]
-            return JSONResponse(content={
-                "status": "success",
-                "credits": current_credits,
-                "message": "Credits already added"
-            })
+         # Check if credits were already added for this session
+         credit_key = f'credited:session:{session_id}'
+         if redis_service.get(credit_key):
+             logger.info(f"[Stripe] Credits already added for session {session_id}")
+             current_credits = admin_credit_manager.admin_get_credits(address)["credits"]
+             return JSONResponse(content={
+                 "status": "success",
+                 "credits": current_credits,
+                 "message": "Credits already added"
+             })
 
-        # Retrieve the session
-        session = stripe.checkout.Session.retrieve(session_id)
-        logger.info(f"[Stripe] Session status: {session.status}")
+         # Retrieve the session with improved error handling
+         try:
+             session = stripe.checkout.Session.retrieve(session_id)
+         except stripe.error.InvalidRequestError as e:
+             # Handle 404 for non-existent sessions
+             if "resource_missing" in str(e):
+                 logger.warning(f"[Stripe] Session not found: {session_id}")
+                 raise HTTPException(status_code=404, detail="Payment session not found. Session may have expired or been deleted.")
+             elif "No such checkout session" in str(e):
+                 logger.warning(f"[Stripe] Invalid session ID: {session_id}")
+                 raise HTTPException(status_code=404, detail="Invalid payment session ID.")
+             else:
+                 logger.error(f"[Stripe] Invalid request: {str(e)}")
+                 raise HTTPException(status_code=400, detail=f"Invalid payment session: {str(e)}")
+         
+         logger.info(f"[Stripe] Session status: {session.status}")
 
-        if session.payment_status == 'paid':
-            try:
-                # Get metadata from the session
-                metadata = session.metadata
-                credits = metadata.get('credits')
+         if session.payment_status == 'paid':
+             try:
+                 # Get metadata from the session
+                 metadata = session.metadata
+                 credits = metadata.get('credits')
 
-                if not credits:
-                    logger.error(f"[Stripe] No credits found in metadata for session {session_id}")
-                    raise HTTPException(status_code=400, detail="No credits specified in session")
+                 if not credits:
+                     logger.error(f"[Stripe] No credits found in metadata for session {session_id}")
+                     raise HTTPException(status_code=400, detail="No credits specified in session")
 
-                # Add credits using AdminCreditManager
-                result = admin_credit_manager.admin_add_credits(
-                    address,
-                    int(credits),
-                    "Stripe Payment"
-                )
+                 # Add credits using AdminCreditManager
+                 result = admin_credit_manager.admin_add_credits(
+                     address,
+                     int(credits),
+                     "Stripe Payment"
+                 )
 
-                # Mark session as credited
-                redis_service.set(credit_key, '1', ex=86400)  # 24h expiry
+                 # Mark session as credited
+                 redis_service.set(credit_key, '1', ex=86400)  # 24h expiry
 
-                logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {result['new_balance']}")
+                 logger.info(f"[Stripe] Added {credits} credits to {address}. New balance: {result['new_balance']}")
 
-                return JSONResponse(content={
-                    "status": "success",
-                    "credits": result["new_balance"]
-                })
+                 return JSONResponse(content={
+                     "status": "success",
+                     "credits": result["new_balance"]
+                 })
 
-            except Exception as e:
-                logger.error(f"[Stripe] Error processing credits: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+             except HTTPException:
+                 raise
+             except Exception as e:
+                 logger.error(f"[Stripe] Error processing credits: {str(e)}")
+                 raise HTTPException(status_code=500, detail=f"Failed to process payment credits: {str(e)}")
 
-        return JSONResponse(content={"status": session.payment_status})
+         return JSONResponse(content={"status": session.payment_status})
 
-    except stripe.error.StripeError as e:
-        logger.error(f"[Stripe] API Error: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        logger.error(f"[Stripe] Unexpected error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+     except HTTPException:
+         raise
+     except stripe.error.CardError as e:
+         logger.error(f"[Stripe] Card error: {str(e)}")
+         raise HTTPException(status_code=402, detail="Card was declined. Please check your payment details and try again.")
+     except stripe.error.RateLimitError as e:
+         logger.error(f"[Stripe] Rate limit error: {str(e)}")
+         raise HTTPException(status_code=429, detail="Too many requests. Please try again in a moment.")
+     except stripe.error.AuthenticationError as e:
+         logger.error(f"[Stripe] Authentication error: {str(e)}")
+         raise HTTPException(status_code=401, detail="Stripe authentication failed. Please try again.")
+     except stripe.error.APIConnectionError as e:
+         logger.error(f"[Stripe] Connection error: {str(e)}")
+         raise HTTPException(status_code=503, detail="Unable to reach payment provider. Please try again later.")
+     except stripe.error.StripeError as e:
+         logger.error(f"[Stripe] API Error: {str(e)}")
+         raise HTTPException(status_code=400, detail=f"Payment processing error: {str(e)}")
+     except Exception as e:
+         logger.error(f"[Stripe] Unexpected error: {str(e)}")
+         raise HTTPException(status_code=500, detail=f"Unexpected error checking payment status: {str(e)}")
 
 @stripe_router.post("/create-checkout-session/{tier}")
 async def create_checkout_session(tier: str, request: Request):
-    """Create a Stripe checkout session"""
-    from .stripe_config import STRIPE_PRICE_IDS, PRICE_CREDITS
-    
-    # Get request body
-    body = await request.json()
-    wallet_address = body.get('wallet_address')
-    
-    if not wallet_address:
-        raise HTTPException(status_code=400, detail="Wallet address is required")
-        
-    if tier not in STRIPE_PRICE_IDS:
-        raise HTTPException(status_code=400, detail="Invalid tier")
-        
-    try:
-        # First, try to get existing customer ID
-        customer_id = get_customer_id_from_address(wallet_address)
-        
-        # If no customer exists, create one
-        if not customer_id:
-            logger.info(f"[Stripe] Creating new customer for wallet {wallet_address}")
-            customer = stripe.Customer.create(
-                metadata={
-                    'wallet_address': wallet_address.lower()
-                }
-            )
-            customer_id = customer.id
-            # Store the new customer ID
-            set_customer_id_for_address(wallet_address, customer_id)
-            logger.info(f"[Stripe] Created and stored new customer {customer_id} for wallet {wallet_address}")
-        else:
-            logger.info(f"[Stripe] Using existing customer {customer_id} for wallet {wallet_address}")
+     """Create a Stripe checkout session"""
+     from .stripe_config import STRIPE_PRICE_IDS, PRICE_CREDITS
+     
+     try:
+         # Get request body
+         body = await request.json()
+         wallet_address = body.get('wallet_address')
+         
+         if not wallet_address:
+             raise HTTPException(status_code=400, detail="Wallet address is required")
+             
+         # Validate tier parameter
+         if tier not in STRIPE_PRICE_IDS:
+             available_tiers = ", ".join(STRIPE_PRICE_IDS.keys())
+             raise HTTPException(status_code=400, detail=f"Invalid tier: {tier}. Available tiers: {available_tiers}")
+             
+         logger.info(f"[Stripe] Creating checkout session for {wallet_address}, tier={tier}")
+         
+         try:
+             # First, try to get existing customer ID
+             customer_id = get_customer_id_from_address(wallet_address)
+             
+             # If no customer exists, create one
+             if not customer_id:
+                 logger.info(f"[Stripe] Creating new customer for wallet {wallet_address}")
+                 customer = stripe.Customer.create(
+                     metadata={
+                         'wallet_address': wallet_address.lower()
+                     }
+                 )
+                 customer_id = customer.id
+                 # Store the new customer ID
+                 set_customer_id_for_address(wallet_address, customer_id)
+                 logger.info(f"[Stripe] Created and stored new customer {customer_id} for wallet {wallet_address}")
+             else:
+                 logger.info(f"[Stripe] Using existing customer {customer_id} for wallet {wallet_address}")
 
-        checkout_session = stripe.checkout.Session.create(
-            customer=customer_id,  # Use the customer ID
-            payment_method_types=['card'],
-            line_items=[{
-                'price': STRIPE_PRICE_IDS[tier],
-                'quantity': 1
-            }],
-            mode='payment',
-            success_url=os.getenv('SUCCESS_URL', 'https://ghiblify-it.vercel.app/success') + '?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=os.getenv('CANCEL_URL', 'https://ghiblify-it.vercel.app/cancel'),
-            metadata={
-                'tier': tier,
-                'credits': str(PRICE_CREDITS[STRIPE_PRICE_IDS[tier]]),
-                'wallet_address': wallet_address
-            }
-        )
-        
-        return JSONResponse(content={
-            "url": checkout_session.url
-        })
-        
-    except Exception as e:
-        logger.error(f"Error creating checkout session: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+             checkout_session = stripe.checkout.Session.create(
+                 customer=customer_id,  # Use the customer ID
+                 payment_method_types=['card'],
+                 line_items=[{
+                     'price': STRIPE_PRICE_IDS[tier],
+                     'quantity': 1
+                 }],
+                 mode='payment',
+                 success_url=os.getenv('SUCCESS_URL', 'https://ghiblify-it.vercel.app/success') + '?session_id={CHECKOUT_SESSION_ID}',
+                 cancel_url=os.getenv('CANCEL_URL', 'https://ghiblify-it.vercel.app/cancel'),
+                 metadata={
+                     'tier': tier,
+                     'credits': str(PRICE_CREDITS[STRIPE_PRICE_IDS[tier]]),
+                     'wallet_address': wallet_address
+                 }
+             )
+             
+             logger.info(f"[Stripe] Created checkout session {checkout_session.id}")
+             
+             return JSONResponse(content={
+                 "url": checkout_session.url,
+                 "session_id": checkout_session.id
+             })
+         
+         except stripe.error.CardError as e:
+             logger.error(f"[Stripe] Card error: {str(e)}")
+             raise HTTPException(status_code=402, detail="Card error: Please verify your payment method.")
+         except stripe.error.RateLimitError:
+             logger.error("[Stripe] Rate limit reached")
+             raise HTTPException(status_code=429, detail="Too many requests. Please try again in a moment.")
+         except stripe.error.AuthenticationError:
+             logger.error("[Stripe] Authentication error")
+             raise HTTPException(status_code=401, detail="Stripe authentication failed.")
+         except stripe.error.APIConnectionError:
+             logger.error("[Stripe] Connection error")
+             raise HTTPException(status_code=503, detail="Unable to reach payment provider. Please try again later.")
+         except stripe.error.StripeError as e:
+             logger.error(f"[Stripe] Stripe API error: {str(e)}")
+             raise HTTPException(status_code=400, detail=f"Payment processing error: {str(e)}")
+             
+     except HTTPException:
+         raise
+     except ValueError as e:
+         logger.error(f"[Stripe] Invalid request data: {str(e)}")
+         raise HTTPException(status_code=400, detail=f"Invalid request: {str(e)}")
+     except Exception as e:
+         logger.error(f"[Stripe] Unexpected error creating checkout session: {str(e)}")
+         raise HTTPException(status_code=500, detail=f"Failed to create payment session: {str(e)}")
 
 @stripe_router.post("/link-customer")
 async def link_customer_to_wallet(wallet_address: str, customer_id: str):

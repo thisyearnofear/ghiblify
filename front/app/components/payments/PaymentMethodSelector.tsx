@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   VStack,
   HStack,
@@ -52,6 +53,8 @@ export default function PaymentMethodSelector({
   const { isInMiniApp } = useFarcaster();
   const chainId = useChainId();
   const toast = useToast();
+  const [celoBalance, setCeloBalance] = useState<string | null>(null);
+  const [checkingCeloBalance, setCheckingCeloBalance] = useState(false);
 
   // DRY: Use centralized theme instead of scattered useColorModeValue calls
   const { colors, patterns, utils } = useGhibliTheme();
@@ -65,6 +68,33 @@ export default function PaymentMethodSelector({
   });
   const buttonHeight = isInMiniApp ? "60px" : "72px";
   const buttonPadding = isInMiniApp ? 3 : 4;
+
+  // Check Celo balance when provider is RainbowKit and on Celo chain
+  useEffect(() => {
+    const checkCeloBalance = async () => {
+      if (provider !== "rainbowkit" || !user?.address || chainId !== 42220) {
+        return;
+      }
+      
+      try {
+        setCheckingCeloBalance(true);
+        const { publicClient } = await import("../../lib/config/wagmi");
+        const balance = await publicClient.getBalance({
+          address: user.address as `0x${string}`,
+          token: "0x765DE816845861e75A25fCA122bb6898B6F02217", // cUSD token address on Celo
+        });
+        setCeloBalance(balance.toString());
+      } catch (error) {
+        console.error("Error checking Celo balance:", error);
+      } finally {
+        setCheckingCeloBalance(false);
+      }
+    };
+
+    if (isConnected && provider === "rainbowkit") {
+      checkCeloBalance();
+    }
+  }, [isConnected, provider, user?.address, chainId]);
 
   // Determine available payment methods based on context
   const getAvailablePaymentMethods = () => {
@@ -102,6 +132,7 @@ export default function PaymentMethodSelector({
 
     // Celo (when on RainbowKit) - Always show, auto-switch network like $GHIBLIFY
     if (provider === "rainbowkit") {
+      const celoBalanceNum = celoBalance ? parseInt(celoBalance) / 1e18 : 0;
       methods.push({
         id: "celo",
         name: "Pay with cUSD",
@@ -109,7 +140,7 @@ export default function PaymentMethodSelector({
         colorScheme: "yellow",
         discount: 30,
         badge: "30% OFF",
-        description: "Celo USD stablecoin",
+        description: `Celo USD stablecoin${checkingCeloBalance ? " (checking balance...)" : celoBalance ? ` - Balance: ${celoBalanceNum.toFixed(2)} cUSD` : ""}`,
         priority: 3,
         requiresNetworkSwitch: chainId !== 42220, // Auto-switch if not on Celo mainnet
       });
@@ -173,6 +204,38 @@ export default function PaymentMethodSelector({
         )}
       </HStack>
 
+      {/* Celo balance warning if insufficient */}
+      {provider === "rainbowkit" && celoBalance && chainId === 42220 && (
+        (() => {
+          const celoBalanceNum = parseInt(celoBalance) / 1e18;
+          const requiredAmount = calculatePrice(tier.basePrice, 30).discounted;
+          if (celoBalanceNum < requiredAmount) {
+            return (
+              <Box
+                p={3}
+                bg="orange.50"
+                borderLeft="4px solid"
+                borderColor="orange.500"
+                borderRadius="md"
+              >
+                <HStack spacing={2} align="flex-start">
+                  <Icon as={FiAlertTriangle} color="orange.600" flexShrink={0} />
+                  <VStack spacing={1} align="start">
+                    <Text fontSize="sm" fontWeight="semibold" color="orange.900">
+                      Insufficient cUSD Balance
+                    </Text>
+                    <Text fontSize="xs" color="orange.700">
+                      You have {celoBalanceNum.toFixed(2)} cUSD, but {requiredAmount.toFixed(2)} cUSD is required
+                    </Text>
+                  </VStack>
+                </HStack>
+              </Box>
+            );
+          }
+          return null;
+        })()
+      )}
+
       <VStack spacing={isInMiniApp ? 1.5 : 2} align="stretch">
         {availableMethods.map((method) => {
           const pricing = calculatePrice(tier.basePrice, method.discount);
@@ -216,6 +279,23 @@ export default function PaymentMethodSelector({
               minH={buttonHeight}
               p={buttonPadding}
               onClick={async () => {
+                // Validate Celo balance before proceeding with payment
+                if (method.id === "celo" && celoBalance) {
+                  const celoBalanceNum = parseInt(celoBalance) / 1e18;
+                  const requiredAmount = calculatePrice(tier.basePrice, 30).discounted;
+                  
+                  if (celoBalanceNum < requiredAmount) {
+                    toast({
+                      title: "Insufficient cUSD Balance",
+                      description: `You have ${celoBalanceNum.toFixed(2)} cUSD, but ${requiredAmount.toFixed(2)} cUSD is required.`,
+                      status: "warning",
+                      duration: 6000,
+                      isClosable: true,
+                    });
+                    return;
+                  }
+                }
+
                 // Handle CELO network switching automatically like $GHIBLIFY
                 if (method.id === "celo" && method.requiresNetworkSwitch) {
                   console.log("Switching to CELO network for cUSD payment");
@@ -270,10 +350,10 @@ export default function PaymentMethodSelector({
                     }
 
                     console.error("Error during network switch:", error);
+                    const errorMsg = error instanceof Error ? error.message : "Unknown error";
                     toast({
                       title: "Network Switch Error",
-                      description:
-                        "An error occurred while switching networks. Please try again.",
+                      description: `Failed to switch networks: ${errorMsg}`,
                       status: "error",
                       duration: 8000,
                       isClosable: true,

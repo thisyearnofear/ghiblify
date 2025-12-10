@@ -263,16 +263,33 @@ class BaseAccountAuthService {
       return;
     }
 
-    localStorage.removeItem('ghiblify_auth');
+    try {
+      localStorage.removeItem('ghiblify_auth');
+    } catch (error) {
+      console.warn('[Base Account] Failed to remove auth from localStorage:', error);
+    }
+    
     this.currentUser = null;
     this.setStatus('idle');
     
-    // Additional cleanup for Base Account SDK state
+    // Additional cleanup for Web3 provider state
     try {
-      // Clear any cached SDK instances or state
-      if (typeof window !== 'undefined' && (window as any).ethereum) {
-        // Force reload the page as a last resort to reset SDK state
-        console.log('[Base Account] Performing deep cleanup after sign out');
+      // Safely check for ethereum provider without conflicts
+      if (typeof window !== 'undefined' && typeof (window as any).ethereum !== 'undefined') {
+        // Disconnect any existing provider listeners/subscriptions
+        const ethereumProvider = (window as any).ethereum;
+        
+        // Try to emit a disconnect event if the provider supports it
+        if (typeof ethereumProvider.emit === 'function') {
+          ethereumProvider.emit('disconnect');
+          console.log('[Base Account] Emitted disconnect event to Web3 provider');
+        }
+        
+        // Remove any cached provider instance from Base Account SDK
+        if (typeof ethereumProvider._clearBaseAccountState === 'function') {
+          ethereumProvider._clearBaseAccountState();
+          console.log('[Base Account] Cleared Base Account state from provider');
+        }
       }
     } catch (error) {
       console.warn('[Base Account] Cleanup warning:', error);

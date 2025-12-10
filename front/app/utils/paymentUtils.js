@@ -61,7 +61,7 @@ export const createPaymentHandler = (method, config = {}) => {
 const handleStripePayment = async (tier, options) => {
   const { address, apiUrl } = options;
 
-  const response = await fetch(`${apiUrl}/api/stripe/create-checkout-session`, {
+  const response = await fetch(`${apiUrl}/api/stripe/create-checkout-session/${tier.name}`, {
     method: "POST",
     credentials: "include",
     mode: "cors",
@@ -74,8 +74,7 @@ const handleStripePayment = async (tier, options) => {
           : "https://ghiblify-it.vercel.app",
     },
     body: JSON.stringify({
-      tierId: tier.name,
-      address,
+      wallet_address: address,
       returnUrl: window.location.href,
     }),
   });
