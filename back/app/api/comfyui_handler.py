@@ -590,10 +590,15 @@ async def check_comfyui_status(task_id: str):
 @comfyui_router.get("/status/{task_id}")
 async def get_task_status(task_id: str):
     """Get the status of a task with progress milestones"""
-    # First check ComfyUI API for updates
-    await check_comfyui_status(task_id)
-    
     result = task_results.get(task_id)
+
+    # Only check ComfyUI API for updates if task is still PROCESSING
+    # Don't poll if task is already in a final state (COMPLETED, ERROR)
+    if result is None or result.get("status") == "PROCESSING":
+        await check_comfyui_status(task_id)
+        # Re-fetch the result after checking status
+        result = task_results.get(task_id)
+
     logger.info(f"Task status request for {task_id}. Current status: {result}")
     if not result:
         return JSONResponse(content={
@@ -638,6 +643,19 @@ async def get_task_status(task_id: str):
         
     # Calculate milestone based on time elapsed (typical job takes about 60 seconds)
     elapsed = asyncio.get_event_loop().time() - result["timestamp"]
+
+    # Maximum allowed time for processing (10 minutes = 600 seconds)
+    MAX_PROCESSING_TIME = 600  # 10 minutes
+
+    if elapsed > MAX_PROCESSING_TIME:
+        # Update the task status to ERROR with timeout message
+        await update_task_status(task_id, "ERROR", error="Task timed out after 10 minutes")
+        return JSONResponse(content={
+            "status": "ERROR",
+            "error": "Task timed out after 10 minutes",
+            "message": "Processing timed out"
+        })
+
     if elapsed < 30:  # First 30 seconds
         milestone = 25
         message = "Initializing image processing..."
@@ -647,10 +665,11 @@ async def get_task_status(task_id: str):
     elif elapsed < 90:  # 90 seconds
         milestone = 75
         message = "Refining image details..."
-    else:  # > 90 seconds
-        milestone = 90  # Stay at 100% until complete
-        message = "Finalizing image..."
-    
+    else:  # > 90 seconds but < 600 seconds
+        # Cap at 95% while still processing
+        milestone = 95
+        message = f"Finalizing image... ({int(elapsed//60)}m {int(elapsed%60)}s elapsed)"
+
     return JSONResponse(content={
         "status": "PROCESSING",
         "milestone": milestone,
