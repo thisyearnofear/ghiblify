@@ -37,8 +37,8 @@ class RedisConfig:
     db: int = 0
     ssl: bool = os.getenv('REDIS_SSL', 'true').lower() == 'true'
     max_connections: int = 20
-    socket_timeout: float = 5.0
-    socket_connect_timeout: float = 5.0
+    socket_timeout: float = 30.0
+    socket_connect_timeout: float = 30.0
     retry_on_timeout: bool = True
     decode_responses: bool = True
     url: Optional[str] = os.getenv('UPSTASH_REDIS_URL') or os.getenv('REDIS_URL')
@@ -145,9 +145,9 @@ class ModernRedisService:
             
         except Exception as e:
             logger.error(f"[Redis] Primary connection failed: {str(e)}")
-            
-            # Try alternative connection method for Upstash
-            if self.config.ssl and "ssl" in str(e).lower():
+
+            # Try alternative connection method for Upstash - Always attempt when primary fails
+            if True:  # Always try alternative method on connection failure
                 logger.info("[Redis] Attempting alternative SSL connection method...")
                 try:
                     # Alternative: Use URL-based connection for Upstash
@@ -156,18 +156,17 @@ class ModernRedisService:
                         redis_url,
                         socket_timeout=self.config.socket_timeout,
                         socket_connect_timeout=self.config.socket_connect_timeout,
-                        retry_on_timeout=self.config.retry_on_timeout,
                         decode_responses=self.config.decode_responses,
                         ssl_cert_reqs=None,
                         ssl_check_hostname=False
                     )
-                    
+
                     # Test alternative connection
                     if self.client.ping():
                         self.available = True
                         logger.info("[Redis] ✅ Alternative SSL connection successful!")
                         return
-                    
+
                 except Exception as alt_error:
                     logger.error(f"[Redis] Alternative connection also failed: {alt_error}")
             
