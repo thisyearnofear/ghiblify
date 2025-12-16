@@ -9,6 +9,8 @@ import logging
 import os
 from dotenv import load_dotenv
 from .credit_manager import credit_manager
+from ..services.redis_service import redis_service
+from ..services.creations_service import record_image_generation
 import httpx
 import asyncio
 import json
@@ -50,15 +52,53 @@ if not COMFYUI_ENABLED:
 comfyui_router = APIRouter()
 
 # Store task results with timestamps
+# NOTE: This is a hot path for polling. We keep an in-memory cache for speed,
+# and persist a lightweight version (without base64 payloads) to Redis for resilience.
 task_results = {}
+
+TASK_META_TTL_SECONDS = 60 * 60 * 24  # 24h
+
+def _task_meta_key(task_id: str) -> str:
+    return f"comfyui_task:{task_id}"
+
+
+def _persist_task_meta(task_id: str) -> None:
+    if not redis_service.available:
+        return
+
+    data = dict(task_results.get(task_id) or {})
+    if not data:
+        return
+
+    # Avoid persisting large base64 blobs in Redis.
+    if "result" in data:
+        data["result"] = None
+
+    redis_service.set(_task_meta_key(task_id), json.dumps(data), ex=TASK_META_TTL_SECONDS)
+
+
+def _load_task_meta(task_id: str) -> dict | None:
+    raw = redis_service.get(_task_meta_key(task_id))
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        return None
+    return None
+
 
 async def update_task_status(task_id: str, status: str, **kwargs):
     """Update task status with timestamp"""
-    task_results[task_id] = {
-        "status": status,
-        "timestamp": asyncio.get_event_loop().time(),
-        **kwargs
-    }
+    existing = task_results.get(task_id) or _load_task_meta(task_id) or {}
+    existing.update(kwargs)
+    existing["status"] = status
+    existing["timestamp"] = asyncio.get_event_loop().time()
+
+    task_results[task_id] = existing
+    _persist_task_meta(task_id)
     logger.info(f"Task {task_id} status updated to {status}")
 
 async def upload_to_imgbb(image_bytes: bytes) -> str:
@@ -386,13 +426,11 @@ async def handle_comfyui(image_bytes: bytes, webhook_url: str = None, address: s
 
             logger.info(f"Received task ID: {task_id}")
             
-            # Initialize task status
-            await update_task_status(task_id, "PROCESSING")
-            
             # Return task ID immediately
             return {
                 "task_id": task_id,
-                "status": "PROCESSING"
+                "status": "PROCESSING",
+                "original_url": image_url,
             }
             
         except Exception as e:
@@ -422,6 +460,48 @@ async def download_and_convert_to_base64(url: str) -> str:
     except Exception as e:
         logger.error(f"Error downloading image from {url}: {str(e)}")
         raise
+
+
+async def maybe_record_creation_for_task(task_id: str) -> None:
+    meta = task_results.get(task_id) or _load_task_meta(task_id)
+    if not meta or meta.get("creation_recorded"):
+        return
+
+    if meta.get("status") != "COMPLETED":
+        return
+
+    address = meta.get("address")
+    output_url = meta.get("url")
+
+    # If this completion only has base64 in memory, we still save it.
+    if not output_url:
+        output_url = meta.get("result")
+
+    if not address or not output_url:
+        return
+
+    input_url = meta.get("original_url") or meta.get("original") or output_url
+
+    record_image_generation(
+        address=address,
+        provider="comfyui",
+        input_url=input_url,
+        output_url=output_url,
+        creation_id=meta.get("creation_id"),
+        source_artifact_id=meta.get("source_artifact_id"),
+        params=meta.get("params"),
+        output_artifact_id=task_id,
+    )
+
+    # Mark recorded and persist lightweight meta.
+    existing = task_results.get(task_id)
+    if existing is None:
+        task_results[task_id] = meta
+        existing = task_results[task_id]
+
+    existing["creation_recorded"] = True
+    _persist_task_meta(task_id)
+
 
 @comfyui_router.post("/webhook")
 async def comfyui_webhook(request: Request):
@@ -473,6 +553,7 @@ async def comfyui_webhook(request: Request):
                     url=output_urls[0],
                     result=image_base64
                 )
+                await maybe_record_creation_for_task(task_id)
             except Exception as e:
                 await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
                 raise
@@ -512,6 +593,7 @@ async def update_status(task_id: str, request: Request):
                         result=base64_data,
                         url=output_urls[0]
                     )
+                    await maybe_record_creation_for_task(task_id)
                 except Exception as e:
                     await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
                     raise
@@ -571,6 +653,7 @@ async def check_comfyui_status(task_id: str):
                                     result=base64_data,
                                     url=output_urls[0]
                                 )
+                                await maybe_record_creation_for_task(task_id)
                             except Exception as e:
                                 logger.error(f"Error downloading image: {str(e)}")
                                 await update_task_status(task_id, "ERROR", error=f"Failed to download image: {str(e)}")
@@ -592,12 +675,16 @@ async def get_task_status(task_id: str):
     """Get the status of a task with progress milestones"""
     result = task_results.get(task_id)
 
+    # Fallback to Redis for resilience across restarts.
+    if result is None:
+        result = _load_task_meta(task_id)
+
     # Only check ComfyUI API for updates if task is still PROCESSING
     # Don't poll if task is already in a final state (COMPLETED, ERROR)
     if result is None or result.get("status") == "PROCESSING":
         await check_comfyui_status(task_id)
         # Re-fetch the result after checking status
-        result = task_results.get(task_id)
+        result = task_results.get(task_id) or _load_task_meta(task_id)
 
     logger.info(f"Task status request for {task_id}. Current status: {result}")
     if not result:
@@ -611,25 +698,39 @@ async def get_task_status(task_id: str):
     if result["status"] == "COMPLETED":
         result_data = result.get("result")
         url_data = result.get("url")
-        
-        # Validate that result is a string
-        if result_data and not isinstance(result_data, str):
-            logger.error(f"Non-string result data for task {task_id}: {type(result_data)}")
-            return JSONResponse(content={
-                "status": "ERROR",
-                "error": "Invalid result format - expected string URL",
-                "message": "Processing failed"
-            })
-        
+
         # Validate that url is a string if present
         if url_data and not isinstance(url_data, str):
             logger.error(f"Non-string URL data for task {task_id}: {type(url_data)}")
             url_data = None
-        
+
+        # If we don't have a base64 payload (e.g. after restart), reconstruct it from the URL.
+        if (not result_data or not isinstance(result_data, str)) and url_data:
+            try:
+                result_data = await download_and_convert_to_base64(url_data)
+                # Cache in memory only (avoid large Redis payloads).
+                if task_id in task_results:
+                    task_results[task_id]["result"] = result_data
+            except Exception as e:
+                logger.error(f"Failed to reconstruct base64 for task {task_id}: {str(e)}")
+                return JSONResponse(
+                    content={
+                        "status": "ERROR",
+                        "error": "Failed to load completed result",
+                        "message": "Processing failed",
+                    },
+                    status_code=500,
+                )
+
+        # Validate that result is a string
+        if result_data and not isinstance(result_data, str):
+            logger.error(f"Non-string result data for task {task_id}: {type(result_data)}")
+            result_data = None
+
         return JSONResponse(content={
             "status": "COMPLETED",
-            "result": result_data,  # base64 data (validated string)
-            "url": url_data,        # direct URL (validated string or None)
+            "result": result_data,
+            "url": url_data,
             "message": "Processing complete"
         })
         
@@ -677,7 +778,13 @@ async def get_task_status(task_id: str):
     })
 
 @comfyui_router.post("/")
-async def process_with_comfyui(file: UploadFile = File("test"), address: str = None, request: Request = None):
+async def process_with_comfyui(
+    file: UploadFile = File("test"),
+    address: str = None,
+    creation_id: str = None,
+    source_artifact_id: str = None,
+    request: Request = None,
+):
     # Check if ComfyUI is properly configured
     if not COMFYUI_ENABLED:
         raise HTTPException(
@@ -712,13 +819,23 @@ async def process_with_comfyui(file: UploadFile = File("test"), address: str = N
 
         logger.info("Processing image with ComfyUI...")
         output = await handle_comfyui(image_bytes, webhook_url=webhook_override or WEBHOOK_URL, address=address)
+
+        await update_task_status(
+            output["task_id"],
+            "PROCESSING",
+            address=address,
+            creation_id=creation_id,
+            source_artifact_id=source_artifact_id,
+            original_url=output.get("original_url"),
+        )
         
         return JSONResponse(
             content={
                 "message": "Photo processing started",
                 "original": BASE64_PREAMBLE + base64_encoded,
                 "task_id": output["task_id"],
-                "status": output["status"]
+                "status": output["status"],
+                "creation_id": creation_id,
             },
             status_code=202  # 202 Accepted indicates the request is being processed
         )

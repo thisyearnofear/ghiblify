@@ -102,18 +102,32 @@ export default function Navigation() {
           </Text>
 
           {isConnected && (
-            <Button
-              {...PATTERNS.glassButton}
-              variant="ghost"
-              size="xs"
-              onClick={() => router.push("/account")}
-              color="whiteAlpha.900"
-              display={{ base: "none", md: "flex" }}
-              px={3}
-              fontSize="xs"
-            >
-              Account
-            </Button>
+            <>
+              <Button
+                {...PATTERNS.glassButton}
+                variant="ghost"
+                size="xs"
+                onClick={() => router.push("/creations")}
+                color="whiteAlpha.900"
+                display={{ base: "none", md: "flex" }}
+                px={3}
+                fontSize="xs"
+              >
+                Creations
+              </Button>
+              <Button
+                {...PATTERNS.glassButton}
+                variant="ghost"
+                size="xs"
+                onClick={() => router.push("/account")}
+                color="whiteAlpha.900"
+                display={{ base: "none", md: "flex" }}
+                px={3}
+                fontSize="xs"
+              >
+                Account
+              </Button>
+            </>
           )}
         </HStack>
 

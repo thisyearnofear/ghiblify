@@ -11,6 +11,7 @@ from .base_pay_handler import base_pay_router
 from .ghiblify_token_handler import ghiblify_token_router
 from .health import router as health_router
 from .memory_api import memory_api_router
+from .creations import creations_router
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ router = APIRouter()
 router.include_router(health_router)
 router.include_router(replicate_router, prefix="/replicate")
 router.include_router(comfyui_router, prefix="/comfyui")
+router.include_router(creations_router, prefix="/creations", tags=["creations"])
 router.include_router(payments_router, prefix="/payments", tags=["payments"])
 router.include_router(stripe_router, prefix="/stripe", tags=["payments"])
 router.include_router(credits_router, prefix="/credits", tags=["credits"])
