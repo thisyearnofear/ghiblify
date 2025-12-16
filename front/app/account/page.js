@@ -365,7 +365,7 @@ export default function Account() {
                 </Heading>
                 <IdentityDashboard
                   address={address}
-                  farcasterUsername={state.user?.identity?.farcaster?.username}
+                  farcasterUsername={undefined}
                 />
               </Box>
 
@@ -376,7 +376,7 @@ export default function Account() {
                 </Heading>
                 <SuggestedFollows
                   address={address}
-                  farcasterUsername={state.user?.identity?.farcaster?.username}
+                  farcasterUsername={undefined}
                 />
               </Box>
             </VStack>

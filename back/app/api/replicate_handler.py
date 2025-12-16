@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Request
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Form
 from fastapi.responses import JSONResponse
 import base64
 from io import BytesIO
@@ -11,6 +11,7 @@ import os
 from dotenv import load_dotenv
 import httpx
 from .credit_manager import credit_manager
+from ..services.creations_service import record_image_generation
 
 load_dotenv()
 
@@ -37,7 +38,14 @@ REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7ead
 replicate_router = APIRouter()
 
 @replicate_router.post("/")
-async def process_with_replicate(file: UploadFile = File("test"), address: str = None, request: Request = None):
+async def process_with_replicate(
+    file: UploadFile = File("test"),
+    address: str = None,
+    creation_id: str = None,
+    source_artifact_id: str = None,
+    prompt_strength: float = Form(0.8),
+    request: Request = None,
+):
     if not address:
         raise HTTPException(status_code=400, detail="Wallet address is required")
 
@@ -56,6 +64,8 @@ async def process_with_replicate(file: UploadFile = File("test"), address: str =
         base64_encoded = base64.b64encode(image_bytes).decode("utf-8")
 
         logger.info("Processing image with Replicate...")
+
+        safe_prompt_strength = max(0.0, min(float(prompt_strength or 0.8), 1.0))
         
         # Run the model with all necessary parameters
         output = replicate.run(
@@ -68,7 +78,7 @@ async def process_with_replicate(file: UploadFile = File("test"), address: str =
                 "height": 1024,
                 "num_inference_steps": 50,
                 "guidance_scale": 7.5,
-                "prompt_strength": 0.8,
+                "prompt_strength": safe_prompt_strength,
                 "refine": "expert_ensemble_refiner",
                 "high_noise_frac": 0.8,
                 "negative_prompt": "nsfw, nudity, adult content, inappropriate, unsafe for work, violence, gore, disturbing content"
@@ -100,6 +110,16 @@ async def process_with_replicate(file: UploadFile = File("test"), address: str =
         result_url = BASE64_PREAMBLE + output_base64
         if not isinstance(result_url, str):
             raise HTTPException(status_code=500, detail="Non-string URL returned from processing")
+
+        creation = record_image_generation(
+            address=address,
+            provider="replicate",
+            input_url=BASE64_PREAMBLE + base64_encoded,
+            output_url=result_url,
+            creation_id=creation_id,
+            source_artifact_id=source_artifact_id,
+            params={"prompt_strength": safe_prompt_strength},
+        )
         
         return JSONResponse(
             content={
@@ -107,7 +127,8 @@ async def process_with_replicate(file: UploadFile = File("test"), address: str =
                 "original": BASE64_PREAMBLE + base64_encoded,
                 "result": result_url,
                 "url": result_url,  # Add url field for consistency with ComfyUI
-                "task_id": None  # Add task_id field for consistency
+                "task_id": None,  # Add task_id field for consistency
+                "creation_id": creation.get("id"),
             },
             status_code=200
         )
