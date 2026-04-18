@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Request
+from fastapi import APIRouter, File, UploadFile, HTTPException, Request, Form
 from fastapi.responses import JSONResponse
 import base64
 from io import BytesIO
@@ -37,7 +37,13 @@ REPLICATE_MODEL = "grabielairu/ghibli:4b82bb7dbb3b153882a0c34d7f2cbc4f7012ea7ead
 replicate_router = APIRouter()
 
 @replicate_router.post("/")
-async def process_with_replicate(file: UploadFile = File("test"), address: str = None, request: Request = None):
+async def process_with_replicate(
+    file: UploadFile = File("test"), 
+    address: str = None, 
+    prompt_strength: float = Form(0.8),
+    mode: str = Form("image"),
+    request: Request = None
+):
     if not address:
         raise HTTPException(status_code=400, detail="Wallet address is required")
 
@@ -68,7 +74,7 @@ async def process_with_replicate(file: UploadFile = File("test"), address: str =
                 "height": 1024,
                 "num_inference_steps": 50,
                 "guidance_scale": 7.5,
-                "prompt_strength": 0.8,
+                "prompt_strength": prompt_strength,
                 "refine": "expert_ensemble_refiner",
                 "high_noise_frac": 0.8,
                 "negative_prompt": "nsfw, nudity, adult content, inappropriate, unsafe for work, violence, gore, disturbing content"

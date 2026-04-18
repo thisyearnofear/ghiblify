@@ -27,7 +27,7 @@ const html2canvas = typeof window !== "undefined"
 const MAX_FILES = 6;
 const MAX_FILE_SIZE_MB = 8;
 
-export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed }) {
+export default function BatchGhiblify({ apiChoice, ghibliMode, promptStrength, onCreditsUsed }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [progress, setProgress] = useState([]);
@@ -124,6 +124,7 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
       const formData = new FormData();
       formData.append("file", file);
       formData.append("prompt_strength", promptStrength.toString());
+      formData.append("mode", ghibliMode || "image");
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
       const formDataOptions = {
@@ -169,12 +170,12 @@ export default function BatchGhiblify({ apiChoice, promptStrength, onCreditsUsed
                 const raw = pollData.result ?? pollData.url ?? null;
 
                 let imageUrl = null;
-                if (typeof raw === "string" && (raw.startsWith("data:image/") || raw.startsWith("http"))) {
+                if (typeof raw === "string" && (raw.startsWith("data:image/") || raw.startsWith("data:video/") || raw.startsWith("http"))) {
                   imageUrl = raw;
                 } else if (raw && typeof raw === "object") {
-                  if (typeof raw.url === "string" && (raw.url.startsWith("data:image/") || raw.url.startsWith("http"))) {
+                  if (typeof raw.url === "string" && (raw.url.startsWith("data:image/") || raw.url.startsWith("data:video/") || raw.url.startsWith("http"))) {
                     imageUrl = raw.url;
-                  } else if (typeof raw.result === "string" && (raw.result.startsWith("data:image/") || raw.result.startsWith("http"))) {
+                  } else if (typeof raw.result === "string" && (raw.result.startsWith("data:image/") || raw.result.startsWith("data:video/") || raw.result.startsWith("http"))) {
                     imageUrl = raw.result;
                   }
                 }

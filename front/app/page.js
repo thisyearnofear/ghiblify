@@ -145,6 +145,7 @@ export default function Home() {
   const [modalImage, setModalImage] = useState(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [apiChoice, setApiChoice] = useState("comfy"); // Changed from "replicate" to "comfy"
+  const [ghibliMode, setGhibliMode] = useState("image"); // "image" or "motion"
   const [taskId, setTaskId] = useState(null);
   const [taskProgress, setTaskProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
@@ -216,7 +217,7 @@ export default function Home() {
 
     // If it's already a string, validate it's a proper data URL or HTTP URL
     if (typeof val === "string") {
-      if (val.startsWith("data:image/") || val.startsWith("http")) {
+      if (val.startsWith("data:image/") || val.startsWith("data:video/") || val.startsWith("http")) {
         return val;
       }
       return null;
@@ -225,7 +226,7 @@ export default function Home() {
     if (typeof val === "object" && val !== null) {
       // Avoid processing circular references or React elements
       if (
-        val.$$typeof ||
+        val.$typeof ||
         val._owner ||
         val.type ||
         val.key ||
@@ -238,13 +239,13 @@ export default function Home() {
       // common shapes: { url }, { result: string }, arrays
       if (
         typeof val.url === "string" &&
-        (val.url.startsWith("data:image/") || val.url.startsWith("http"))
+        (val.url.startsWith("data:image/") || val.url.startsWith("data:video/") || val.url.startsWith("http"))
       ) {
         return val.url;
       }
       if (
         typeof val.result === "string" &&
-        (val.result.startsWith("data:image/") || val.result.startsWith("http"))
+        (val.result.startsWith("data:image/") || val.result.startsWith("data:video/") || val.result.startsWith("http"))
       ) {
         return val.result;
       }
@@ -294,9 +295,10 @@ export default function Home() {
             try {
               if (
                 !imageUrl.startsWith("data:image/") &&
+                !imageUrl.startsWith("data:video/") &&
                 !imageUrl.startsWith("http")
               ) {
-                throw new Error("Invalid image URL format");
+                throw new Error("Invalid result URL format");
               }
 
               // Store the validated string URL
@@ -447,6 +449,7 @@ export default function Home() {
 
       // Add prompt_strength for backend API
       formData.append("prompt_strength", promptStrength.toString());
+      formData.append("mode", ghibliMode);
 
       const endpoint =
         apiChoice === "replicate" ? "/api/replicate" : "/api/comfyui";
@@ -603,6 +606,46 @@ export default function Home() {
             </Box>
           </RadioGroup>
         </Box>
+
+        {apiChoice === "comfy" && (
+          <Box w="100%" maxW="400px" mb={6} mx="auto">
+            <Text
+              fontSize="lg"
+              mb={3}
+              textAlign="center"
+              color={colors.text.primary}
+            >
+              Output Format
+            </Text>
+            <Flex
+              p={1}
+              bg={colors.interactive.hover}
+              borderRadius="xl"
+              justify="center"
+            >
+              <Button
+                flex={1}
+                variant={ghibliMode === "image" ? "solid" : "ghost"}
+                colorScheme={ghibliMode === "image" ? "blue" : "gray"}
+                onClick={() => setGhibliMode("image")}
+                borderRadius="lg"
+                size="sm"
+              >
+                Static
+              </Button>
+              <Button
+                flex={1}
+                variant={ghibliMode === "motion" ? "solid" : "ghost"}
+                colorScheme={ghibliMode === "motion" ? "blue" : "gray"}
+                onClick={() => setGhibliMode("motion")}
+                borderRadius="lg"
+                size="sm"
+              >
+                Motion
+              </Button>
+            </Flex>
+          </Box>
+        )}
         <Box w="100%" maxW="400px" mx="auto" mb={8}>
           <FormLabel
             htmlFor="intensity-slider"
@@ -687,6 +730,7 @@ export default function Home() {
             <TabPanel>
               <BatchGhiblify
                 apiChoice={apiChoice}
+                ghibliMode={ghibliMode}
                 promptStrength={promptStrength}
                 address={address}
                 onCreditsUsed={() => setCreditsRefreshKey((k) => k + 1)}
@@ -713,7 +757,7 @@ export default function Home() {
                 <SkeletonCircle size="12" />
                 <Box mt={4} textAlign="center">
                   <Text fontSize="sm" mb={2}>
-                    Transforming your image into Ghibli style...
+                    {ghibliMode === "motion" ? "Transforming your image into a Ghibli motion masterpiece..." : "Transforming your image into Ghibli style..."}
                     {apiChoice === "comfy" &&
                       typeof taskProgress === "number" &&
                       taskProgress > 0 &&
@@ -721,7 +765,9 @@ export default function Home() {
                   </Text>
                   <Text fontSize="xs" color={colors.text.secondary} mb={4}>
                     {apiChoice === "comfy"
-                      ? "Estimated time: 1-2 minutes with low load, 2-5 minutes with medium load"
+                      ? ghibliMode === "motion" 
+                        ? "Estimated time: 2-4 minutes with low load, 5-8 minutes with medium load"
+                        : "Estimated time: 1-2 minutes with low load, 2-5 minutes with medium load"
                       : "Estimated time: 30-60 seconds"}
                   </Text>
                   <Text

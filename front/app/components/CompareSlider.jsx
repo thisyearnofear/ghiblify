@@ -31,6 +31,38 @@ export default function CompareSlider({
     setTimeout(() => setIsInteracting(false), 100);
   };
 
+  const isVideo = resultUrl?.toLowerCase().includes(".mp4") || resultUrl?.startsWith("data:video/");
+
+  if (isVideo) {
+    return (
+      <VStack spacing={3} w={width} maxW={maxWidth} mx="auto" my={4}>
+        <Box 
+          w="full" 
+          position="relative"
+          borderRadius={borderRadius}
+          overflow="hidden"
+          boxShadow="0 4px 20px rgba(0,0,0,0.12)"
+        >
+          <video
+            src={resultUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            style={{
+              width: "100%",
+              height: "auto",
+              display: "block",
+            }}
+          />
+        </Box>
+        <Text fontSize="sm" color="blue.500" fontWeight="medium">
+          ✨ Ghibli Motion Result
+        </Text>
+      </VStack>
+    );
+  }
+
   return (
     <VStack spacing={3} w={width} maxW={maxWidth} mx="auto" my={4}>
       {/* Mobile Instructions */}
